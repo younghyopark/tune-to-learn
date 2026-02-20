@@ -1,0 +1,260 @@
+<!-- ════════════════════════════════════════════════════════════
+     Content for Choice A: "Don't Tune"
+     Edit this file independently — it gets fetched & injected.
+     ════════════════════════════════════════════════════════════ -->
+
+<section class="section alt-bg" id="results">
+  <div class="container container-medium">
+    <h2>Out-of-the-Box Gain Settings are Random.</h2>
+    <div class="container">
+      <p>
+        We note that default, out-of-the-box controller settings for most 
+        robot control libraries are tuned in an <b>arbitrary</b> fashion. Flick through the popular control libraries below
+        and see if you can spot any patterns in their gain selection!
+      </p>
+    </div>
+
+    <!-- Tabbed library comparison -->
+    <div data-tabs style="margin-top:1.5rem;">
+      <div class="tab-nav">
+        <button class="tab-btn active" data-tab="tab-deoxys"><span class="tab-badge real">Real</span>Deoxys</button>
+        <button class="tab-btn" data-tab="tab-polymetis"><span class="tab-badge real">Real</span>Polymetis</button>
+        <button class="tab-btn" data-tab="tab-frankapy"><span class="tab-badge real">Real</span>FrankaPy</button>
+        <button class="tab-btn" data-tab="tab-isaaclab"><span class="tab-badge sim">Sim</span>IsaacLab</button>
+        <button class="tab-btn" data-tab="tab-isaaclab-high"><span class="tab-badge sim">Sim</span>IsaacLab (high-gain)</button>
+        <button class="tab-btn" data-tab="tab-maniskill"><span class="tab-badge sim">Sim</span>ManiSkill</button>
+      </div>
+
+      <div class="tab-content active" id="tab-deoxys">
+        <div class="container-narrow" style="margin:0 auto; padding:1.25rem 0;">
+          <div class="github-embed">
+            <div class="github-embed-header">
+              <i class="fab fa-github"></i>
+              <a href="https://github.com/UT-Austin-RPL/deoxys_control/blob/97396fd/deoxys/config/joint-impedance-controller.yml#L9-L10" target="_blank">
+                UT-Austin-RPL/deoxys_control
+              </a>
+              <span style="color:var(--text-light)">/ deoxys/config/joint-impedance-controller.yml</span>
+              <span class="gh-lines">Lines 9-10</span>
+            </div>
+            <div class="github-embed-code">
+              <div class="github-embed-lines">
+                <span>7</span>
+                <span>8</span>
+                <span class="gh-highlight">9</span>
+                <span class="gh-highlight">10</span>
+                <span>11</span>
+                <span>12</span>
+                <span>13</span>
+              </div>
+              <pre class="github-embed-pre"><code>traj_interpolator_type: LINEAR_JOINT_POSITION
+  time_fraction: 0.3
+<span class="gh-highlight">joint_kp: [100., 100., 100., 100., 75., 150., 50.]</span>
+<span class="gh-highlight">joint_kd: [20., 20., 20., 20., 7.5, 15.0, 5.0]</span>
+<span>state_estimator_cfg:</span>
+  is_estimation: true
+  state_estimator_type: EXPONENTIAL_SMOOTHING</code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-polymetis">
+        <div class="container-narrow" style="margin:0 auto; padding:1.25rem 0;">
+          <div class="github-embed">
+            <div class="github-embed-header">
+              <i class="fab fa-github"></i>
+              <a href="https://github.com/facebookresearch/fairo/blob/0a01a7fa/polymetis/polymetis/conf/robot_client/franka_hardware.yaml#L10-L11" target="_blank">
+                facebookresearch/fairo
+              </a>
+              <span style="color:var(--text-light)">/ polymetis/polymetis/conf/robot_client/franka_hardware.yaml</span>
+              <span class="gh-lines">Lines 10–11</span>
+            </div>
+            <div class="github-embed-code">
+              <div class="github-embed-lines">
+                <span>8</span>
+                <span>9</span>
+                <span class="gh-highlight">10</span>
+                <span class="gh-highlight">11</span>
+                <span>12</span>
+                <span>13</span>
+              </div>
+              <pre class="github-embed-pre"><code>  metadata_cfg:
+    _target_: polymetis.robot_client.metadata.RobotClientMetadata
+<span class="gh-highlight">    default_Kq: [40, 30, 50, 25, 35, 25, 10]</span>
+<span class="gh-highlight">    default_Kqd: [4, 6, 5, 5, 3, 2, 1]</span>
+    default_Kx: [750, 750, 750, 15, 15, 15]
+    default_Kxd: [30, 30, 30, 5, 5, 5]</code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-frankapy">
+        <div class="container-narrow" style="margin:0 auto; padding:1.25rem 0;">
+          <div class="github-embed">
+            <div class="github-embed-header">
+              <i class="fab fa-github"></i>
+              <a href="https://github.com/iamlab-cmu/frankapy/blob/4ba2872ddfa460fd40efd372f72b6c0258e31abb/frankapy/franka_constants.py#L58-L59" target="_blank" rel="noopener">
+                iamlab-cmu/frankapy
+              </a>
+              <span style="color:var(--text-light)">/ frankapy/franka_constants.py</span>
+              <span class="gh-lines">Lines 58–59</span>
+            </div>
+            <div class="github-embed-code">
+              <div class="github-embed-lines">
+                <span>55</span>
+                <span>56</span>
+                <span>57</span>
+                <span class="gh-highlight">58</span>
+                <span class="gh-highlight">59</span>
+                <span>60</span>
+                <span>61</span>
+              </div>
+              <pre class="github-embed-pre"><code>    GRIPPER_CMD_SLEEP_TIME = 0.2
+
+<span class="gh-highlight">    DEFAULT_K_GAINS = [600.0, 600.0, 600.0, 600.0, 250.0, 150.0, 50.0]</span>
+<span class="gh-highlight">    DEFAULT_D_GAINS = [50.0, 50.0, 50.0, 50.0, 30.0, 25.0, 15.0]</span>
+    DEFAULT_TRANSLATIONAL_STIFFNESSES = [600.0, 600.0, 600.0]
+    DEFAULT_ROTATIONAL_STIFFNESSES = [50.0, 50.0, 50.0]</code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-isaaclab">
+        <div class="container-narrow" style="margin:0 auto; padding:1.25rem 0;">
+          <div class="github-embed">
+            <div class="github-embed-header">
+              <i class="fab fa-github"></i>
+              <a href="https://github.com/isaac-sim/IsaacLab/blob/main/source/isaaclab_assets/isaaclab_assets/robots/franka.py#L55-L56" target="_blank" rel="noopener">
+                isaac-sim/IsaacLab
+              </a>
+              <span style="color:var(--text-light)">/ isaaclab_assets/robots/franka.py</span>
+              <span class="gh-lines">Lines 55–56</span>
+            </div>
+            <div class="github-embed-code">
+              <div class="github-embed-lines">
+                <span>52</span>
+                <span>53</span>
+                <span>54</span>
+                <span class="gh-highlight">55</span>
+                <span class="gh-highlight">56</span>
+                <span>57</span>
+                <span>58</span>
+                <span>59</span>
+              </div>
+              <pre class="github-embed-pre"><code>        "panda_shoulder": ImplicitActuatorCfg(
+            joint_names_expr=["panda_joint[1-4]"],
+            effort_limit_sim=87.0,
+<span class="gh-highlight">            stiffness=80.0,</span>
+<span class="gh-highlight">            damping=4.0,</span>
+        ),
+        "panda_forearm": ImplicitActuatorCfg(
+            joint_names_expr=["panda_joint[5-7]"],</code></pre>
+            </div>
+          </div>
+          <p style="font-size:0.82rem; color:var(--text-muted); margin-top:0.6rem; line-height:1.45;">
+            <i class="fas fa-exclamation-triangle" style="color:#e8a735; margin-right:0.3rem;"></i>
+            <strong>Note:</strong> This configuration does <em>not</em> disable gravity (<code>disable_gravity=False</code>),
+            yet the gains are quite low. On the real Franka, the controller stack adds a gravity-compensation torque by default — so the
+            PD gains only need to correct for tracking error. In simulation without that feedforward term, the same low gains
+            may be insufficient to hold pose, leading to a significant sim-to-real gap.
+          </p>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-isaaclab-high">
+        <div class="container-narrow" style="margin:0 auto; padding:1.25rem 0;">
+          <div class="github-embed">
+            <div class="github-embed-header">
+              <i class="fab fa-github"></i>
+              <a href="https://github.com/isaac-sim/IsaacLab/blob/main/source/isaaclab_assets/isaaclab_assets/robots/franka.py#L78-L79" target="_blank" rel="noopener">
+                isaac-sim/IsaacLab
+              </a>
+              <span style="color:var(--text-light)">/ isaaclab_assets/robots/franka.py</span>
+              <span class="gh-lines">Lines 78–79</span>
+            </div>
+            <div class="github-embed-code">
+              <div class="github-embed-lines">
+                <span>75</span>
+                <span>76</span>
+                <span class="gh-highlight">78</span>
+                <span class="gh-highlight">79</span>
+                <span>80</span>
+                <span class="gh-highlight">81</span>
+              </div>
+              <pre class="github-embed-pre"><code>FRANKA_PANDA_HIGH_PD_CFG = FRANKA_PANDA_CFG.copy()
+FRANKA_PANDA_HIGH_PD_CFG.spawn.rigid_props.disable_gravity = True
+<span class="gh-highlight">FRANKA_PANDA_HIGH_PD_CFG.actuators["panda_shoulder"].stiffness = 400.0</span>
+<span class="gh-highlight">FRANKA_PANDA_HIGH_PD_CFG.actuators["panda_shoulder"].damping = 80.0</span>
+FRANKA_PANDA_HIGH_PD_CFG.actuators["panda_forearm"].stiffness = 400.0
+<span class="gh-highlight">FRANKA_PANDA_HIGH_PD_CFG.actuators["panda_forearm"].damping = 80.0</span></code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-maniskill">
+        <div class="container-narrow" style="margin:0 auto; padding:1.25rem 0;">
+          <div class="github-embed">
+            <div class="github-embed-header">
+              <i class="fab fa-github"></i>
+              <a href="https://github.com/haosulab/ManiSkill/blob/3c0ca144d683df000161652b3ce2e743edf372e5/mani_skill/agents/robots/panda/panda.py#L68-L69" target="_blank" rel="noopener">
+                haosulab/ManiSkill
+              </a>
+              <span style="color:var(--text-light)">/ mani_skill/agents/robots/panda/panda.py</span>
+              <span class="gh-lines">Lines 68–69</span>
+            </div>
+            <div class="github-embed-code">
+              <div class="github-embed-lines">
+                <span>64</span>
+                <span>65</span>
+                <span>66</span>
+                <span>67</span>
+                <span class="gh-highlight">68</span>
+                <span class="gh-highlight">69</span>
+                <span>70</span>
+                <span>71</span>
+                <span>72</span>
+                <span>73</span>
+              </div>
+              <pre class="github-embed-pre"><code>    gripper_joint_names = [
+        "panda_finger_joint1",
+        "panda_finger_joint2",
+    ]
+<span class="gh-highlight">    arm_stiffness = 1e3</span>
+<span class="gh-highlight">    arm_damping = 1e2</span>
+    arm_force_limit = 100
+
+    gripper_stiffness = 1e3
+    gripper_damping = 1e2</code></pre>
+            </div>
+          </div>
+          <p style="font-size:0.82rem; color:var(--text-muted); margin-top:0.6rem; line-height:1.45;">
+            <i class="fas fa-exclamation-triangle" style="color:#e8a735; margin-right:0.3rem;"></i>
+            <strong>Note:</strong> ManiSkill's simulator does <em>not</em> add a gravity-compensation torque.
+            On the real Franka, the controller stack compensates for gravity by default — so the PD
+            gains only need to correct for tracking error. Without that feedforward term in simulation,
+            expect a notable sim-to-real gap when transferring policies trained with these settings.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="container">
+      <p>
+        As you can see, gain values vary wildly across libraries producing vastly different response curves — with no
+        shared rationale or principled tuning strategy. So what happens when you train a policy on top of
+        these arbitrary defaults?
+      </p>
+    </div>
+
+
+
+  </div>
+</section>
+
+
+<!-- Learning-algorithm poll (shared component, loaded dynamically) -->
+<div class="learning-poll-placeholder"></div>
+

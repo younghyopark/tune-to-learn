@@ -1,0 +1,212 @@
+{
+  "task": "mug_hang_single_franka_2f85",
+  "dataset": "mug_hang_single_franka_2f85/v0",
+  "kp": 128.0,
+  "kd": 128.0,
+  "decimation": 10,
+  "history": 10,
+  "action_chunk": 1,
+  "robot_dof": 13,
+  "num_objects": 1,
+  "object_dim": 7,
+  "proprio_dim": 13,
+  "act_dim": 8,
+  "pd_type": "single",
+  "keyframe_qpos": [
+    0,
+    0,
+    0,
+    -1.57079,
+    0,
+    1.57079,
+    0.7853,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0.5,
+    0,
+    0.03,
+    1,
+    0,
+    0,
+    0
+  ],
+  "keyframe_ctrl": [
+    0,
+    0,
+    0,
+    -1.57079,
+    0,
+    1.57079,
+    -0.7853,
+    0.0
+  ],
+  "arm_joint_indices": [
+    [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ]
+  ],
+  "arm_qpos_indices": [
+    [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ]
+  ],
+  "arm_qvel_indices": [
+    [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ]
+  ],
+  "gripper_ctrl_indices": [
+    7
+  ],
+  "gripper_action_indices": [
+    7
+  ],
+  "env_state_type": "xyz_quat",
+  "env_state_spec": {
+    "objects": [
+      {
+        "name": "mug",
+        "source": "qpos",
+        "start": 13,
+        "end": 20,
+        "repr": "xyz_quat"
+      }
+    ]
+  },
+  "scene_xml": "xmls/franka_emika_panda/scene_mug_hang.xml",
+  "max_steps": 400,
+  "reset": {
+    "keyframe": "home",
+    "mocap": [
+      {
+        "idx": 1,
+        "pos": [
+          0.5,
+          0.1,
+          0.0
+        ],
+        "quat_euler": [
+          "x",
+          90
+        ]
+      }
+    ],
+    "free_bodies": [
+      {
+        "qpos_start": 13,
+        "qpos_end": 20,
+        "pos_base": [
+          0.5,
+          -0.2,
+          0.0
+        ],
+        "pos_noise": [
+          [
+            -0.1,
+            0.1
+          ],
+          [
+            -0.1,
+            0.1
+          ],
+          [
+            0,
+            0
+          ]
+        ],
+        "quat_euler_mode": "xz",
+        "quat_x": 90,
+        "quat_z_range": [
+          -180,
+          180
+        ]
+      }
+    ]
+  },
+  "success": {
+    "type": "relative_pose",
+    "eval_threshold_ratio": 3.0,
+    "object_qpos_start": 13,
+    "object_qpos_end": 20,
+    "reference_mocap_idx": 1,
+    "pos_threshold": 0.04,
+    "rot_threshold_deg": 20,
+    "target_rel_candidates": [
+      [
+        [
+          0.15575921,
+          0.30946491,
+          -0.93806745,
+          0.0229513
+        ],
+        [
+          0.90299451,
+          0.34035665,
+          0.26221798,
+          0.20710977
+        ],
+        [
+          0.40042476,
+          -0.88791262,
+          -0.22643143,
+          0.08091038
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      [
+        [
+          -0.54302406,
+          -0.47183846,
+          0.6946174,
+          0.07517168
+        ],
+        [
+          0.57268538,
+          0.39688363,
+          0.71729689,
+          0.20190492
+        ],
+        [
+          -0.61413054,
+          0.78730671,
+          0.05469762,
+          -0.04191663
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ]
+    ]
+  },
+  "onnx_file": "policy.onnx"
+}

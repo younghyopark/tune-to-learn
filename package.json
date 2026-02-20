@@ -1,0 +1,24 @@
+{
+  "name": "tune-robots-to-learn.github.io",
+  "version": "1.0.0",
+  "description": "A clean, flexible project website template for publishing interactive versions of research papers.   No build tools, no frameworks — just **HTML + CSS + JS** that you can edit directly and deploy to GitHub Pages.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tune-robots-to-learn/tune-robots-to-learn.github.io.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/tune-robots-to-learn/tune-robots-to-learn.github.io/issues"
+  },
+  "homepage": "https://github.com/tune-robots-to-learn/tune-robots-to-learn.github.io#readme",
+  "dependencies": {
+    "mujoco-js": "^0.0.7"
+  }
+}

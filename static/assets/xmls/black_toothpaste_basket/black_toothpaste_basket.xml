@@ -1,0 +1,32 @@
+<mujoco model="black_toothpaste_basket">
+  <default>
+    <default class="black_toothpaste_baskset_visual">
+      <geom group="2" type="mesh" contype="0" conaffinity="0"/>
+    </default>
+    <default class="black_toothpaste_baskset_collision">
+      <geom group="3" type="mesh"/>
+    </default>
+  </default>
+  <asset>
+    <texture type="2d" name="baked_mesh_2d7e25d5_tex0" file="baked_mesh_2d7e25d5_tex0.png"/>
+    <material name="black_toothpaste_basket_Texture" texture="baked_mesh_2d7e25d5_tex0" specular="0.5" shininess="0.5"/>
+    <mesh file="black_toothpaste_basket.obj"/>
+    <mesh file="black_toothpaste_basket_collision_0.obj"/>
+    <mesh file="black_toothpaste_basket_collision_1.obj"/>
+    <mesh file="black_toothpaste_basket_collision_2.obj"/>
+    <mesh file="black_toothpaste_basket_collision_3.obj"/>
+    <mesh file="black_toothpaste_basket_collision_4.obj"/>
+    <mesh file="black_toothpaste_basket_collision_5.obj"/>
+  </asset>
+  <worldbody>
+    <body name="black_toothpaste_basket" mocap="true">
+      <geom material="black_toothpaste_basket_Texture" mesh="black_toothpaste_basket" class="black_toothpaste_baskset_visual"/>
+      <geom mesh="black_toothpaste_basket_collision_0" rgba="0.5864216873618601 0.19584253343088454 0.3346780275158906 1" class="black_toothpaste_baskset_collision"/>
+      <geom mesh="black_toothpaste_basket_collision_1" rgba="0.7078229747343305 0.43323850630590666 0.4569777120683317 1" class="black_toothpaste_baskset_collision"/>
+      <geom mesh="black_toothpaste_basket_collision_2" rgba="0.741327627637918 0.3873293325801064 0.15784755125077343 1" class="black_toothpaste_baskset_collision"/>
+      <geom mesh="black_toothpaste_basket_collision_3" rgba="0.2194695128813865 0.4536912428000711 0.24890762171595637 1" class="black_toothpaste_baskset_collision"/>
+      <geom mesh="black_toothpaste_basket_collision_4" rgba="0.21946317762586776 0.6814951318163507 0.5995777594007862 1" class="black_toothpaste_baskset_collision"/>
+      <geom mesh="black_toothpaste_basket_collision_5" rgba="0.10552128663558247 0.8620823563766639 0.8412031045847705 1" class="black_toothpaste_baskset_collision"/>
+    </body>
+  </worldbody>
+</mujoco>

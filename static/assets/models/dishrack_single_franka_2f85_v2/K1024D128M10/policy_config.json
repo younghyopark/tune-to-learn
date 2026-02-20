@@ -1,0 +1,202 @@
+{
+  "task": "dishrack_single_franka_2f85_v2",
+  "dataset": "dishrack_single_franka_2f85_v2/v0",
+  "kp": 1024.0,
+  "kd": 128.0,
+  "decimation": 10,
+  "history": 10,
+  "action_chunk": 1,
+  "robot_dof": 13,
+  "num_objects": 2,
+  "object_dim": 6,
+  "proprio_dim": 13,
+  "act_dim": 8,
+  "pd_type": "single",
+  "arm_joint_indices": [
+    [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ]
+  ],
+  "arm_qpos_indices": [
+    [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ]
+  ],
+  "arm_qvel_indices": [
+    [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ]
+  ],
+  "gripper_ctrl_indices": [
+    7
+  ],
+  "gripper_action_indices": [
+    7
+  ],
+  "env_state_type": "xyz_zaxis_and_rack",
+  "env_state_spec": {
+    "objects": [
+      {
+        "name": "plate",
+        "source": "qpos",
+        "start": 13,
+        "end": 20,
+        "repr": "xyz_zaxis"
+      },
+      {
+        "name": "rack",
+        "source": "mocap",
+        "mocap_idx": 0,
+        "repr": "xyz_xaxis"
+      }
+    ]
+  },
+  "scene_xml": "xmls/franka_emika_panda/scene_dishrack.xml",
+  "max_steps": 400,
+  "reset": {
+    "keyframe": "home",
+    "mocap": [
+      {
+        "idx": 0,
+        "pos_base": [
+          0.5,
+          0.2,
+          0.0
+        ],
+        "pos_noise": [
+          [
+            -0.05,
+            0.05
+          ],
+          [
+            -0.05,
+            0.05
+          ],
+          [
+            0,
+            0
+          ]
+        ],
+        "quat_euler_mode": "xz",
+        "quat_x": 0,
+        "quat_z_range": [
+          -30,
+          30
+        ]
+      },
+      {
+        "idx": 1,
+        "pos": [
+          0.5,
+          -0.15,
+          0.0
+        ],
+        "quat_euler": [
+          "xz",
+          [
+            0,
+            0
+          ]
+        ]
+      },
+      {
+        "idx": 2,
+        "pos": [
+          0.5,
+          -0.15,
+          0.01
+        ],
+        "quat_euler": [
+          "xz",
+          [
+            0,
+            0
+          ]
+        ]
+      }
+    ],
+    "free_bodies": [
+      {
+        "qpos_start": 13,
+        "qpos_end": 16,
+        "pos_base": [
+          0.5,
+          -0.15,
+          0.04
+        ],
+        "pos_noise": [
+          [
+            -0.05,
+            0.05
+          ],
+          [
+            -0.05,
+            0.05
+          ],
+          [
+            0,
+            0
+          ]
+        ]
+      }
+    ]
+  },
+  "success": {
+    "type": "relative_pose_to_rack",
+    "eval_threshold_ratio": 2.0,
+    "object_qpos_start": 13,
+    "object_qpos_end": 20,
+    "rack_mocap_idx": 0,
+    "pos_threshold": 0.04,
+    "rot_threshold_deg": 5,
+    "rot_axes": [
+      0,
+      1
+    ],
+    "target_rel": [
+      [
+        0.525737943,
+        -0.850646587,
+        1.28255399e-05,
+        7.50582694e-05
+      ],
+      [
+        0.11744244,
+        0.0725996556,
+        0.990422417,
+        -0.12702368
+      ],
+      [
+        -0.842500379,
+        -0.520701137,
+        0.138070404,
+        0.115957323
+      ],
+      [
+        0,
+        0,
+        0,
+        1
+      ]
+    ]
+  },
+  "onnx_file": "policy.onnx"
+}

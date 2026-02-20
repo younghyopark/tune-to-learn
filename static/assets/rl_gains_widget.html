@@ -1,0 +1,661 @@
+<!-- 
+  Interactive RL Video Grid Widget
+  
+  3x3 grid of RL behavior videos across Kp/Kd gain settings.
+  Click a cell to play that video.
+  
+  Usage: Embed with <iframe src="rl_gains_widget.html" width="700" height="560"></iframe>
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RL Performance Across Gain Settings</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: #fff;
+  }
+
+  .rl-widget {
+    display: flex;
+    flex-direction: column;
+    max-width: 720px;
+    margin: 0 auto;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .rl-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+  }
+
+  /* Response curve panel */
+  .rl-response-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .rl-response-title {
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 6px;
+  }
+
+  .rl-response-canvas {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: #fafafa;
+  }
+
+  .rl-main {
+    position: relative;
+    padding: 8px 24px 32px 32px;
+    flex: 1;
+  }
+
+  /* Axis labels */
+  .rl-axis-label {
+    position: absolute;
+    font-size: 18px;
+    font-style: italic;
+    color: #444;
+  }
+
+  .rl-axis-kp {
+    bottom: 4px;
+    right: 10px;
+  }
+
+  .rl-axis-kd {
+    top: 0px;
+    left: 4px;
+  }
+
+  /* Axis arrows drawn with border trick */
+  .rl-arrow-x {
+    position: absolute;
+    bottom: 10px;
+    left: 32px;
+    right: 50px;
+    height: 2px;
+    background: #555;
+  }
+
+  .rl-arrow-x::after {
+    content: '';
+    position: absolute;
+    right: -8px;
+    top: -5px;
+    border: 6px solid transparent;
+    border-left: 10px solid #555;
+  }
+
+  .rl-arrow-y {
+    position: absolute;
+    top: 24px;
+    left: 14px;
+    bottom: 22px;
+    width: 2px;
+    background: #555;
+  }
+
+  .rl-arrow-y::after {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: -5px;
+    border: 6px solid transparent;
+    border-bottom: 10px solid #555;
+  }
+
+  /* 3x3 Video Grid */
+  .rl-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 8px;
+    aspect-ratio: 1;
+  }
+
+  .rl-cell {
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    background: #1a1a1a;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .rl-cell:hover {
+    transform: scale(1.02);
+  }
+
+  .rl-cell.selected {
+    box-shadow: 0 0 0 4px #222, 0 0 0 6px rgba(0,0,0,0.15);
+    transform: scale(1.02);
+    z-index: 10;
+  }
+
+  .rl-cell video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* Overlay for unselected cells */
+  .rl-cell-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.4);
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+
+  .rl-cell.selected .rl-cell-overlay {
+    opacity: 0;
+  }
+
+  /* Color indicator dot */
+  .rl-cell-dot {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.8);
+    pointer-events: none;
+  }
+
+  /* Play icon overlay */
+  .rl-cell-play {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .rl-cell:not(.selected):hover .rl-cell-play {
+    opacity: 1;
+  }
+
+  .rl-cell-play svg {
+    width: 40px;
+    height: 40px;
+    fill: rgba(255,255,255,0.9);
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+  }
+
+  /* Placeholder for missing video */
+  .rl-cell-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+    font-size: 11px;
+    text-align: center;
+    padding: 8px;
+  }
+
+  /* Bottom bar */
+  .rl-bottom-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    border-top: 1px solid #eee;
+  }
+
+  .rl-gain-badge {
+    padding: 6px 14px;
+    background: #f5f5f5;
+    border-radius: 5px;
+    font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+    font-size: 14px;
+    color: #333;
+  }
+
+  .rl-task-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .rl-task-label {
+    font-size: 14px;
+    color: #666;
+  }
+
+  .rl-task-select {
+    font-size: 14px;
+    padding: 4px 8px;
+    border: 1.5px solid #ccc;
+    border-radius: 5px;
+    background: #fff;
+    color: #333;
+    cursor: pointer;
+    outline: none;
+    font-family: inherit;
+  }
+
+  .rl-task-select:hover {
+    border-color: #888;
+  }
+
+  .rl-task-select:focus {
+    border-color: #4c72b0;
+  }
+</style>
+</head>
+<body>
+<div class="rl-widget" id="rlWidget">
+  <div class="rl-content">
+    <!-- Response Curve Panel -->
+    <div class="rl-response-panel">
+      <div class="rl-response-title">Step Response</div>
+      <canvas class="rl-response-canvas" id="responseCanvas" width="200" height="200"></canvas>
+    </div>
+
+    <div class="rl-main">
+      <!-- Axis arrows -->
+      <div class="rl-arrow-x"></div>
+      <div class="rl-arrow-y"></div>
+      
+      <!-- Axis labels -->
+      <span class="rl-axis-label rl-axis-kp">K<sub>p</sub></span>
+      <span class="rl-axis-label rl-axis-kd">K<sub>d</sub></span>
+      
+      <!-- Video Grid -->
+      <div class="rl-grid" id="rlGrid"></div>
+    </div>
+  </div>
+
+  <div class="rl-bottom-bar">
+    <div class="rl-gain-badge" id="rlGainBadge">Kp = 128, Kd = 8</div>
+    <div class="rl-task-group">
+      <span class="rl-task-label">Task:</span>
+      <select class="rl-task-select" id="rlTaskSelect">
+        <option value="task1">Pick and Place</option>
+        <option value="task2">Door Opening</option>
+        <option value="task3">Drawer Manipulation</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  // ======== CONFIG ========
+  // 3x3 grid: Kp values (columns), Kd values (rows)
+  const KP_VALUES = [16, 128, 512];
+  const KD_VALUES = [1, 8, 24];
+  
+  // Video paths for each task and gain combination
+  // Key format: 'kp_kd'
+  const VIDEO_PATHS = {
+    task1: {
+      '16_1': '../videos/rl_task1_kp16_kd1.mp4',
+      '16_8': '../videos/rl_task1_kp16_kd8.mp4',
+      '16_24': '../videos/rl_task1_kp16_kd24.mp4',
+      '128_1': '../videos/rl_task1_kp128_kd1.mp4',
+      '128_8': '../videos/rl_task1_kp128_kd8.mp4',
+      '128_24': '../videos/rl_task1_kp128_kd24.mp4',
+      '512_1': '../videos/rl_task1_kp512_kd1.mp4',
+      '512_8': '../videos/rl_task1_kp512_kd8.mp4',
+      '512_24': '../videos/rl_task1_kp512_kd24.mp4',
+    },
+    task2: {
+      '16_1': '../videos/rl_task2_kp16_kd1.mp4',
+      '16_8': '../videos/rl_task2_kp16_kd8.mp4',
+      '16_24': '../videos/rl_task2_kp16_kd24.mp4',
+      '128_1': '../videos/rl_task2_kp128_kd1.mp4',
+      '128_8': '../videos/rl_task2_kp128_kd8.mp4',
+      '128_24': '../videos/rl_task2_kp128_kd24.mp4',
+      '512_1': '../videos/rl_task2_kp512_kd1.mp4',
+      '512_8': '../videos/rl_task2_kp512_kd8.mp4',
+      '512_24': '../videos/rl_task2_kp512_kd24.mp4',
+    },
+    task3: {
+      '16_1': '../videos/rl_task3_kp16_kd1.mp4',
+      '16_8': '../videos/rl_task3_kp16_kd8.mp4',
+      '16_24': '../videos/rl_task3_kp16_kd24.mp4',
+      '128_1': '../videos/rl_task3_kp128_kd1.mp4',
+      '128_8': '../videos/rl_task3_kp128_kd8.mp4',
+      '128_24': '../videos/rl_task3_kp128_kd24.mp4',
+      '512_1': '../videos/rl_task3_kp512_kd1.mp4',
+      '512_8': '../videos/rl_task3_kp512_kd8.mp4',
+      '512_24': '../videos/rl_task3_kp512_kd24.mp4',
+    },
+  };
+  
+  // Colors for interpolation (same as PD widget)
+  const CORNER_COLORS = {
+    A: [140, 140, 140],  // bottom-left (low Kp, low Kd)
+    B: [76, 114, 176],   // bottom-right (high Kp, low Kd)
+    C: [196, 78, 82],    // top-left (low Kp, high Kd)
+    D: [129, 114, 178],  // top-right (high Kp, high Kd)
+  };
+  
+  // ======== STATE ========
+  let selectedKpIdx = 1, selectedKdIdx = 1;  // Center cell by default
+  let currentTask = 'task1';
+  let cells = [];
+  let sysidData = null;
+  
+  // ======== ELEMENTS ========
+  const grid = document.getElementById('rlGrid');
+  const gainBadge = document.getElementById('rlGainBadge');
+  const taskSelect = document.getElementById('rlTaskSelect');
+  const responseCanvas = document.getElementById('responseCanvas');
+  const responseCtx = responseCanvas.getContext('2d');
+  
+  // ======== HELPERS ========
+  function getColor(kpIdx, kdIdx) {
+    const nx = kpIdx / 2;
+    const ny = kdIdx / 2;
+    const A = CORNER_COLORS.A, B = CORNER_COLORS.B;
+    const C = CORNER_COLORS.C, D = CORNER_COLORS.D;
+    const bot = A.map((v, i) => (1 - nx) * v + nx * B[i]);
+    const top = C.map((v, i) => (1 - nx) * v + nx * D[i]);
+    const rgb = bot.map((v, i) => Math.round((1 - ny) * v + ny * top[i]));
+    return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+  }
+
+  function getColorRGB(kpIdx, kdIdx) {
+    const nx = kpIdx / 2;
+    const ny = kdIdx / 2;
+    const A = CORNER_COLORS.A, B = CORNER_COLORS.B;
+    const C = CORNER_COLORS.C, D = CORNER_COLORS.D;
+    const bot = A.map((v, i) => (1 - nx) * v + nx * B[i]);
+    const top = C.map((v, i) => (1 - nx) * v + nx * D[i]);
+    return bot.map((v, i) => Math.round((1 - ny) * v + ny * top[i]));
+  }
+  
+  function getVideoPath(kpIdx, kdIdx) {
+    const kp = KP_VALUES[kpIdx];
+    const kd = KD_VALUES[kdIdx];
+    const key = `${kp}_${kd}`;
+    return VIDEO_PATHS[currentTask]?.[key];
+  }
+
+  // ======== RESPONSE CURVE ========
+  function drawResponseCurve() {
+    if (!sysidData) return;
+
+    const W = responseCanvas.width;
+    const H = responseCanvas.height;
+    const pad = { top: 15, right: 15, bottom: 25, left: 30 };
+    const plotW = W - pad.left - pad.right;
+    const plotH = H - pad.top - pad.bottom;
+
+    // Clear
+    responseCtx.fillStyle = '#fafafa';
+    responseCtx.fillRect(0, 0, W, H);
+
+    // Get selected gains
+    const kp = KP_VALUES[selectedKpIdx];
+    const kd = KD_VALUES[selectedKdIdx];
+
+    // Get response data from joints_data (same format as PD widget)
+    // Use joint 3 as default (or first available)
+    const jointKey = '3';
+    const jdata = sysidData.joints_data?.[jointKey];
+    if (!jdata) {
+      responseCtx.fillStyle = '#999';
+      responseCtx.font = '12px sans-serif';
+      responseCtx.textAlign = 'center';
+      responseCtx.fillText('No data', W/2, H/2);
+      return;
+    }
+
+    const dataKey = `${kp}_${kd}`;
+    const d = jdata[dataKey];
+    if (!d) {
+      responseCtx.fillStyle = '#999';
+      responseCtx.font = '12px sans-serif';
+      responseCtx.textAlign = 'center';
+      responseCtx.fillText('No data for these gains', W/2, H/2);
+      return;
+    }
+
+    const qpos = d.qpos;
+    const qdes = d.qdes;
+    const dataLen = qpos.length;
+    const hz = sysidData.hz || 50;
+
+    // Normalize: compute ymin/ymax from data
+    let ymin = Infinity, ymax = -Infinity;
+    for (let i = 0; i < dataLen; i++) {
+      if (qpos[i] < ymin) ymin = qpos[i];
+      if (qpos[i] > ymax) ymax = qpos[i];
+      if (qdes[i] < ymin) ymin = qdes[i];
+      if (qdes[i] > ymax) ymax = qdes[i];
+    }
+    const yMargin = (ymax - ymin) * 0.1;
+    ymin -= yMargin;
+    ymax += yMargin;
+
+    // Draw grid
+    responseCtx.strokeStyle = '#e0e0e0';
+    responseCtx.lineWidth = 1;
+    for (let i = 0; i <= 4; i++) {
+      const y = pad.top + plotH * (i / 4);
+      responseCtx.beginPath();
+      responseCtx.moveTo(pad.left, y);
+      responseCtx.lineTo(pad.left + plotW, y);
+      responseCtx.stroke();
+    }
+
+    // Helper to map data to canvas
+    const tMax = (dataLen - 1) / hz;
+    function mapX(t) { return pad.left + (t / tMax) * plotW; }
+    function mapY(v) { return pad.top + plotH * (1 - (v - ymin) / (ymax - ymin)); }
+
+    // Draw target/desired (gray dashed)
+    responseCtx.setLineDash([4, 3]);
+    responseCtx.strokeStyle = '#8c8c8c';
+    responseCtx.lineWidth = 2;
+    responseCtx.beginPath();
+    for (let i = 0; i < dataLen; i++) {
+      const x = mapX(i / hz);
+      const y = mapY(qdes[i]);
+      if (i === 0) responseCtx.moveTo(x, y);
+      else responseCtx.lineTo(x, y);
+    }
+    responseCtx.stroke();
+    responseCtx.setLineDash([]);
+
+    // Draw response curve (colored solid)
+    const rgb = getColorRGB(selectedKpIdx, selectedKdIdx);
+    responseCtx.strokeStyle = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+    responseCtx.lineWidth = 2.5;
+    responseCtx.beginPath();
+    for (let i = 0; i < dataLen; i++) {
+      const x = mapX(i / hz);
+      const y = mapY(qpos[i]);
+      if (i === 0) responseCtx.moveTo(x, y);
+      else responseCtx.lineTo(x, y);
+    }
+    responseCtx.stroke();
+
+    // Axes
+    responseCtx.strokeStyle = '#555';
+    responseCtx.lineWidth = 1.5;
+    responseCtx.beginPath();
+    responseCtx.moveTo(pad.left, pad.top);
+    responseCtx.lineTo(pad.left, pad.top + plotH);
+    responseCtx.lineTo(pad.left + plotW, pad.top + plotH);
+    responseCtx.stroke();
+
+    // Labels
+    responseCtx.fillStyle = '#666';
+    responseCtx.font = '11px sans-serif';
+    responseCtx.textAlign = 'center';
+    responseCtx.fillText('time', pad.left + plotW / 2, H - 5);
+    
+    responseCtx.save();
+    responseCtx.translate(10, pad.top + plotH / 2);
+    responseCtx.rotate(-Math.PI / 2);
+    responseCtx.fillText('position', 0, 0);
+    responseCtx.restore();
+  }
+  
+  // ======== BUILD UI ========
+  function buildGrid() {
+    grid.innerHTML = '';
+    cells = [];
+    
+    // Build grid: row 0 = top = high Kd, row 2 = bottom = low Kd
+    for (let row = 0; row < 3; row++) {
+      const kdIdx = 2 - row;  // Flip: top row = highest Kd
+      for (let col = 0; col < 3; col++) {
+        const kpIdx = col;
+        const cell = createCell(kpIdx, kdIdx);
+        grid.appendChild(cell);
+        cells.push({ el: cell, kpIdx, kdIdx });
+      }
+    }
+    
+    updateSelection();
+  }
+  
+  function createCell(kpIdx, kdIdx) {
+    const cell = document.createElement('div');
+    cell.className = 'rl-cell';
+    cell.dataset.kpIdx = kpIdx;
+    cell.dataset.kdIdx = kdIdx;
+    
+    const color = getColor(kpIdx, kdIdx);
+    
+    // Video element
+    const video = document.createElement('video');
+    video.loop = true;
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = 'metadata';
+    cell.appendChild(video);
+    
+    // Overlay for non-selected
+    const overlay = document.createElement('div');
+    overlay.className = 'rl-cell-overlay';
+    cell.appendChild(overlay);
+    
+    // Color indicator dot
+    const dot = document.createElement('div');
+    dot.className = 'rl-cell-dot';
+    dot.style.backgroundColor = color;
+    cell.appendChild(dot);
+    
+    // Play icon
+    const playIcon = document.createElement('div');
+    playIcon.className = 'rl-cell-play';
+    playIcon.innerHTML = `<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`;
+    cell.appendChild(playIcon);
+    
+    // Placeholder for missing video
+    const placeholder = document.createElement('div');
+    placeholder.className = 'rl-cell-placeholder';
+    placeholder.style.display = 'none';
+    cell.appendChild(placeholder);
+    
+    // Click handler
+    cell.addEventListener('click', () => selectCell(kpIdx, kdIdx));
+    
+    return cell;
+  }
+  
+  function selectCell(kpIdx, kdIdx) {
+    selectedKpIdx = kpIdx;
+    selectedKdIdx = kdIdx;
+    updateSelection();
+    updateGainBadge();
+    drawResponseCurve();
+  }
+  
+  function updateSelection() {
+    cells.forEach(({ el, kpIdx, kdIdx }) => {
+      const video = el.querySelector('video');
+      const placeholder = el.querySelector('.rl-cell-placeholder');
+      const isSelected = (kpIdx === selectedKpIdx && kdIdx === selectedKdIdx);
+      
+      el.classList.toggle('selected', isSelected);
+      
+      // Load video source
+      const videoPath = getVideoPath(kpIdx, kdIdx);
+      if (videoPath && video.src !== videoPath) {
+        video.src = videoPath;
+      }
+      
+      if (isSelected) {
+        if (videoPath) {
+          video.play().catch(() => {});
+          placeholder.style.display = 'none';
+        } else {
+          placeholder.textContent = 'Video not available';
+          placeholder.style.display = 'flex';
+        }
+      } else {
+        video.pause();
+        video.currentTime = 0;
+      }
+    });
+  }
+  
+  function updateGainBadge() {
+    const kp = KP_VALUES[selectedKpIdx];
+    const kd = KD_VALUES[selectedKdIdx];
+    gainBadge.textContent = `Kp = ${kp}, Kd = ${kd}`;
+  }
+  
+  function loadVideosForTask() {
+    cells.forEach(({ el, kpIdx, kdIdx }) => {
+      const video = el.querySelector('video');
+      const videoPath = getVideoPath(kpIdx, kdIdx);
+      if (videoPath) {
+        video.src = videoPath;
+      } else {
+        video.src = '';
+      }
+    });
+    updateSelection();
+  }
+  
+  // ======== EVENT HANDLERS ========
+  taskSelect.addEventListener('change', () => {
+    currentTask = taskSelect.value;
+    loadVideosForTask();
+  });
+  
+  // ======== INIT ========
+  // Load sysid data for response curves
+  fetch('sysid_data.json')
+    .then(r => r.json())
+    .then(data => {
+      sysidData = data;
+      drawResponseCurve();
+    })
+    .catch(err => console.warn('Could not load sysid_data.json:', err));
+
+  buildGrid();
+  updateGainBadge();
+
+})();
+</script>
+</body>
+</html>

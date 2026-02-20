@@ -1,0 +1,764 @@
+<!-- 
+  Interactive PD Controller Response Widget
+  
+  Usage: Copy this file and sysid_data.json to your website.
+  Embed with: <iframe src="pd_response_widget.html" width="900" height="500"></iframe>
+  Or include directly via a build system.
+  
+  Dependencies: None (vanilla JS + Canvas)
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interactive PD Controller Response</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  .pd-widget {
+    display: flex;
+    flex-direction: column;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: #fff;
+    max-width: 900px;
+    margin: 0 auto;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .pd-main {
+    display: flex;
+    align-items: stretch;
+    min-height: 420px;
+    height: 450px;
+  }
+  
+  .pd-chart-container {
+    flex: 1;
+    min-width: 0;
+    position: relative;
+  }
+  
+  .pd-chart-container canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  
+  .pd-grid-container {
+    width: 260px;
+    min-width: 260px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 15px 30px 0;
+    position: relative;
+  }
+  
+  .pd-grid-wrap {
+    position: relative;
+    width: 220px;
+    height: 220px;
+  }
+  
+  .pd-grid-canvas {
+    width: 220px;
+    height: 220px;
+    cursor: pointer;
+    display: block;
+  }
+  
+  .pd-axis-label {
+    font-size: 21px;
+    font-style: italic;
+    color: #333;
+    position: absolute;
+  }
+  
+  .pd-axis-label-kp {
+    bottom: -22px;
+    right: 0px;
+  }
+  
+  .pd-axis-label-kd {
+    top: -22px;
+    left: -5px;
+  }
+  
+  .pd-gain-display {
+    display: none;
+  }
+
+  .pd-bottom-bar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 8px 15px 8px 70px;
+    border-top: 1px solid #eee;
+  }
+
+  .pd-joint-label {
+    font-size: 14px;
+    color: #666;
+    margin-right: 8px;
+  }
+
+  .pd-joint-select {
+    font-size: 14px;
+    padding: 4px 8px;
+    border: 1.5px solid #ccc;
+    border-radius: 5px;
+    background: #fff;
+    color: #333;
+    cursor: pointer;
+    outline: none;
+    font-family: inherit;
+  }
+
+  .pd-joint-select:hover {
+    border-color: #888;
+  }
+
+  .pd-joint-select:focus {
+    border-color: #4c72b0;
+  }
+</style>
+</head>
+<body>
+<div class="pd-widget" id="pdWidget">
+  <div class="pd-main">
+    <div class="pd-chart-container">
+      <canvas id="pdChart"></canvas>
+    </div>
+    <div class="pd-grid-container">
+      <div class="pd-grid-wrap">
+        <canvas id="pdGrid" class="pd-grid-canvas" width="300" height="300"></canvas>
+        <span class="pd-axis-label pd-axis-label-kp">K<sub>p</sub></span>
+        <span class="pd-axis-label pd-axis-label-kd">K<sub>d</sub></span>
+      </div>
+    </div>
+  </div>
+  <div class="pd-bottom-bar">
+    <span class="pd-joint-label">Joint:</span>
+    <select class="pd-joint-select" id="pdJointSelect"></select>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+  
+  // ======== CONFIG ========
+  const DATA_URL = 'sysid_data.json';
+  const CHART_PADDING = { top: 20, right: 20, bottom: 50, left: 70 };
+  const LINE_COLORS = {
+    target: '#8c8c8c',
+    // Response color is interpolated from corner colors
+  };
+  const CORNER_COLORS = {
+    A: [140, 140, 140],  // #8c8c8c - bottom-left (low Kp, low Kd)
+    B: [76, 114, 176],   // #4c72b0 - bottom-right (high Kp, low Kd)
+    C: [196, 78, 82],    // #c44e52 - top-left (low Kp, high Kd)
+    D: [129, 114, 178],  // #8172b2 - top-right (high Kp, high Kd)
+  };
+  
+  // ======== STATE ========
+  let sysidData = null;
+  let kps = [], kds = [];
+  let normX = 0.729, normY = 0.725;  // Kp≈200, Kd≈10 (log-interpolated)
+  let isDragging = false;
+  let animFrameId = null;
+  let cachedYmin = null, cachedYmax = null;
+  let currentJoint = 3;
+  let availableJoints = [];
+  let hasInteracted = false;
+  let pulseAnimId = null;
+  let pulsePhase = 0;
+  
+  // ======== ELEMENTS ========
+  const chartCanvas = document.getElementById('pdChart');
+  const gridCanvas = document.getElementById('pdGrid');
+  const gainDisplay = document.getElementById('pdGainDisplay');
+  const chartCtx = chartCanvas.getContext('2d');
+  const gridCtx = gridCanvas.getContext('2d');
+  const jointSelect = document.getElementById('pdJointSelect');
+  
+  // ======== LOAD DATA ========
+  fetch(DATA_URL)
+    .then(r => r.json())
+    .then(data => {
+      sysidData = data;
+      kps = data.kps;
+      kds = data.kds;
+      availableJoints = data.joints || [3];
+      // Translate all trajectories so they start from a common origin
+      const START_VALUE = -1.58;
+      for (const j of Object.keys(data.joints_data)) {
+        const jdata = data.joints_data[j];
+        for (const key of Object.keys(jdata)) {
+          const d = jdata[key];
+          const qposOffset = START_VALUE - d.qpos[0];
+          const qdesOffset = START_VALUE - d.qdes[0];
+          for (let i = 0; i < d.qpos.length; i++) {
+            d.qpos[i] += qposOffset;
+            d.qdes[i] += qdesOffset;
+          }
+        }
+      }
+      buildJointDropdown();
+      computeYBounds();
+      initSize();
+      render();
+      startPulse();
+      broadcastJoint();  // Broadcast initial joint selection
+    })
+    .catch(err => console.error('Failed to load sysid data:', err));
+  
+  // ======== JOINT SELECTOR ========
+  function buildJointDropdown() {
+    jointSelect.innerHTML = '';
+    availableJoints.forEach(j => {
+      const opt = document.createElement('option');
+      opt.value = j;
+      opt.textContent = 'Joint ' + j;
+      if (j === currentJoint) opt.selected = true;
+      jointSelect.appendChild(opt);
+    });
+    jointSelect.addEventListener('change', () => {
+      selectJoint(parseInt(jointSelect.value));
+    });
+  }
+
+  function selectJoint(j, broadcast = true) {
+    currentJoint = j;
+    computeYBounds();
+    render();
+    if (broadcast) broadcastJoint();
+  }
+
+  function broadcastJoint() {
+    try {
+      window.parent.postMessage({ type: 'pd-joint-changed', joint: currentJoint }, '*');
+    } catch(e) { /* ignore if no parent */ }
+  }
+
+  function computeYBounds() {
+    const jdata = sysidData.joints_data[String(currentJoint)];
+    let ymin = Infinity, ymax = -Infinity;
+    for (const key of Object.keys(jdata)) {
+      const d = jdata[key];
+      for (let i = 0; i < d.qpos.length; i++) {
+        if (d.qpos[i] < ymin) ymin = d.qpos[i];
+        if (d.qpos[i] > ymax) ymax = d.qpos[i];
+        if (d.qdes[i] < ymin) ymin = d.qdes[i];
+        if (d.qdes[i] > ymax) ymax = d.qdes[i];
+      }
+    }
+    const yMargin = (ymax - ymin) * 0.05;
+    cachedYmin = ymin - yMargin;
+    cachedYmax = ymax + yMargin;
+  }
+
+  // ======== SIZING ========
+  function initSize() {
+    const container = chartCanvas.parentElement;
+    const dpr = window.devicePixelRatio || 1;
+    chartCanvas.width = container.clientWidth * dpr;
+    chartCanvas.height = container.clientHeight * dpr;
+    chartCtx.scale(dpr, dpr);
+    chartCanvas.style.width = container.clientWidth + 'px';
+    chartCanvas.style.height = container.clientHeight + 'px';
+  }
+  
+  window.addEventListener('resize', () => {
+    initSize();
+    render();
+  });
+  
+  // ======== INTERPOLATION ========
+  function getInterpolatedColor(nx, ny) {
+    const A = CORNER_COLORS.A, B = CORNER_COLORS.B;
+    const C = CORNER_COLORS.C, D = CORNER_COLORS.D;
+    // Bilinear: bottom = A..B, top = C..D
+    const bot = A.map((v, i) => (1 - nx) * v + nx * B[i]);
+    const top = C.map((v, i) => (1 - nx) * v + nx * D[i]);
+    const rgb = bot.map((v, i) => Math.round((1 - ny) * v + ny * top[i]));
+    return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+  }
+  
+  function getInterpolatedCurves(nx, ny) {
+    if (!sysidData) return null;
+    
+    // Map normalized coords to index space
+    const ix = nx * (kps.length - 1);
+    const iy = ny * (kds.length - 1);
+    
+    // Find surrounding grid indices
+    const ix0 = Math.max(0, Math.min(kps.length - 2, Math.floor(ix)));
+    const iy0 = Math.max(0, Math.min(kds.length - 2, Math.floor(iy)));
+    const ix1 = ix0 + 1;
+    const iy1 = iy0 + 1;
+    
+    const fx = ix - ix0;
+    const fy = iy - iy0;
+    
+    // Get 4 corner data
+    const keys = [
+      `${kps[ix0]}_${kds[iy0]}`, `${kps[ix1]}_${kds[iy0]}`,
+      `${kps[ix0]}_${kds[iy1]}`, `${kps[ix1]}_${kds[iy1]}`
+    ];
+    
+    const jdata = sysidData.joints_data[String(currentJoint)];
+    const d00 = jdata[keys[0]];
+    const d10 = jdata[keys[1]];
+    const d01 = jdata[keys[2]];
+    const d11 = jdata[keys[3]];
+    
+    if (!d00 || !d10 || !d01 || !d11) return null;
+    
+    const len = d00.qpos.length;
+    const qpos = new Float64Array(len);
+    const qdes = new Float64Array(len);
+    
+    for (let t = 0; t < len; t++) {
+      // Bilinear interpolation
+      const bot_pos = (1 - fx) * d00.qpos[t] + fx * d10.qpos[t];
+      const top_pos = (1 - fx) * d01.qpos[t] + fx * d11.qpos[t];
+      qpos[t] = (1 - fy) * bot_pos + fy * top_pos;
+      
+      const bot_des = (1 - fx) * d00.qdes[t] + fx * d10.qdes[t];
+      const top_des = (1 - fx) * d01.qdes[t] + fx * d11.qdes[t];
+      qdes[t] = (1 - fy) * bot_des + fy * top_des;
+    }
+    
+    // Interpolate Kp/Kd values (log-scale for Kp)
+    const logKp = (1 - nx) * Math.log(kps[0]) + nx * Math.log(kps[kps.length - 1]);
+    const logKd = (1 - ny) * Math.log(kds[0]) + ny * Math.log(kds[kds.length - 1]);
+    
+    return { qpos, qdes, kp: Math.exp(logKp), kd: Math.exp(logKd) };
+  }
+  
+  // ======== RENDERING ========
+  function render() {
+    drawChart();
+    drawGrid();
+    updateGainDisplay();
+    broadcastGains();
+  }
+
+  // ======== GAIN SYNC (postMessage to parent for MuJoCo widget) ========
+  function broadcastGains() {
+    if (!sysidData) return;
+    const logKp = (1 - normX) * Math.log(kps[0]) + normX * Math.log(kps[kps.length - 1]);
+    const logKd = (1 - normY) * Math.log(kds[0]) + normY * Math.log(kds[kds.length - 1]);
+    const kp = Math.exp(logKp);
+    const kd = Math.exp(logKd);
+    try {
+      window.parent.postMessage({ type: 'pd-gains-changed', kp, kd }, '*');
+    } catch(e) { /* ignore if no parent */ }
+  }
+
+  // Listen for gain updates from MuJoCo widget (via parent relay)
+  window.addEventListener('message', function(e) {
+    if (e.data && e.data.type === 'mujoco-gains-changed' && kps.length && kds.length) {
+      const kp = e.data.kp, kd = e.data.kd;
+      normX = (Math.log(kp) - Math.log(kps[0])) / (Math.log(kps[kps.length-1]) - Math.log(kps[0]));
+      normY = (Math.log(kd) - Math.log(kds[0])) / (Math.log(kds[kds.length-1]) - Math.log(kds[0]));
+      normX = Math.max(0, Math.min(1, normX));
+      normY = Math.max(0, Math.min(1, normY));
+      render();
+    }
+    // Listen for joint changes from MuJoCo widget (via parent relay)
+    if (e.data && e.data.type === 'mujoco-joint-changed' && availableJoints.includes(e.data.joint)) {
+      jointSelect.value = e.data.joint;
+      selectJoint(e.data.joint, false);  // false = don't re-broadcast
+    }
+  });
+  
+  function drawChart() {
+    const w = chartCanvas.width / (window.devicePixelRatio || 1);
+    const h = chartCanvas.height / (window.devicePixelRatio || 1);
+    
+    chartCtx.clearRect(0, 0, w, h);
+    
+    const curves = getInterpolatedCurves(normX, normY);
+    if (!curves) return;
+    
+    const { qpos, qdes } = curves;
+    const len = qpos.length;
+    const hz = sysidData.hz;
+    
+    const ymin = cachedYmin;
+    const ymax = cachedYmax;
+    
+    const tmax = (len - 1) / hz;
+    
+    const plotX = CHART_PADDING.left;
+    const plotY = CHART_PADDING.top;
+    const plotW = w - CHART_PADDING.left - CHART_PADDING.right;
+    const plotH = h - CHART_PADDING.top - CHART_PADDING.bottom;
+    
+    // Grid
+    chartCtx.strokeStyle = '#e8e8e8';
+    chartCtx.lineWidth = 2;
+    const nGridY = 5;
+    for (let i = 0; i <= nGridY; i++) {
+      const y = plotY + (i / nGridY) * plotH;
+      chartCtx.beginPath();
+      chartCtx.moveTo(plotX, y);
+      chartCtx.lineTo(plotX + plotW, y);
+      chartCtx.stroke();
+    }
+    const nGridX = 4;
+    for (let i = 0; i <= nGridX; i++) {
+      const x = plotX + (i / nGridX) * plotW;
+      chartCtx.beginPath();
+      chartCtx.moveTo(x, plotY);
+      chartCtx.lineTo(x, plotY + plotH);
+      chartCtx.stroke();
+    }
+    
+    // Helper to map data to canvas
+    function mapX(t) { return plotX + (t / tmax) * plotW; }
+    function mapY(v) { return plotY + plotH - ((v - ymin) / (ymax - ymin)) * plotH; }
+    
+    // Draw target (gray dashed)
+    chartCtx.setLineDash([12, 8]);
+    chartCtx.strokeStyle = LINE_COLORS.target;
+    chartCtx.lineWidth = 4;
+    chartCtx.globalAlpha = 0.9;
+    chartCtx.beginPath();
+    for (let i = 0; i < len; i++) {
+      const x = mapX(i / hz);
+      const y = mapY(qdes[i]);
+      i === 0 ? chartCtx.moveTo(x, y) : chartCtx.lineTo(x, y);
+    }
+    chartCtx.stroke();
+    chartCtx.setLineDash([]);
+    chartCtx.globalAlpha = 1;
+    
+    // Draw response (colored solid)
+    const responseColor = getInterpolatedColor(normX, normY);
+    chartCtx.strokeStyle = responseColor;
+    chartCtx.lineWidth = 7;
+    chartCtx.beginPath();
+    for (let i = 0; i < len; i++) {
+      const x = mapX(i / hz);
+      const y = mapY(qpos[i]);
+      i === 0 ? chartCtx.moveTo(x, y) : chartCtx.lineTo(x, y);
+    }
+    chartCtx.stroke();
+    
+    // Axes
+    chartCtx.strokeStyle = '#333';
+    chartCtx.lineWidth = 3;
+    chartCtx.beginPath();
+    chartCtx.moveTo(plotX, plotY);
+    chartCtx.lineTo(plotX, plotY + plotH);
+    chartCtx.lineTo(plotX + plotW, plotY + plotH);
+    chartCtx.stroke();
+    
+    // Labels
+    chartCtx.fillStyle = '#333';
+    chartCtx.font = '20px -apple-system, BlinkMacSystemFont, sans-serif';
+    chartCtx.textAlign = 'center';
+    
+    // X axis ticks
+    for (let i = 0; i <= nGridX; i++) {
+      const tv = (i / nGridX) * tmax;
+      const x = mapX(tv);
+      chartCtx.fillText(tv.toFixed(1) + 's', x, plotY + plotH + 20);
+    }
+    
+    // Y axis ticks
+    chartCtx.textAlign = 'right';
+    for (let i = 0; i <= nGridY; i++) {
+      const v = ymin + (1 - i / nGridY) * (ymax - ymin);
+      const y = plotY + (i / nGridY) * plotH;
+      chartCtx.fillText(v.toFixed(2), plotX - 8, y + 4);
+    }
+    
+    // Axis titles
+    chartCtx.font = '21px -apple-system, BlinkMacSystemFont, sans-serif';
+    chartCtx.textAlign = 'center';
+    chartCtx.fillText('Time (s)', plotX + plotW / 2, h - 5);
+    
+    chartCtx.save();
+    chartCtx.translate(15, plotY + plotH / 2);
+    chartCtx.rotate(-Math.PI / 2);
+    chartCtx.fillText('Joint Position (rad)', 0, 0);
+    chartCtx.restore();
+
+    // Legend (top-right corner)
+    const legFont = '15px -apple-system, BlinkMacSystemFont, sans-serif';
+    chartCtx.font = legFont;
+    const legLineW = 28;
+    const legGap = 8;
+    const legRowH = 22;
+    const legPadX = 12;
+    const legPadY = 10;
+    const desText = 'Desired';
+    const achText = 'Achieved';
+    const maxTextW = Math.max(chartCtx.measureText(desText).width, chartCtx.measureText(achText).width);
+    const legW = legPadX * 2 + legLineW + legGap + maxTextW;
+    const legH = legPadY * 2 + legRowH * 2 - 4;
+    const legX = plotX + plotW - legW - 8;
+    const legY = plotY + 8;
+
+    // Background
+    chartCtx.fillStyle = 'rgba(255,255,255,0.9)';
+    chartCtx.strokeStyle = '#ccc';
+    chartCtx.lineWidth = 1;
+    chartCtx.beginPath();
+    chartCtx.roundRect(legX, legY, legW, legH, 5);
+    chartCtx.fill();
+    chartCtx.stroke();
+
+    // Desired line sample + text
+    const row1Y = legY + legPadY + 10;
+    chartCtx.setLineDash([8, 4]);
+    chartCtx.strokeStyle = LINE_COLORS.target;
+    chartCtx.lineWidth = 3;
+    chartCtx.beginPath();
+    chartCtx.moveTo(legX + legPadX, row1Y);
+    chartCtx.lineTo(legX + legPadX + legLineW, row1Y);
+    chartCtx.stroke();
+    chartCtx.setLineDash([]);
+    chartCtx.fillStyle = '#555';
+    chartCtx.textAlign = 'left';
+    chartCtx.fillText(desText, legX + legPadX + legLineW + legGap, row1Y + 5);
+
+    // Achieved line sample + text
+    const row2Y = row1Y + legRowH;
+    chartCtx.strokeStyle = responseColor;
+    chartCtx.lineWidth = 3;
+    chartCtx.beginPath();
+    chartCtx.moveTo(legX + legPadX, row2Y);
+    chartCtx.lineTo(legX + legPadX + legLineW, row2Y);
+    chartCtx.stroke();
+    chartCtx.fillStyle = '#555';
+    chartCtx.fillText(achText, legX + legPadX + legLineW + legGap, row2Y + 5);
+  }
+  
+  function drawGrid() {
+    const s = 300; // canvas pixel size
+    const pad = 30;
+    const gridSize = s - 2 * pad;
+    
+    gridCtx.clearRect(0, 0, s, s);
+    
+    // Light grid lines
+    gridCtx.strokeStyle = '#e0e0e0';
+    gridCtx.lineWidth = 2;
+    const nLines = 6;
+    for (let i = 0; i <= nLines; i++) {
+      const frac = i / nLines;
+      // Vertical
+      gridCtx.beginPath();
+      gridCtx.moveTo(pad + frac * gridSize, pad);
+      gridCtx.lineTo(pad + frac * gridSize, pad + gridSize);
+      gridCtx.stroke();
+      // Horizontal
+      gridCtx.beginPath();
+      gridCtx.moveTo(pad, pad + frac * gridSize);
+      gridCtx.lineTo(pad + gridSize, pad + frac * gridSize);
+      gridCtx.stroke();
+    }
+    
+    // Axes arrows
+    gridCtx.strokeStyle = '#333';
+    gridCtx.lineWidth = 4;
+    // X axis
+    gridCtx.beginPath();
+    gridCtx.moveTo(pad, pad + gridSize);
+    gridCtx.lineTo(pad + gridSize + 10, pad + gridSize);
+    gridCtx.stroke();
+    // Arrow head
+    gridCtx.beginPath();
+    gridCtx.moveTo(pad + gridSize + 10, pad + gridSize);
+    gridCtx.lineTo(pad + gridSize + 3, pad + gridSize - 4);
+    gridCtx.moveTo(pad + gridSize + 10, pad + gridSize);
+    gridCtx.lineTo(pad + gridSize + 3, pad + gridSize + 4);
+    gridCtx.stroke();
+    
+    // Y axis
+    gridCtx.beginPath();
+    gridCtx.moveTo(pad, pad + gridSize);
+    gridCtx.lineTo(pad, pad - 10);
+    gridCtx.stroke();
+    // Arrow head
+    gridCtx.beginPath();
+    gridCtx.moveTo(pad, pad - 10);
+    gridCtx.lineTo(pad - 4, pad - 3);
+    gridCtx.moveTo(pad, pad - 10);
+    gridCtx.lineTo(pad + 4, pad - 3);
+    gridCtx.stroke();
+    
+    // Draw indicator circle
+    const cx = pad + normX * gridSize;
+    const cy = pad + (1 - normY) * gridSize;  // flip Y: top = high Kd
+    const color = getInterpolatedColor(normX, normY);
+    
+    gridCtx.beginPath();
+    gridCtx.arc(cx, cy, 24, 0, Math.PI * 2);
+    gridCtx.fillStyle = color;
+    gridCtx.fill();
+    gridCtx.strokeStyle = '#222';
+    gridCtx.lineWidth = 5;
+    gridCtx.stroke();
+
+    // Pulse hint ring (before first interaction)
+    if (!hasInteracted) {
+      const pulseR = 24 + 8 + 10 * Math.sin(pulsePhase);
+      const pulseAlpha = 0.25 + 0.2 * Math.sin(pulsePhase);
+      gridCtx.beginPath();
+      gridCtx.arc(cx, cy, pulseR, 0, Math.PI * 2);
+      gridCtx.strokeStyle = `rgba(34,34,34,${pulseAlpha})`;
+      gridCtx.lineWidth = 3;
+      gridCtx.stroke();
+
+      // Animated cursor icon near circle
+      const bobY = 4 * Math.sin(pulsePhase * 0.8);
+      const curX = cx + 32;
+      const curY = cy + 18 + bobY;
+      gridCtx.save();
+      gridCtx.translate(curX, curY);
+      gridCtx.scale(2.5, 2.5);
+      // Draw pointer cursor shape
+      gridCtx.beginPath();
+      gridCtx.moveTo(0, 0);
+      gridCtx.lineTo(0, 16);
+      gridCtx.lineTo(4, 13);
+      gridCtx.lineTo(7, 19);
+      gridCtx.lineTo(10, 18);
+      gridCtx.lineTo(7, 12);
+      gridCtx.lineTo(12, 12);
+      gridCtx.closePath();
+      gridCtx.fillStyle = 'rgba(50,50,50,0.7)';
+      gridCtx.fill();
+      gridCtx.strokeStyle = 'rgba(255,255,255,0.95)';
+      gridCtx.lineWidth = 1;
+      gridCtx.lineJoin = 'round';
+      gridCtx.stroke();
+      gridCtx.restore();
+
+      // "Click & drag" label to the left of cursor icon, moves with it
+      const labelText = 'Click & drag';
+      gridCtx.font = 'bold 23px -apple-system, BlinkMacSystemFont, sans-serif';
+      const labelW = gridCtx.measureText(labelText).width;
+      const labelX = curX - 6 - labelW;
+      const labelY = curY + 40;
+      // Tinted background
+      gridCtx.fillStyle = 'rgba(240,240,240,0.75)';
+      gridCtx.beginPath();
+      gridCtx.roundRect(labelX - 5, labelY - 19, labelW + 10, 26, 4);
+      gridCtx.fill();
+      // Text
+      gridCtx.fillStyle = 'rgba(70,70,70,0.8)';
+      gridCtx.textAlign = 'right';
+      gridCtx.fillText(labelText, curX - 6, labelY);
+    }
+  }
+  
+  function updateGainDisplay() {
+    // no-op: gain display removed
+  }
+  
+  // ======== PULSE ANIMATION ========
+  function startPulse() {
+    function tick() {
+      if (hasInteracted) return;
+      pulsePhase += 0.07;
+      drawGrid();
+      pulseAnimId = requestAnimationFrame(tick);
+    }
+    pulseAnimId = requestAnimationFrame(tick);
+  }
+
+  function stopPulse() {
+    if (!hasInteracted) {
+      hasInteracted = true;
+      if (pulseAnimId) cancelAnimationFrame(pulseAnimId);
+      drawGrid();  // redraw without pulse
+    }
+  }
+
+  // ======== INTERACTION ========
+  function getGridNorm(e) {
+    const rect = gridCanvas.getBoundingClientRect();
+    const scaleX = 300 / rect.width;
+    const scaleY = 300 / rect.height;
+    const pad = 30;
+    const gridSize = 300 - 2 * pad;
+    
+    const px = (e.clientX - rect.left) * scaleX;
+    const py = (e.clientY - rect.top) * scaleY;
+    
+    const nx = Math.max(0, Math.min(1, (px - pad) / gridSize));
+    const ny = Math.max(0, Math.min(1, 1 - (py - pad) / gridSize));
+    return { nx, ny };
+  }
+  
+  gridCanvas.addEventListener('mousedown', (e) => {
+    stopPulse();
+    isDragging = true;
+    const { nx, ny } = getGridNorm(e);
+    normX = nx;
+    normY = ny;
+    render();
+  });
+  
+  window.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const { nx, ny } = getGridNorm(e);
+    normX = nx;
+    normY = ny;
+    if (!animFrameId) {
+      animFrameId = requestAnimationFrame(() => {
+        render();
+        animFrameId = null;
+      });
+    }
+  });
+  
+  window.addEventListener('mouseup', () => {
+    isDragging = false;
+  });
+  
+  // Touch support
+  gridCanvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    stopPulse();
+    isDragging = true;
+    const touch = e.touches[0];
+    const { nx, ny } = getGridNorm(touch);
+    normX = nx;
+    normY = ny;
+    render();
+  }, { passive: false });
+  
+  window.addEventListener('touchmove', (e) => {
+    if (!isDragging) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    const { nx, ny } = getGridNorm(touch);
+    normX = nx;
+    normY = ny;
+    if (!animFrameId) {
+      animFrameId = requestAnimationFrame(() => {
+        render();
+        animFrameId = null;
+      });
+    }
+  }, { passive: false });
+  
+  window.addEventListener('touchend', () => {
+    isDragging = false;
+  });
+  
+})();
+</script>
+</body>
+</html>

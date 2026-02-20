@@ -1,0 +1,36 @@
+<!-- ════════════════════════════════════════════════════════════
+     Learning Poll → Reinforcement Learning Findings
+     ════════════════════════════════════════════════════════════ -->
+
+<section class="section alt-bg">
+  <div class="container">
+    <h2>RL can discover solutions for all gain settings.</h2>
+    <div class="container">
+      <p>
+        Unlike behavior cloning, reinforcement learning is <strong>robust across all gain regimes</strong> —
+        but only when hyperparameters are tuned to match. The dynamics induced by different gains
+        effectively change the MDP the agent is solving, so learning rates, entropy coefficients,
+        and reward scales need to be adjusted accordingly.
+      </p>
+      <p>
+        In our experiments, RL policies achieved comparable final performance across
+        compliant, critically damped, and stiff settings, provided we swept over compatible
+        hyperparameter ranges for each regime.
+      </p>
+    </div>
+
+    <!-- Interactive RL Gains Widget -->
+    <div class="widget-container" style="margin-top:1.5rem;">
+      <iframe 
+        data-src="static/assets/rl_gains_widget.html" 
+        width="100%" 
+        height="580" 
+        style="border:none; border-radius:8px; background:#fff;"
+        title="Interactive RL Performance Across Gain Settings">
+      </iframe>
+      <p class="widget-caption" style="text-align:center; color:#666; font-size:14px; margin-top:8px;">
+        Click on different gain settings to see the PD response and corresponding RL behavior video.
+      </p>
+    </div>
+  </div>
+</section>

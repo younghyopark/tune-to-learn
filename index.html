@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- ===== EDIT: Page title & metadata ===== -->
+  <title>Tune to Learn: How Controller Gains Affect Robot Policy Learning</title>
+  <meta name="description" content="A brief description of the paper for SEO / social previews." />
+  <meta name="keywords" content="robotics, learning, manipulation" />
+
+  <!-- Open Graph (for social sharing previews) -->
+  <meta property="og:title" content="Your Paper Title Here" />
+  <meta property="og:description" content="A brief description of the paper." />
+  <meta property="og:image" content="static/images/og-preview.png" />
+  <meta property="og:type" content="website" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <!-- KaTeX (for math rendering) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.body, {delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]});"></script>
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="static/css/style.css" />
+</head>
+<body>
+
+<!-- ╔══════════════════════════════════════════════════════════════╗
+     ║  HERO / TITLE SECTION                                       ║
+     ╚══════════════════════════════════════════════════════════════╝ -->
+<header class="hero">
+  <div class="container">
+
+    <!-- Conference badge (optional) -->
+    <div class="venue-badge">
+      <span class="badge">RSS 2026 (Under Review)</span>
+      <!-- Add more badges as needed: <span class="badge accent">Best Paper</span> -->
+    </div>
+
+    <h1 class="paper-title">
+      Tune to Learn:<br/>
+      <span class="subtitle">How Controller Gains Affect Robot Policy Learning</span>
+    </h1>
+
+    <!-- ===== AUTHORS — edit names, links, affiliations ===== -->
+    <div class="author-list">
+      <div class="author">
+        <a href="https://example.com" target="_blank">Antonia Bronars</a><sup>1*</sup>
+      </div>
+      <div class="author">
+        <a href="https://younghyopark.me/" target="_blank">Younghyo Park</a><sup>1*</sup>
+      </div>
+      <div class="author">
+        <a href="https://pulkitag.github.io/" target="_blank">Pulkit Agrawal</a><sup>1</sup>
+      </div>
+    </div>
+
+    <div class="affiliations">
+      <span><sup>1</sup> MIT Improbable AI</span>
+    </div>
+    <p class="equal-contrib">* Equal contribution, Order determined by Coin Flipping</p>
+
+    <!-- ===== QUICK LINKS (paper, code, video, etc.) ===== -->
+    <div class="link-buttons">
+      <a href="#" class="btn"><i class="fas fa-file-pdf"></i> Paper</a>
+      <a href="#" class="btn"><i class="fab fa-github"></i> Code</a>
+      <a href="#" class="btn"><i class="fas fa-video"></i> Video</a>
+      <a href="#" class="btn"><i class="fas fa-database"></i> Dataset</a>
+      <a href="#" class="btn"><i class="fab fa-arxiv fas fa-scroll"></i> arXiv</a>
+    </div>
+  </div>
+</header>
+
+<!-- Compact sticky header bar (appears on scroll) -->
+<div class="sticky-header" id="sticky-header">
+  <div class="sticky-header-inner">
+    <div class="sticky-title">
+      <strong>Tune to Learn:</strong> How Controller Gains Affect Robot Policy Learning
+      <span class="sticky-sep">—</span>
+      <span class="sticky-authors">A. Bronars*, Y. Park*, P. Agrawal</span>
+      <span class="sticky-sep">·</span>
+      <span class="sticky-venue">MIT Improbable AI</span>
+    </div>
+    <div class="sticky-links">
+      <a href="#" class="sticky-btn"><i class="fas fa-file-pdf"></i></a>
+      <a href="#" class="sticky-btn"><i class="fab fa-github"></i></a>
+      <a href="#" class="sticky-btn"><i class="fas fa-scroll"></i></a>
+    </div>
+  </div>
+</div>
+
+<!-- ╔══════════════════════════════════════════════════════════════╗
+     ║  TEASER                                                      ║
+     ╚══════════════════════════════════════════════════════════════╝ -->
+
+<!-- ╔══════════════════════════════════════════════════════════════╗
+     ║  ABSTRACT                                                    ║
+     ╚══════════════════════════════════════════════════════════════╝ -->
+<section class="section" id="abstract">
+  <div class="container container-narrow">
+    <h2>Abstract</h2>
+    <p class="abstract-text">
+Position controllers have become the dominant interface for executing learned manipulation policies. Yet a critical design decision remains understudied: how should we choose controller gains for policy learning? The conventional wisdom is to select gains based on desired task compliance or stiffness. However, this logic breaks down when controllers are paired with state-conditioned policies: effective stiffness emerges from the interplay between learned reactions and control dynamics, not from gains alone. We argue that gain selection should instead be guided by learnability: how amenable different gain settings are to the learning algorithm in use. In this work, we systematically investigate how position controller gains affect three core components of modern robot learning pipelines: offline imitation learning, reinforcement learning from scratch, and sim-to-real transfer. Through extensive experiments across multiple tasks and robot embodiments, we find that: 
+    </p>
+    <ol class="abstract-findings">
+      <li><b>Behavior Cloning (BC)</b> learning benefits from compliant and overdamped gain regimes,</li>
+      <li><b>Reinforcement Learning (RL)</b> can succeed across all gain regimes given compatible hyperparameter tuning, and</li>
+      <li><b>Sim-to-Real</b> transfer is harmed by stiff and overdamped gain regimes.</li>
+    </ol>
+    <p class="abstract-text">
+      These findings reveal that optimal gain selection depends not on the desired task behavior, but on the learning paradigm employed.
+    </p>
+  </div>
+</section>
+
+<!-- ╔══════════════════════════════════════════════════════════════╗
+     ║  VIDEO — Embedded YouTube / MP4                              ║
+     ╚══════════════════════════════════════════════════════════════╝ -->
+<section class="section" id="video">
+  <div class="container container-narrow">
+    <details class="video-collapse" open>
+      <summary class="video-label">Video Summary</summary>
+      <iframe width="100%" height="401" src="https://www.youtube.com/embed/6_6fhu_oo68?si=uoDsAM3wg6H_QJOE" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen style="border: 1px solid #ddd; border-radius: 4px;"></iframe>
+    </details>
+  </div>
+</section>
+
+
+
+
+
+<section class="section" id="method">
+  <div class="container container-medium">
+    <h2>Position Impedance Controllers and Gains</h2>
+    <div class="container">
+      Position impedance controllers are commonly used in robotics to enable compliant behavior. The control law is typically defined as:
+      <p>
+        $$\tau = \underbrace{\mathbf{K}_p (\mathbf{x}_{\text{desired}} - \mathbf{x})}_{\text{feedback}} + \underbrace{\mathbf{K}_d (- \dot{\mathbf{x}})}_{\text{damping}} + \underbrace{\tau_{\text{ff}}}_{\text{feedforward}}$$
+      </p>
+      where $\tau$ is the control torque, $\mathbf{K}_p$ is the stiffness gain matrix, and $\mathbf{K}_d$ is the damping gain matrix. 
+      Click and drag the circle below to adjust the gains and see how it affects the robot's response to different excitations.
+      The response curves are recorded from real-world Franka Research 3. 
+      <!-- <p>
+        $$\pi^*(a \mid s) = \arg\max_\pi \mathbb{E}\left[\sum_{t=0}^{T} \gamma^t r(s_t, a_t)\right]$$
+      </p> -->
+    </div>
+
+    <!-- Full-width method figure -->
+    <figure class="figure-full">
+        <iframe data-src="static/assets/pd_response_widget.html" style="width:100%; max-width:800px; height:500px; margin:0 auto;"></iframe>
+      <!-- <div class="placeholder-img" style="height:300px;">
+        <span>Method Overview Figure</span>
+      </div> -->
+      <!-- <figcaption>
+        <strong>Figure 2.</strong> Overview of the proposed architecture.
+      </figcaption> -->
+    </figure>
+
+    <!-- Interactive MuJoCo FR3 Simulation -->
+    <p style="margin-top:1.5rem;">
+      The 3D simulation below runs the <strong>same PD control law</strong> on a MuJoCo model of the Franka Research 3.
+      Drag the gains on the chart above and observe how different gain regimes track sinusoidal or step commands — or <strong>click &amp; drag the robot</strong> to apply perturbation forces.
+    </p>
+    <figure class="figure-full">
+      <iframe id="mujoco-iframe" data-src="static/assets/mujoco_fr3_widget.html"
+              style="width:100%; max-width:900px; height:550px; margin:0 auto; border:none; border-radius:10px;"
+              allow="autoplay"></iframe>
+      <figcaption>
+        <strong>Interactive.</strong> Click &amp; drag robot to apply forces. Change excitation mode (Hold/Sine/Step) to see tracking behavior.
+        Orbit: right-click &middot; Zoom: scroll
+      </figcaption>
+    </figure>
+
+  </div>
+</section>
+
+
+<!-- ╔══════════════════════════════════════════════════════════════╗
+     ║  GAIN-TUNING POLL — interactive reader prompt                ║
+     ╚══════════════════════════════════════════════════════════════╝ -->
+<section class="section" id="poll">
+  <div class="container container-medium">
+    <div class="poll-box">
+      <p class="poll-onboarding">Before we move on, a quick question for you —</p>
+      <h2 class="poll-question">How do you tune your controller gains?</h2>
+
+      <div class="poll-options">
+        <!-- Option A -->
+        <button class="poll-card" data-poll="a">
+          <div class="poll-card-text">
+            <span class="poll-card-title">Don't Tune</span>
+            <span class="poll-card-desc">I use whatever controller gains that ship with the robot (or controller software) by default.</span>
+          </div>
+        </button>
+
+        <!-- Option B -->
+        <button class="poll-card" data-poll="b">
+          <div class="poll-card-text">
+            <span class="poll-card-title">Tune based on the Task</span>
+            <span class="poll-card-desc">I set gains based on desired task behavior — e.g. stiff for precision requiring tasks.</span>
+          </div>
+        </button>
+
+        <!-- Option C -->
+        <button class="poll-card" data-poll="c">
+          <div class="poll-card-text">
+            <span class="poll-card-title">Tune for Teleoperation</span>
+            <span class="poll-card-desc">I pick whatever gains feel best during teleoperation or data collection.</span>
+          </div>
+        </button>
+
+      </div>
+
+      <p class="poll-subtitle">Select the approach that best describes your current practice.</p>
+
+    </div>
+
+    <!-- Response panels (hidden until a choice is made) -->
+    <div class="poll-response" id="poll-response-a">
+      <div class="poll-response-header purple">
+        <strong>You said: Don't Tune</strong>
+      </div>
+      <p>
+        You're not alone — many practitioners never touch the default gains.
+        But our experiments show that the <em>default</em> gain regime can quietly
+        bottleneck policy performance. In offline imitation learning, for example,
+        swapping to a compliant, overdamped regime can improve success rates
+        by over <strong>30%</strong> on the same task with the same data.
+        Keep reading to see how different gain choices interact with each
+        stage of the learning pipeline.
+      </p>
+    </div>
+
+    <div class="poll-response" id="poll-response-b">
+      <div class="poll-response-header blue">
+        <strong>You said: Tune for Task</strong>
+      </div>
+      <p>
+        Matching gains to the <em>desired task stiffness</em> is the most common
+        heuristic — but it can be misleading when a learned policy is in the loop.
+        Because the policy itself reacts to state, the <em>effective</em> stiffness
+        is a product of both the controller gains <strong>and</strong> the learned behavior.
+        Our findings suggest that optimizing gains for <em>learnability</em> — not
+        task compliance — leads to significantly better policies.
+      </p>
+    </div>
+
+    <div class="poll-response" id="poll-response-c">
+      <div class="poll-response-header green">
+        <strong>You said: Tune for Teleop</strong>
+      </div>
+      <p>
+        Optimizing for a comfortable teleoperation feel is a reasonable
+        starting point — after all, better teleop usually means better
+        demonstration data. However, gains that feel natural for a human
+        operator may not be optimal for the downstream learning algorithm.
+        Our results show that the best gain regime differs depending on
+        whether you're doing imitation learning, RL from scratch, or
+        sim-to-real transfer. Read on to find out which regime helps most
+        for your pipeline.
+      </p>
+    </div>
+
+
+  </div>
+</section>
+
+<!-- Dynamic content injected here based on poll choice -->
+<div id="poll-dynamic-content"></div>
+
+
+<section class="section alt-bg" id="citation">
+  <div class="container container-medium">
+    <h2>BibTeX</h2>
+    <div class="bibtex-block">
+      <button class="copy-btn" data-copy="bibtex-code" title="Copy to clipboard">
+        <i class="fas fa-copy"></i> Copy
+      </button>
+      <pre><code id="bibtex-code">@inproceedings{author2026method,
+  title     = {Your Paper Title Goes Here},
+  author    = {One, Author and Two, Author and Three, Author and Four, Author},
+  booktitle = {Conference on Robot Learning (CoRL)},
+  year      = {2026}
+}</code></pre>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="acknowledgments">
+  <div class="container container-medium">
+    <h2>Acknowledgments</h2>
+    <p>
+      This work was supported by … We thank … for helpful discussions.
+      The website template is adapted from
+      <a href="https://nerfies.github.io" target="_blank">Nerfies</a>.
+    </p>
+  </div>
+</section>
+
+
+<!-- ╔══════════════════════════════════════════════════════════════╗
+     ║  FOOTER                                                      ║
+     ╚══════════════════════════════════════════════════════════════╝ -->
+<footer class="footer">
+  <div class="container">
+    <p>&copy; 2026 ImprobableAI @MIT CSAIL. All rights reserved.</p>
+  </div>
+</footer>
+
+<!-- Dynamic TOC (right sidebar, built from headings) -->
+<nav id="dynamic-toc" class="dynamic-toc"></nav>
+
+<!-- JavaScript -->
+<script src="static/js/script.js"></script>
+
+<!-- Relay gains bidirectionally: PD widget ↔ MuJoCo widget -->
+<script>
+(function() {
+  // Find both iframes (check both src and data-src for lazy loading)
+  function getPdIframe() {
+    var iframes = document.querySelectorAll('iframe');
+    for (var i = 0; i < iframes.length; i++) {
+      var src = iframes[i].src || iframes[i].dataset.src || '';
+      if (src.indexOf('pd_response_widget') !== -1) return iframes[i];
+    }
+    return null;
+  }
+  window.addEventListener('message', function(e) {
+    if (!e.data || !e.data.type) return;
+    // PD widget → MuJoCo widget
+    if (e.data.type === 'pd-gains-changed') {
+      var mj = document.getElementById('mujoco-iframe');
+      if (mj && mj.contentWindow && e.source !== mj.contentWindow) {
+        mj.contentWindow.postMessage(e.data, '*');
+      }
+    }
+    // MuJoCo widget → PD widget
+    if (e.data.type === 'mujoco-gains-changed') {
+      var pd = getPdIframe();
+      if (pd && pd.contentWindow && e.source !== pd.contentWindow) {
+        pd.contentWindow.postMessage(e.data, '*');
+      }
+    }
+    // PD widget → MuJoCo widget (joint selection)
+    if (e.data.type === 'pd-joint-changed') {
+      var mj = document.getElementById('mujoco-iframe');
+      if (mj && mj.contentWindow && e.source !== mj.contentWindow) {
+        mj.contentWindow.postMessage(e.data, '*');
+      }
+    }
+    // MuJoCo widget → PD widget (joint selection)
+    if (e.data.type === 'mujoco-joint-changed') {
+      var pd = getPdIframe();
+      if (pd && pd.contentWindow && e.source !== pd.contentWindow) {
+        pd.contentWindow.postMessage(e.data, '*');
+      }
+    }
+  });
+})();
+</script>
+
+
+
+</body>
+</html>

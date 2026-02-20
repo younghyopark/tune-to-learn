@@ -1,0 +1,73 @@
+<mujoco model="panda scene">
+
+  <include file="unitree_g1/g1_with_hands.xml"/>
+  <include file="google_scanned_objects/3D_Dollhouse_Sofa/model.xml"/>
+  <option integrator="implicitfast"/>
+
+  <!-- <option o_solref="0.00001 1" o_solimp="0.01 1" impratio="1000" noslip_iterations="1">
+    <flag override="enable" />
+  </option> -->
+
+  <statistic center="0.3 0 0.35" extent="0.8" meansize="0.05"/>
+
+  <visual>
+    <headlight diffuse="0.6 0.6 0.6" ambient="0.1 0.1 0.1" specular="0 0 0"/>
+    <global azimuth="120" elevation="-20"/>
+  </visual>
+
+  <asset>
+    <texture name="wood_texture" type="2d" file="brown-text.png"/>
+    <material name="wood" texture="wood_texture" />
+  </asset>
+
+  <worldbody>
+    <light pos="0 0 1.5" dir="0 0 -1" directional="true"/>
+    <!-- <geom name="floor" size="1 1 0.01" type="plane" material="grid"/> -->
+    <body name="table" pos="0.5 0 0.35">
+      <geom type="box" size="0.3 0.5 0.35" material="wood"/>
+    </body>
+    <body name="left_hand_wrist_target" pos="0.5 -0.4 .5" quat="0 1 0 0" mocap="true">
+      <geom type="box" size=".02 .02 .02" contype="0" conaffinity="0" rgba=".6 .3 .3 .5"/>
+      <site type="sphere" size="0.01" rgba="0 0 1 1" group="1"/>
+    </body>
+
+    <body name="left_hand_thumb_target" pos="0.5 -0.4 .5" quat="0 1 0 0" mocap="true">
+      <geom type="box" size=".02 .02 .02" contype="0" conaffinity="0" rgba=".6 .3 .3 .5"/>
+      <site type="sphere" size="0.01" rgba="0 0 1 1" group="1"/>
+    </body>
+
+    <body name="left_hand_index_target" pos="0.5 -0.4 .5" quat="0 1 0 0" mocap="true">
+      <geom type="box" size=".02 .02 .02" contype="0" conaffinity="0" rgba=".6 .3 .3 .5"/>
+      <site type="sphere" size="0.01" rgba="0 0 1 1" group="1"/>
+    </body>
+
+    <body name="left_hand_middle_target" pos="0.5 -0.4 .5" quat="0 1 0 0" mocap="true">
+      <geom type="box" size=".02 .02 .02" contype="0" conaffinity="0" rgba=".6 .3 .3 .5"/>
+      <site type="sphere" size="0.01" rgba="0 0 1 1" group="1"/>
+    </body>
+
+    <body name="right_hand_wrist_target" pos="0.5 0.4 .5" quat="0 1 0 0" mocap="true">
+      <geom type="box" size=".02 .02 .02" contype="0" conaffinity="0" rgba=".3 .3 .6 .5"/>
+      <site type="sphere" size="0.01" rgba="0 0 1 1" group="1"/>
+    </body>
+    
+    <body name="right_hand_thumb_target" pos="0.5 0.4 .5" quat="0 1 0 0" mocap="true">
+      <geom type="box" size=".02 .02 .02" contype="0" conaffinity="0" rgba=".3 .3 .6 .5"/>
+      <site type="sphere" size="0.01" rgba="0 0 1 1" group="1"/>
+    </body>
+
+    <body name="right_hand_index_target" pos="0.5 0.4 .5" quat="0 1 0 0" mocap="true">
+      <geom type="box" size=".02 .02 .02" contype="0" conaffinity="0" rgba=".3 .3 .6 .5"/>
+      <site type="sphere" size="0.01" rgba="0 0 1 1" group="1"/>
+    </body>
+
+    <body name="right_hand_middle_target" pos="0.5 0.4 .5" quat="0 1 0 0" mocap="true">
+      <geom type="box" size=".02 .02 .02" contype="0" conaffinity="0" rgba=".3 .3 .6 .5"/>
+      <site type="sphere" size="0.01" rgba="0 0 1 1" group="1"/>
+    </body>
+
+  </worldbody>
+
+
+
+</mujoco>

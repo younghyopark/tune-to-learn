@@ -1,0 +1,55 @@
+{
+	"url": "https://cad.onshape.com/documents/c4a331975ceab76e0154d26e/w/8313aa8a760c81e1d8a5ecf2/e/5863435791bcbea3db96a3b3",
+	"output_format": "urdf",
+
+	"joint_properties": {
+		"base_l00": {
+		    "max_effort": 1.20,
+		    "max_velocity": 14.4
+		},
+		"l00_l01": {
+		    "max_effort": 0.84,
+		    "max_velocity": 3.9
+		},
+		"l01_l02": {
+		    "max_effort": 0.63,
+		    "max_velocity": 3.99
+		},
+		"l02_l03": {
+		    "max_effort": 0.294,
+		    "max_velocity": 3.03
+		},
+		"base_l10": {
+		    "max_effort": 0.84,
+		    "max_velocity": 3.9
+		},
+		"l10_l11": {
+		    "max_effort": 1.20,
+		    "max_velocity": 14.4
+		},
+		"l11_l12": {
+		    "max_effort": 0.63,
+		    "max_velocity": 3.99
+		},
+		"l12_l13": {
+		    "max_effort": 0.294,
+		    "max_velocity": 3.03
+		},
+		"base_l20": {
+		    "max_effort": 0.84,
+		    "max_velocity": 3.9
+		},
+		"l20_l21": {
+		    "max_effort": 1.20,
+		    "max_velocity": 14.4
+		},
+		"l21_l22": {
+		    "max_effort": 0.63,
+		    "max_velocity": 3.99
+		},
+		"l22_l23": {
+		    "max_effort": 0.294,
+		    "max_velocity": 3.03
+		}
+	}
+}

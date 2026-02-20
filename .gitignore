@@ -1,0 +1,16 @@
+manuscript/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+*.swp
+*.swo
+*~
+
+# Build artifacts
+node_modules/
+/dist/
+.cache/

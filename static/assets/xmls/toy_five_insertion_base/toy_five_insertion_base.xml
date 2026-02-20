@@ -1,0 +1,104 @@
+<mujoco model="toy_five_insertion_base">
+  <default>
+    <default class="toy_base_visual">
+      <geom group="2" type="mesh" contype="0" conaffinity="0"/>
+    </default>
+    <default class="toy_base_collision">
+      <geom group="3" type="mesh"/>
+    </default>
+  </default>
+  <asset>
+    <texture type="2d" name="96f5cf15-ead2-4051-a6c4-9892a9259b50" file="96f5cf15-ead2-4051-a6c4-9892a9259b50.png"/>
+    <material name="toy_base_material" texture="96f5cf15-ead2-4051-a6c4-9892a9259b50" specular="0.5" shininess="0.5"/>
+    <mesh file="toy_five_insertion_base.obj"/>
+    <mesh file="toy_five_insertion_base_collision_0.obj"/>
+    <mesh file="toy_five_insertion_base_collision_1.obj"/>
+    <mesh file="toy_five_insertion_base_collision_2.obj"/>
+    <mesh file="toy_five_insertion_base_collision_3.obj"/>
+    <mesh file="toy_five_insertion_base_collision_4.obj"/>
+    <mesh file="toy_five_insertion_base_collision_5.obj"/>
+    <mesh file="toy_five_insertion_base_collision_6.obj"/>
+    <mesh file="toy_five_insertion_base_collision_7.obj"/>
+    <mesh file="toy_five_insertion_base_collision_8.obj"/>
+    <mesh file="toy_five_insertion_base_collision_9.obj"/>
+    <mesh file="toy_five_insertion_base_collision_10.obj"/>
+    <mesh file="toy_five_insertion_base_collision_11.obj"/>
+    <mesh file="toy_five_insertion_base_collision_12.obj"/>
+    <mesh file="toy_five_insertion_base_collision_13.obj"/>
+    <mesh file="toy_five_insertion_base_collision_14.obj"/>
+    <mesh file="toy_five_insertion_base_collision_15.obj"/>
+    <mesh file="toy_five_insertion_base_collision_16.obj"/>
+    <mesh file="toy_five_insertion_base_collision_17.obj"/>
+    <mesh file="toy_five_insertion_base_collision_18.obj"/>
+    <mesh file="toy_five_insertion_base_collision_19.obj"/>
+    <mesh file="toy_five_insertion_base_collision_20.obj"/>
+    <mesh file="toy_five_insertion_base_collision_21.obj"/>
+    <mesh file="toy_five_insertion_base_collision_22.obj"/>
+    <mesh file="toy_five_insertion_base_collision_23.obj"/>
+    <mesh file="toy_five_insertion_base_collision_24.obj"/>
+    <mesh file="toy_five_insertion_base_collision_25.obj"/>
+    <mesh file="toy_five_insertion_base_collision_26.obj"/>
+    <mesh file="toy_five_insertion_base_collision_27.obj"/>
+    <mesh file="toy_five_insertion_base_collision_28.obj"/>
+    <mesh file="toy_five_insertion_base_collision_29.obj"/>
+    <mesh file="toy_five_insertion_base_collision_30.obj"/>
+    <mesh file="toy_five_insertion_base_collision_31.obj"/>
+    <mesh file="toy_five_insertion_base_collision_32.obj"/>
+    <mesh file="toy_five_insertion_base_collision_33.obj"/>
+    <mesh file="toy_five_insertion_base_collision_34.obj"/>
+    <mesh file="toy_five_insertion_base_collision_35.obj"/>
+    <mesh file="toy_five_insertion_base_collision_36.obj"/>
+    <mesh file="toy_five_insertion_base_collision_37.obj"/>
+    <mesh file="toy_five_insertion_base_collision_38.obj"/>
+    <mesh file="toy_five_insertion_base_collision_39.obj"/>
+    <mesh file="toy_five_insertion_base_collision_40.obj"/>
+    <mesh file="toy_five_insertion_base_collision_41.obj"/>
+  </asset>
+  <worldbody>
+    <body name="toy_five_insertion_base" mocap="true">
+      <geom material="toy_base_material" mesh="toy_five_insertion_base" class="toy_base_visual"/>
+      <geom mesh="toy_five_insertion_base_collision_0" rgba="0.38187981786901093 0.5309595657886952 0.9277789293738732 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_1" rgba="0.3738893467771893 0.6065012732802638 0.44381257611320624 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_2" rgba="0.7528755882269087 0.9041559525001384 0.8286674580060863 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_3" rgba="0.44796091853315434 0.9043198391091491 0.2736826515026527 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_4" rgba="0.6742135387802795 0.052800288033159504 0.2499408241494805 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_5" rgba="0.66011083753805 0.8457466891987918 0.531101801851221 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_6" rgba="0.4987331493691517 0.6496945835204486 0.8022311368765712 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_7" rgba="0.9325551287438074 0.554939704789773 0.7534058619922099 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_8" rgba="0.7346104750751417 0.4682976961392963 0.2203749939609685 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_9" rgba="0.9654034249066716 0.11809195616620449 0.46628791478651155 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_10" rgba="0.3467312239100864 0.9006403180616213 0.7690829074453058 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_11" rgba="0.7982010337203074 0.8455963701979048 0.7214661746964235 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_12" rgba="0.42477552006422314 0.8304565387031484 0.4037156129436871 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_13" rgba="0.5948771051048841 0.9083558909658188 0.584173279050875 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_14" rgba="0.6739141951715879 0.5552819217355739 0.6944319830575374 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_15" rgba="0.5196016161796737 0.3133447113568787 0.8583751934976749 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_16" rgba="0.14463838039455224 0.34361344583720665 0.7165646301925314 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_17" rgba="0.3979418772937816 0.014436982939431298 0.23118363215943005 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_18" rgba="0.3090366681646509 0.05461363904457883 0.5744174995225028 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_19" rgba="0.2719269729997821 0.26019349508903433 0.44399343114385836 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_20" rgba="0.5191127083085808 0.7848115297279159 0.6183095101009795 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_21" rgba="0.29866650801379946 0.5944837188726012 0.0024750654924483584 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_22" rgba="0.18674339798791095 0.2536222217544156 0.26407247389086164 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_23" rgba="0.7377104804505242 0.8961001405330803 0.46347503800259726 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_24" rgba="0.5046989321763538 0.5897858706481492 0.8179627824956712 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_25" rgba="0.840884587550142 0.07168794004687307 0.32083682831654226 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_26" rgba="0.4654091041720855 0.06118389238762423 0.323812216566969 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_27" rgba="0.07096650661989823 0.738967159975541 0.06208232822726312 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_28" rgba="0.1740870427144613 0.7115105075097479 0.7003913036122311 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_29" rgba="0.42439137497780666 0.4365019677444949 0.27741165296262515 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_30" rgba="0.6588544036190738 0.8314683339121887 0.8529275763999612 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_31" rgba="0.2980134918721348 0.5789632433097057 0.8040425028878694 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_32" rgba="0.8654663518818911 0.987977147294368 0.05152626686945461 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_33" rgba="0.08634576650091952 0.48391652987731604 0.04995747108700821 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_34" rgba="0.1609248433120738 0.3660440859481501 0.050120230982372616 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_35" rgba="0.7583320176377535 0.8707512483469887 0.33949647174371933 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_36" rgba="0.04388179777824208 0.36227491255316535 0.4837089787087079 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_37" rgba="0.17184412607840016 0.6151200202748021 0.49826335487379414 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_38" rgba="0.08755262634407945 0.22538852772648876 0.48286888949276474 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_39" rgba="0.17093564657541427 0.4870204987927519 0.4110325371820741 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_40" rgba="0.7414163532637561 0.4595293718284872 0.8553082154442722 1" class="toy_base_collision"/>
+      <geom mesh="toy_five_insertion_base_collision_41" rgba="0.19035763233558578 0.26805392093710967 0.4617250757490706 1" class="toy_base_collision"/>
+    </body>
+  </worldbody>
+</mujoco>

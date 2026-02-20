@@ -1,0 +1,969 @@
+<!-- 
+  Interactive Training Heatmap Widget (Multi-Task Tabbed)
+  
+  Usage: Copy this file and training_heatmap_data.json to your website.
+  Embed with: <iframe src="training_heatmap_widget.html" width="900" height="570"></iframe>
+  
+  Dependencies: None (vanilla JS + Canvas)
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interactive Training Heatmap</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  .heatmap-widget {
+    display: flex;
+    flex-direction: column;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: #fff;
+    max-width: 900px;
+    margin: 0 auto;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .heatmap-tab-bar {
+    display: flex;
+    border-bottom: 1px solid #e0e0e0;
+    background: #fafafa;
+    overflow-x: auto;
+  }
+
+  .heatmap-tab-btn {
+    padding: 12px 20px;
+    border: none;
+    background: transparent;
+    font-size: 14px;
+    font-family: inherit;
+    color: #666;
+    cursor: pointer;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+  }
+
+  .heatmap-tab-btn:hover {
+    background: #f0f0f0;
+    color: #333;
+  }
+
+  .heatmap-tab-btn.active {
+    color: #333;
+    font-weight: 600;
+    border-bottom-color: #c44e52;
+    background: #fff;
+  }
+
+  .heatmap-main {
+    display: flex;
+    align-items: stretch;
+    min-height: 420px;
+    height: 450px;
+  }
+  
+  .heatmap-chart-container {
+    flex: 1;
+    min-width: 0;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .heatmap-chart-container canvas {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    display: block;
+  }
+  
+  .heatmap-grid-container {
+    width: 370px;
+    min-width: 370px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 15px 10px 0;
+    position: relative;
+  }
+
+  .heatmap-sub-caption {
+    font-size: 12px;
+    color: #555;
+    text-align: left;
+    padding: 6px 16px 8px;
+    line-height: 1.5;
+  }
+
+  .heatmap-sub-caption b {
+    color: #222;
+    font-weight: 600;
+  }
+  
+  .heatmap-grid-wrap {
+    position: relative;
+  }
+  
+  .heatmap-grid-canvas {
+    cursor: pointer;
+    display: block;
+  }
+  
+  .heatmap-axis-label {
+    font-size: 18px;
+    font-style: italic;
+    color: #333;
+    position: absolute;
+  }
+  
+  .heatmap-axis-label-kp {
+    bottom: -24px;
+    left: 250px; /* Position under right edge of grid (7 cols * 38px ≈ 266px) */
+  }
+  
+  .heatmap-axis-label-kd {
+    top: -8px;
+    left: -30px;
+    transform: rotate(-90deg);
+    transform-origin: center center;
+  }
+
+  .heatmap-bottom-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 15px 10px 70px;
+    border-top: 1px solid #eee;
+  }
+
+  .heatmap-info {
+    font-size: 13px;
+    color: #666;
+  }
+
+  .heatmap-info-value {
+    font-weight: 600;
+    color: #333;
+  }
+
+  .heatmap-clear-btn {
+    font-size: 13px;
+    padding: 5px 12px;
+    border: 1.5px solid #ccc;
+    border-radius: 5px;
+    background: #fff;
+    color: #333;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .heatmap-clear-btn:hover {
+    border-color: #888;
+    background: #f5f5f5;
+  }
+
+  .heatmap-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #666;
+  }
+
+  .heatmap-toggle-switch {
+    position: relative;
+    width: 36px;
+    height: 20px;
+  }
+
+  .heatmap-toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .heatmap-toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: #ccc;
+    transition: 0.2s;
+    border-radius: 20px;
+  }
+
+  .heatmap-toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.2s;
+    border-radius: 50%;
+  }
+
+  .heatmap-toggle-switch input:checked + .heatmap-toggle-slider {
+    background-color: #4c72b0;
+  }
+
+  .heatmap-toggle-switch input:checked + .heatmap-toggle-slider:before {
+    transform: translateX(16px);
+  }
+</style>
+</head>
+<body>
+<div class="heatmap-widget" id="heatmapWidget">
+  <div class="heatmap-tab-bar">
+            <button class="heatmap-tab-btn active" data-task="Bimanual Handover">Bimanual Handover</button>
+            <button class="heatmap-tab-btn" data-task="Dish Rack Loading">Dish Rack Loading</button>
+            <button class="heatmap-tab-btn" data-task="Dish Rack Unloading">Dish Rack Unloading</button>
+            <button class="heatmap-tab-btn" data-task="Dishwasher Opening">Dishwasher Opening</button>
+            <button class="heatmap-tab-btn" data-task="Mug Hanging">Mug Hanging</button>
+  </div>
+  <div class="heatmap-main">
+    <div class="heatmap-chart-container">
+      <canvas id="lossChart"></canvas>
+      <div class="heatmap-sub-caption"><b>Training Loss.</b> Click any cell in the heatmap to load its loss curve here. Select multiple cells to compare convergence across gain configurations.</div>
+    </div>
+    <div class="heatmap-grid-container">
+      <div class="heatmap-grid-wrap">
+        <canvas id="heatmapGrid" class="heatmap-grid-canvas"></canvas>
+        <span class="heatmap-axis-label heatmap-axis-label-kp">K<sub>p</sub></span>
+        <span class="heatmap-axis-label heatmap-axis-label-kd">K<sub>d</sub></span>
+      </div>
+      <div class="heatmap-sub-caption" style="margin-top: 28px;"><b>Task Success Rate.</b> Darker cells indicate higher rollout success. The best-performing region (upper-left, low K<sub>p</sub>) coincides with <i>higher</i> training loss.</div>
+    </div>
+  </div>
+  <div class="heatmap-bottom-bar">
+    <span class="heatmap-info">Selected: <span class="heatmap-info-value" id="selectedInfo">None</span></span>
+    <label class="heatmap-toggle">
+      <span>Log Scale</span>
+      <span class="heatmap-toggle-switch">
+        <input type="checkbox" id="logScaleToggle" checked>
+        <span class="heatmap-toggle-slider"></span>
+      </span>
+    </label>
+    <button class="heatmap-clear-btn" id="clearBtn">Clear Selection</button>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+  
+  // ======== CONFIG ========
+  const DATA_URL = 'training_heatmap_data.json';
+  const CHART_PADDING = { top: 20, right: 20, bottom: 50, left: 70 };
+  
+  // Color palette for multiple curves
+  const CURVE_COLORS = [
+    [140, 42, 42],    // dark red
+    [76, 114, 176],   // blue
+    [85, 168, 104],   // green
+    [196, 78, 82],    // red
+    [129, 114, 178],  // purple
+    [204, 185, 116],  // gold
+    [100, 181, 205],  // cyan
+    [218, 139, 195],  // pink
+  ];
+  
+  // ======== STATE ========
+  let allData = null;
+  let heatmapData = null;  // Current task data
+  let currentTask = null;
+  let selectedCells = [];
+  let animFrameId = null;
+  let currentAnimIndex = 0;
+  let animatingCurveIdx = -1;
+  let hasInteracted = false;
+  let pulseAnimId = null;
+  let pulsePhase = 0;
+  let useLogScale = true;
+  let pendingAnimations = [];
+  
+  // ======== ELEMENTS ========
+  const chartCanvas = document.getElementById('lossChart');
+  const gridCanvas = document.getElementById('heatmapGrid');
+  const selectedInfo = document.getElementById('selectedInfo');
+  const clearBtn = document.getElementById('clearBtn');
+  const logScaleToggle = document.getElementById('logScaleToggle');
+  const chartCtx = chartCanvas.getContext('2d');
+  const gridCtx = gridCanvas.getContext('2d');
+  const tabBtns = document.querySelectorAll('.heatmap-tab-btn');
+  
+  // ======== AUTO-SELECT BEST/WORST ========
+  function autoSelectBestWorst() {
+    if (!heatmapData) return;
+    
+    const kps = heatmapData.kps;
+    const kds = heatmapData.kds;
+    const validation = heatmapData.validation;
+    const TIE = 0.03;
+    
+    let maxVal = -Infinity, minVal = Infinity;
+    
+    for (let i = 0; i < kds.length; i++) {
+      for (let j = 0; j < kps.length; j++) {
+        const val = validation[i][j];
+        if (val > maxVal) maxVal = val;
+        if (val < minVal) minVal = val;
+      }
+    }
+
+    // Among tied-best candidates (within TIE of maxVal), prefer top-left:
+    //   top  = largest i (displayRow = kds.length-1-i, so i large → small displayRow → top)
+    //   left = smallest j
+    let maxCell = null;
+    for (let i = 0; i < kds.length; i++) {
+      for (let j = 0; j < kps.length; j++) {
+        if (validation[i][j] >= maxVal - TIE) {
+          if (!maxCell ||
+              i > maxCell.row ||
+              (i === maxCell.row && j < maxCell.col)) {
+            maxCell = { row: i, col: j, kp: kps[j], kd: kds[i] };
+          }
+        }
+      }
+    }
+
+    // Among tied-worst candidates (within TIE of minVal), prefer bottom-right:
+    //   bottom = smallest i
+    //   right  = largest j
+    let minCell = null;
+    for (let i = 0; i < kds.length; i++) {
+      for (let j = 0; j < kps.length; j++) {
+        if (validation[i][j] <= minVal + TIE) {
+          if (!minCell ||
+              i < minCell.row ||
+              (i === minCell.row && j > minCell.col)) {
+            minCell = { row: i, col: j, kp: kps[j], kd: kds[i] };
+          }
+        }
+      }
+    }
+    
+    // Clear previous selections
+    selectedCells = [];
+    if (animFrameId) cancelAnimationFrame(animFrameId);
+    
+    // Add best (highest) first, then worst (lowest)
+    if (maxCell) selectedCells.push(maxCell);
+    if (minCell && (minCell.row !== maxCell.row || minCell.col !== maxCell.col)) {
+      selectedCells.push(minCell);
+    }
+    
+    // Start sequential animation
+    if (selectedCells.length > 0) {
+      animatingCurveIdx = 0;
+      currentAnimIndex = 0;
+      pendingAnimations = selectedCells.length > 1 ? [1] : [];
+    }
+    
+    hasInteracted = true;
+    if (pulseAnimId) cancelAnimationFrame(pulseAnimId);
+  }
+  
+  // ======== LOAD DATA ========
+  fetch(DATA_URL)
+    .then(r => r.json())
+    .then(data => {
+      allData = data;
+      // Set initial task
+      if (data.tasks && data.tasks.length > 0) {
+        currentTask = data.tasks[0];
+        heatmapData = data.taskData[currentTask];
+      } else {
+        // Single task mode fallback
+        heatmapData = data;
+      }
+      initSize();
+      autoSelectBestWorst();
+      render();
+    })
+    .catch(err => console.error('Failed to load heatmap data:', err));
+  
+  // ======== TAB SWITCHING ========
+  tabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const taskName = btn.dataset.task;
+      if (taskName === currentTask) return;
+      
+      // Update active tab
+      tabBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      
+      // Switch task data
+      currentTask = taskName;
+      heatmapData = allData.taskData[currentTask];
+      
+      initSize();
+      autoSelectBestWorst();
+      render();
+    });
+  });
+  
+  // ======== SIZING ========
+  function initSize() {
+    const container = chartCanvas.parentElement;
+    const dpr = window.devicePixelRatio || 1;
+    const captionEl = container.querySelector('.heatmap-sub-caption');
+    const captionH = captionEl ? captionEl.offsetHeight : 0;
+    const canvasW = container.clientWidth;
+    const canvasH = container.clientHeight - captionH;
+    chartCanvas.width = canvasW * dpr;
+    chartCanvas.height = canvasH * dpr;
+    chartCtx.scale(dpr, dpr);
+    chartCanvas.style.width = canvasW + 'px';
+    chartCanvas.style.height = canvasH + 'px';
+    
+    // Size grid based on data
+    if (heatmapData) {
+      const cellW = 38, cellH = 32;
+      const kps = heatmapData.kps;
+      const kds = heatmapData.kds;
+      const labelSpace = 55; // Space for "Best"/"Worst" labels on right
+      gridCanvas.width = kps.length * cellW + labelSpace;
+      gridCanvas.height = kds.length * cellH;
+      gridCanvas.style.width = gridCanvas.width + 'px';
+      gridCanvas.style.height = gridCanvas.height + 'px';
+    }
+  }
+  
+  window.addEventListener('resize', () => {
+    initSize();
+    render();
+  });
+  
+  // ======== RENDERING ========
+  function render() {
+    drawChart();
+    drawGrid();
+    updateInfo();
+  }
+  
+  function getHeatmapColor(value, maxVal) {
+    const t = maxVal > 0 ? value / maxVal : 0;
+    const r = Math.round(255 - t * 115);
+    const g = Math.round(245 - t * 180);
+    const b = Math.round(238 - t * 168);
+    return `rgb(${r},${g},${b})`;
+  }
+  
+  function drawGrid() {
+    if (!heatmapData) return;
+    
+    const kps = heatmapData.kps;
+    const kds = heatmapData.kds;
+    const validation = heatmapData.validation;
+    const cellW = 38, cellH = 32;
+    
+    gridCtx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
+    
+    let maxVal = 0;
+    for (let i = 0; i < kds.length; i++) {
+      for (let j = 0; j < kps.length; j++) {
+        if (validation[i][j] > maxVal) maxVal = validation[i][j];
+      }
+    }
+    
+    for (let i = 0; i < kds.length; i++) {
+      const displayRow = kds.length - 1 - i;
+      for (let j = 0; j < kps.length; j++) {
+        const x = j * cellW;
+        const y = displayRow * cellH;
+        const value = validation[i][j];
+        
+        gridCtx.fillStyle = getHeatmapColor(value, maxVal);
+        gridCtx.fillRect(x, y, cellW, cellH);
+        
+        gridCtx.strokeStyle = '#fff';
+        gridCtx.lineWidth = 1;
+        gridCtx.strokeRect(x, y, cellW, cellH);
+        
+        gridCtx.fillStyle = value > maxVal * 0.5 ? '#fff' : '#333';
+        gridCtx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif';
+        gridCtx.textAlign = 'center';
+        gridCtx.textBaseline = 'middle';
+        gridCtx.fillText(value.toFixed(2), x + cellW / 2, y + cellH / 2);
+        
+        const selIdx = selectedCells.findIndex(s => s.row === i && s.col === j);
+        if (selIdx >= 0) {
+          const color = CURVE_COLORS[selIdx % CURVE_COLORS.length];
+          const isAnimating = (selIdx === animatingCurveIdx);
+          
+          if (isAnimating) {
+            // Currently animating - draw thick pulsing border
+            const pulseWidth = 4 + 2 * Math.sin(pulsePhase * 2);
+            gridCtx.strokeStyle = `rgb(${color[0]},${color[1]},${color[2]})`;
+            gridCtx.lineWidth = pulseWidth;
+            gridCtx.strokeRect(x + 2, y + 2, cellW - 4, cellH - 4);
+            // Add outer glow
+            gridCtx.strokeStyle = `rgba(${color[0]},${color[1]},${color[2]},0.4)`;
+            gridCtx.lineWidth = 8;
+            gridCtx.strokeRect(x, y, cellW, cellH);
+          } else if (animatingCurveIdx < 0 || selIdx < animatingCurveIdx) {
+            // Already drawn or no animation - normal border
+            gridCtx.strokeStyle = `rgb(${color[0]},${color[1]},${color[2]})`;
+            gridCtx.lineWidth = 3;
+            gridCtx.strokeRect(x + 1.5, y + 1.5, cellW - 3, cellH - 3);
+          }
+          // If selIdx > animatingCurveIdx, don't draw border yet (pending)
+        }
+      }
+    }
+    
+    gridCtx.fillStyle = '#333';
+    gridCtx.font = '11px -apple-system, BlinkMacSystemFont, sans-serif';
+    
+    gridCtx.textAlign = 'center';
+    gridCtx.textBaseline = 'top';
+    for (let j = 0; j < kps.length; j++) {
+      const x = j * cellW + cellW / 2;
+      gridCtx.fillText(kps[j], x, gridCanvas.height + 4);
+    }
+    
+    gridCtx.textAlign = 'right';
+    gridCtx.textBaseline = 'middle';
+    for (let i = 0; i < kds.length; i++) {
+      const displayRow = kds.length - 1 - i;
+      const y = displayRow * cellH + cellH / 2;
+      gridCtx.fillText(kds[i], -6, y);
+    }
+
+    // Draw "Best" / "Worst" labels with arrows for auto-selected cells
+    if (selectedCells.length > 0) {
+      const labels = ['Best', 'Worst'];
+      const gridW = kps.length * cellW; // Actual grid width without label space
+      
+      selectedCells.forEach((cell, idx) => {
+        // Only draw label if cell has started or finished animating
+        if (animatingCurveIdx >= 0 && idx > animatingCurveIdx) return;
+        
+        const color = CURVE_COLORS[idx % CURVE_COLORS.length];
+        const displayRow = kds.length - 1 - cell.row;
+        const cellX = cell.col * cellW;
+        const cellY = displayRow * cellH;
+        const cellCenterY = cellY + cellH / 2;
+        
+        // Position label to the right of the grid
+        const labelX = gridW + 15;
+        const arrowStartX = gridW + 8;
+        const arrowEndX = cellX + cellW + 3;
+        
+        // Draw arrow line
+        gridCtx.strokeStyle = `rgb(${color[0]},${color[1]},${color[2]})`;
+        gridCtx.lineWidth = 2;
+        gridCtx.beginPath();
+        gridCtx.moveTo(arrowStartX, cellCenterY);
+        gridCtx.lineTo(arrowEndX, cellCenterY);
+        gridCtx.stroke();
+        
+        // Draw arrowhead pointing left (toward cell)
+        gridCtx.fillStyle = `rgb(${color[0]},${color[1]},${color[2]})`;
+        gridCtx.beginPath();
+        gridCtx.moveTo(arrowEndX, cellCenterY);
+        gridCtx.lineTo(arrowEndX + 8, cellCenterY - 5);
+        gridCtx.lineTo(arrowEndX + 8, cellCenterY + 5);
+        gridCtx.closePath();
+        gridCtx.fill();
+        
+        // Draw label text
+        gridCtx.font = 'bold 12px -apple-system, BlinkMacSystemFont, sans-serif';
+        gridCtx.textAlign = 'left';
+        gridCtx.textBaseline = 'middle';
+        gridCtx.fillStyle = `rgb(${color[0]},${color[1]},${color[2]})`;
+        gridCtx.fillText(labels[idx] || `#${idx + 1}`, labelX, cellCenterY);
+      });
+    }
+
+    if (!hasInteracted && selectedCells.length === 0) {
+      const hintRow = 5;
+      const hintCol = 1;
+      const displayRow = kds.length - 1 - hintRow;
+      const x = hintCol * cellW + cellW / 2;
+      const y = displayRow * cellH + cellH / 2;
+      
+      const pulseR = 20 + 5 * Math.sin(pulsePhase);
+      const pulseAlpha = 0.4 + 0.3 * Math.sin(pulsePhase);
+      gridCtx.beginPath();
+      gridCtx.arc(x, y, pulseR, 0, Math.PI * 2);
+      gridCtx.strokeStyle = `rgba(50,50,50,${pulseAlpha})`;
+      gridCtx.lineWidth = 2;
+      gridCtx.stroke();
+    }
+  }
+  
+  function drawChart() {
+    const w = chartCanvas.width / (window.devicePixelRatio || 1);
+    const h = chartCanvas.height / (window.devicePixelRatio || 1);
+    
+    chartCtx.clearRect(0, 0, w, h);
+    
+    if (!heatmapData || selectedCells.length === 0) {
+      chartCtx.fillStyle = '#999';
+      chartCtx.font = '14px -apple-system, BlinkMacSystemFont, sans-serif';
+      chartCtx.textAlign = 'center';
+      chartCtx.fillText('Click on heatmap cells to view training curves', w / 2, h / 2);
+      return;
+    }
+    
+    const curves = [];
+    let maxEpochs = 0;
+    let minLoss = Infinity, maxLoss = -Infinity;
+    
+    for (const cell of selectedCells) {
+      const key = `${cell.kp}_${cell.kd}`;
+      const lossCurve = heatmapData.lossCurves[key] || [];
+      if (lossCurve.length > 0) {
+        curves.push({ data: lossCurve, kp: cell.kp, kd: cell.kd });
+        if (lossCurve.length > maxEpochs) maxEpochs = lossCurve.length;
+        for (const v of lossCurve) {
+          if (v < minLoss) minLoss = v;
+          if (v > maxLoss) maxLoss = v;
+        }
+      }
+    }
+    
+    if (curves.length === 0) {
+      chartCtx.fillStyle = '#999';
+      chartCtx.font = '14px -apple-system, BlinkMacSystemFont, sans-serif';
+      chartCtx.textAlign = 'center';
+      chartCtx.fillText('No training data for selected cells', w / 2, h / 2);
+      return;
+    }
+    
+    const yMarginLin = (maxLoss - minLoss) * 0.1;
+    let yMin = minLoss - yMarginLin;
+    let yMax = maxLoss + yMarginLin;
+    
+    if (useLogScale) {
+      yMin = Math.max(1e-8, minLoss * 0.8);
+      yMax = maxLoss * 1.2;
+    }
+    
+    const plotX = CHART_PADDING.left;
+    const plotY = CHART_PADDING.top;
+    const plotW = w - CHART_PADDING.left - CHART_PADDING.right;
+    const plotH = h - CHART_PADDING.top - CHART_PADDING.bottom;
+    
+    chartCtx.strokeStyle = '#e8e8e8';
+    chartCtx.lineWidth = 1;
+    const nGridY = 5, nGridX = 4;
+    for (let i = 0; i <= nGridY; i++) {
+      const y = plotY + (i / nGridY) * plotH;
+      chartCtx.beginPath();
+      chartCtx.moveTo(plotX, y);
+      chartCtx.lineTo(plotX + plotW, y);
+      chartCtx.stroke();
+    }
+    for (let i = 0; i <= nGridX; i++) {
+      const x = plotX + (i / nGridX) * plotW;
+      chartCtx.beginPath();
+      chartCtx.moveTo(x, plotY);
+      chartCtx.lineTo(x, plotY + plotH);
+      chartCtx.stroke();
+    }
+    
+    chartCtx.strokeStyle = '#333';
+    chartCtx.lineWidth = 2;
+    chartCtx.beginPath();
+    chartCtx.moveTo(plotX, plotY);
+    chartCtx.lineTo(plotX, plotY + plotH);
+    chartCtx.lineTo(plotX + plotW, plotY + plotH);
+    chartCtx.stroke();
+    
+    function mapX(epoch) { return plotX + (epoch / (maxEpochs - 1)) * plotW; }
+    function mapY(loss) {
+      if (useLogScale) {
+        const logMin = Math.log(yMin);
+        const logMax = Math.log(yMax);
+        const logVal = Math.log(Math.max(loss, 1e-8));
+        return plotY + plotH - ((logVal - logMin) / (logMax - logMin)) * plotH;
+      }
+      return plotY + plotH - ((loss - yMin) / (yMax - yMin)) * plotH;
+    }
+    
+    chartCtx.fillStyle = '#333';
+    chartCtx.font = '12px -apple-system, BlinkMacSystemFont, sans-serif';
+    chartCtx.textAlign = 'right';
+    for (let i = 0; i <= nGridY; i++) {
+      let v;
+      if (useLogScale) {
+        const logMin = Math.log(yMin);
+        const logMax = Math.log(yMax);
+        v = Math.exp(logMax - (i / nGridY) * (logMax - logMin));
+      } else {
+        v = yMax - (i / nGridY) * (yMax - yMin);
+      }
+      const y = plotY + (i / nGridY) * plotH;
+      chartCtx.fillText(v.toFixed(4), plotX - 8, y + 4);
+    }
+    
+    chartCtx.textAlign = 'center';
+    for (let i = 0; i <= nGridX; i++) {
+      const epoch = Math.round((i / nGridX) * (maxEpochs - 1));
+      const x = plotX + (i / nGridX) * plotW;
+      chartCtx.fillText(epoch.toString(), x, plotY + plotH + 18);
+    }
+    
+    chartCtx.font = '14px -apple-system, BlinkMacSystemFont, sans-serif';
+    chartCtx.textAlign = 'center';
+    chartCtx.fillText('Epoch', plotX + plotW / 2, h - 8);
+    
+    chartCtx.save();
+    chartCtx.translate(14, plotY + plotH / 2);
+    chartCtx.rotate(-Math.PI / 2);
+    chartCtx.fillText('Training Loss', 0, 0);
+    chartCtx.restore();
+    
+    curves.forEach((curve, idx) => {
+      const color = CURVE_COLORS[idx % CURVE_COLORS.length];
+      const rgbStr = `rgb(${color[0]},${color[1]},${color[2]})`;
+      
+      // Determine how much of the curve to draw
+      let len;
+      if (animatingCurveIdx >= 0) {
+        // Animation in progress
+        if (idx < animatingCurveIdx) {
+          // Already finished animating - draw full
+          len = curve.data.length;
+        } else if (idx === animatingCurveIdx) {
+          // Currently animating
+          len = Math.min(currentAnimIndex, curve.data.length);
+        } else {
+          // Not started yet - don't draw
+          len = 0;
+        }
+      } else {
+        // No animation - draw all curves fully
+        len = curve.data.length;
+      }
+      
+      if (len === 0) return;
+      
+      chartCtx.strokeStyle = rgbStr;
+      chartCtx.lineWidth = 3;
+      chartCtx.lineCap = 'round';
+      chartCtx.lineJoin = 'round';
+      chartCtx.beginPath();
+      
+      for (let i = 0; i < len; i++) {
+        const x = mapX(i);
+        const y = mapY(curve.data[i]);
+        i === 0 ? chartCtx.moveTo(x, y) : chartCtx.lineTo(x, y);
+      }
+      chartCtx.stroke();
+      
+      if (len > 0) {
+        const lastI = len - 1;
+        const x = mapX(lastI);
+        const y = mapY(curve.data[lastI]);
+        chartCtx.beginPath();
+        chartCtx.arc(x, y, 5, 0, Math.PI * 2);
+        chartCtx.fillStyle = rgbStr;
+        chartCtx.fill();
+        chartCtx.strokeStyle = '#fff';
+        chartCtx.lineWidth = 2;
+        chartCtx.stroke();
+      }
+    });
+    
+    // Filter curves that should appear in legend (only those that have started drawing)
+    const visibleCurves = curves.filter((_, idx) => {
+      if (animatingCurveIdx < 0) return true;  // No animation, show all
+      return idx <= animatingCurveIdx;  // Show current + completed
+    });
+    
+    if (visibleCurves.length === 0) return;
+    
+    const legFont = '12px -apple-system, BlinkMacSystemFont, sans-serif';
+    chartCtx.font = legFont;
+    const legLineW = 24;
+    const legGap = 6;
+    const legRowH = 18;
+    const legPadX = 10;
+    const legPadY = 8;
+    
+    let maxTextW = 0;
+    for (const curve of visibleCurves) {
+      const text = `K${curve.kp} D${curve.kd}`;
+      const tw = chartCtx.measureText(text).width;
+      if (tw > maxTextW) maxTextW = tw;
+    }
+    
+    const legW = legPadX * 2 + legLineW + legGap + maxTextW;
+    const legH = legPadY * 2 + legRowH * visibleCurves.length - 4;
+    const legX = plotX + plotW - legW - 8;
+    const legY = plotY + 8;
+    
+    chartCtx.fillStyle = 'rgba(255,255,255,0.92)';
+    chartCtx.strokeStyle = '#ccc';
+    chartCtx.lineWidth = 1;
+    chartCtx.beginPath();
+    chartCtx.roundRect(legX, legY, legW, legH, 4);
+    chartCtx.fill();
+    chartCtx.stroke();
+    
+    visibleCurves.forEach((curve, visIdx) => {
+      // Find the original index to get the right color
+      const origIdx = curves.indexOf(curve);
+      const color = CURVE_COLORS[origIdx % CURVE_COLORS.length];
+      const rgbStr = `rgb(${color[0]},${color[1]},${color[2]})`;
+      const rowY = legY + legPadY + 10 + visIdx * legRowH;
+      
+      chartCtx.strokeStyle = rgbStr;
+      chartCtx.lineWidth = 3;
+      chartCtx.beginPath();
+      chartCtx.moveTo(legX + legPadX, rowY);
+      chartCtx.lineTo(legX + legPadX + legLineW, rowY);
+      chartCtx.stroke();
+      
+      chartCtx.fillStyle = '#333';
+      chartCtx.textAlign = 'left';
+      chartCtx.fillText(`K${curve.kp} D${curve.kd}`, legX + legPadX + legLineW + legGap, rowY + 4);
+    });
+    
+    if (animatingCurveIdx >= 0 && animatingCurveIdx < curves.length) {
+      const animCurve = curves[animatingCurveIdx];
+      if (currentAnimIndex < animCurve.data.length) {
+        const speed = Math.max(1, Math.floor(animCurve.data.length / 100));
+        animFrameId = requestAnimationFrame(() => {
+          currentAnimIndex += speed;
+          pulsePhase += 0.1;  // Update pulse for cell highlight
+          if (currentAnimIndex >= animCurve.data.length) {
+            // Check for pending animations
+            if (pendingAnimations.length > 0) {
+              animatingCurveIdx = pendingAnimations.shift();
+              currentAnimIndex = 0;
+            } else {
+              animatingCurveIdx = -1;
+            }
+          }
+          render();  // Redraw both chart and grid for pulsing effect
+        });
+      } else {
+        // Check for pending animations
+        if (pendingAnimations.length > 0) {
+          animatingCurveIdx = pendingAnimations.shift();
+          currentAnimIndex = 0;
+          render();
+        } else {
+          animatingCurveIdx = -1;
+        }
+      }
+    }
+  }
+  
+  function updateInfo() {
+    if (selectedCells.length === 0) {
+      selectedInfo.textContent = 'None';
+    } else {
+      const labels = selectedCells.map(c => `K${c.kp} D${c.kd}`);
+      selectedInfo.textContent = labels.join(', ');
+    }
+  }
+  
+  function startPulse() {
+    function tick() {
+      if (hasInteracted) return;
+      pulsePhase += 0.07;
+      drawGrid();
+      pulseAnimId = requestAnimationFrame(tick);
+    }
+    pulseAnimId = requestAnimationFrame(tick);
+  }
+
+  function stopPulse() {
+    if (!hasInteracted) {
+      hasInteracted = true;
+      if (pulseAnimId) cancelAnimationFrame(pulseAnimId);
+    }
+  }
+  
+  function getGridCell(e) {
+    if (!heatmapData) return null;
+    
+    const rect = gridCanvas.getBoundingClientRect();
+    const cellW = 38, cellH = 32;
+    const kps = heatmapData.kps;
+    const kds = heatmapData.kds;
+    
+    const px = e.clientX - rect.left;
+    const py = e.clientY - rect.top;
+    
+    const col = Math.floor(px / cellW);
+    const displayRow = Math.floor(py / cellH);
+    const row = kds.length - 1 - displayRow;
+    
+    if (col < 0 || col >= kps.length || row < 0 || row >= kds.length) return null;
+    
+    return { row, col, kp: kps[col], kd: kds[row] };
+  }
+  
+  gridCanvas.addEventListener('click', (e) => {
+    stopPulse();
+    const cell = getGridCell(e);
+    if (!cell) return;
+    
+    if (animFrameId) cancelAnimationFrame(animFrameId);
+    pendingAnimations = [];
+    
+    const idx = selectedCells.findIndex(s => s.row === cell.row && s.col === cell.col);
+    if (idx >= 0) {
+      selectedCells.splice(idx, 1);
+      animatingCurveIdx = -1;
+    } else {
+      selectedCells.push(cell);
+      animatingCurveIdx = selectedCells.length - 1;
+      currentAnimIndex = 0;
+    }
+    
+    render();
+  });
+  
+  clearBtn.addEventListener('click', () => {
+    selectedCells = [];
+    if (animFrameId) cancelAnimationFrame(animFrameId);
+    animatingCurveIdx = -1;
+    currentAnimIndex = 0;
+    pendingAnimations = [];
+    render();
+  });
+  
+  logScaleToggle.addEventListener('change', (e) => {
+    useLogScale = e.target.checked;
+    render();
+  });
+  
+  gridCanvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    stopPulse();
+    const touch = e.touches[0];
+    const cell = getGridCell(touch);
+    if (!cell) return;
+    
+    if (animFrameId) cancelAnimationFrame(animFrameId);
+    pendingAnimations = [];
+    
+    const idx = selectedCells.findIndex(s => s.row === cell.row && s.col === cell.col);
+    if (idx >= 0) {
+      selectedCells.splice(idx, 1);
+      animatingCurveIdx = -1;
+    } else {
+      selectedCells.push(cell);
+      animatingCurveIdx = selectedCells.length - 1;
+      currentAnimIndex = 0;
+    }
+    
+    render();
+  }, { passive: false });
+  
+})();
+</script>
+</body>
+</html>

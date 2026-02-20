@@ -1,0 +1,1398 @@
+<!--
+  MuJoCo Policy Runner
+
+  Runs a trained ONNX policy inside a MuJoCo WASM viewer.
+  The policy is loaded from ONNX Runtime Web, and the environment
+  is stepped using MuJoCo WASM with PD control.
+
+  Parameters:
+    scene  – path to MuJoCo XML (required)
+    policy – path to policy.onnx file (required)
+    config – path to policy_config.json (required)
+    bg     – background hex color without # (default: f0f2f5)
+    camx,camy,camz – camera position
+    tgtx,tgty,tgtz – camera target (orbit center)
+
+  Example:
+    mujoco_policy.html?scene=xmls/franka_emika_panda/scene_mug_hang.xml
+      &policy=../web/models/mug_hang_single_franka_2f85/K16D4M10/policy.onnx
+      &config=../web/models/mug_hang_single_franka_2f85/K16D4M10/policy_config.json
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MuJoCo Policy Runner</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #f0f2f5; }
+  #wrapper { display: flex; flex-direction: column; width: 100%; height: 100%; }
+  #container { width: 100%; flex: 1; position: relative; min-height: 0; }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  /* Loading overlay */
+  #loading-overlay {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: #f0f2f5; color: #555;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    z-index: 100; transition: opacity 0.5s;
+  }
+  #loading-overlay.hidden { opacity: 0; pointer-events: none; }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid rgba(0,0,0,0.08);
+    border-top-color: #7c8cf8;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: 14px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loading-status { font-size: 13px; opacity: 0.6; }
+
+  :root {
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    --accent: #6c7bf0;
+    --bar-text: #444;
+    --bar-text-light: #888;
+    --bar-border: rgba(0,0,0,0.08);
+    --success-color: #34c759;
+    --fail-color: #ff6b6b;
+  }
+
+  /* ── Controls bar ─────────────────────────── */
+  #controls-bar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    background: #f0f2f5;
+    border-top: 1px solid var(--bar-border);
+    font-family: var(--font);
+    font-size: 13px;
+    color: var(--bar-text);
+    user-select: none;
+    padding: 8px 16px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .ctrl-btn {
+    font-family: var(--font); font-size: 12px; font-weight: 500;
+    padding: 5px 14px;
+    border: 1px solid var(--bar-border);
+    border-radius: 6px;
+    cursor: pointer;
+    background: rgba(255,255,255,0.88);
+    color: var(--bar-text);
+    transition: background 0.12s, border-color 0.12s;
+  }
+  .ctrl-btn:hover { background: #fff; border-color: rgba(0,0,0,0.15); }
+  .ctrl-btn.primary {
+    background: var(--accent); color: #fff; border-color: var(--accent);
+  }
+  .ctrl-btn.primary:hover { background: #8290ff; }
+  .ctrl-btn.danger {
+    background: var(--fail-color); color: #fff; border-color: var(--fail-color);
+  }
+  .ctrl-btn:disabled { opacity: 0.4; cursor: default; }
+
+  .ctrl-label { font-size: 12px; color: var(--bar-text-light); }
+
+  #step-label {
+    font-variant-numeric: tabular-nums;
+    font-size: 12px; color: var(--bar-text-light);
+    white-space: nowrap;
+  }
+
+  #status-badge {
+    font-size: 11px; font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 10px;
+    display: none;
+  }
+  #status-badge.success {
+    display: inline-block;
+    background: rgba(52, 199, 89, 0.15);
+    color: var(--success-color);
+  }
+  #status-badge.running {
+    display: inline-block;
+    background: rgba(108, 123, 240, 0.12);
+    color: var(--accent);
+  }
+  #status-badge.fail {
+    display: inline-block;
+    background: rgba(255, 107, 107, 0.12);
+    color: var(--fail-color);
+  }
+  #status-badge.reloaded {
+    display: inline-block;
+    background: rgba(52, 199, 89, 0.15);
+    color: var(--success-color);
+  }
+
+  .ctrl-group {
+    display: flex; align-items: center; gap: 4px;
+  }
+  .ctrl-group select {
+    font-size: 12px; font-family: var(--font);
+    border: 1px solid var(--bar-border);
+    border-radius: 5px; padding: 2px 6px;
+    background: #fff; color: var(--bar-text);
+    cursor: pointer; outline: none;
+  }
+
+  /* Info panel floating in viewer */
+  #info-float {
+    position: absolute; top: 10px; left: 10px;
+    z-index: 20;
+    font-family: var(--font); font-size: 11px;
+    color: var(--bar-text);
+    background: none;
+    padding: 8px;
+    pointer-events: none;
+    user-select: none;
+    line-height: 1.6;
+  }
+  #info-float.hidden { display: none; }
+  #info-float b { font-weight: 600; }
+
+  /* Policy-swap overlay */
+  #swap-overlay {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: rgba(240,242,245,0.85);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    color: #555;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    z-index: 90;
+    transition: opacity 0.3s;
+    pointer-events: none;
+  }
+  #swap-overlay.hidden { opacity: 0; display: none; }
+  #swap-overlay .spinner {
+    width: 28px; height: 28px;
+    border: 2.5px solid rgba(0,0,0,0.08);
+    border-top-color: #7c8cf8;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: 10px;
+  }
+  #swap-overlay .swap-label {
+    font-size: 13px; font-weight: 500; opacity: 0.7;
+  }
+
+  /* Response plot floating panel (top-right) */
+  #response-float {
+    position: absolute; top: 10px; right: 10px;
+    z-index: 20; width: 220px;
+    font-family: var(--font); font-size: 11px;
+    color: var(--bar-text);
+    background: none;
+    padding: 8px;
+    user-select: none;
+  }
+  #response-float.hidden { display: none; }
+  #response-float .pf-title {
+    font-weight: 600; font-size: 10px; letter-spacing: 0.3px;
+    text-transform: uppercase; color: var(--bar-text-light);
+    margin-bottom: 4px;
+  }
+  #response-canvas {
+    width: 100%; height: 150px;
+    display: block; border-radius: 4px;
+  }
+  .joint-sel-row {
+    display: flex; gap: 2px; justify-content: center;
+    margin-top: 4px;
+  }
+  .joint-btn {
+    font-family: var(--font); font-size: 10px;
+    width: 22px; height: 18px;
+    border: 1px solid var(--bar-border);
+    border-radius: 3px; cursor: pointer;
+    background: transparent; color: var(--bar-text-light);
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0;
+  }
+  .joint-btn:hover { border-color: rgba(0,0,0,0.2); }
+  .joint-btn.active {
+    border-color: transparent;
+    color: #fff;
+  }
+
+  /* ── Mode indicator badge (top-center) ─────────── */
+  #mode-badge {
+    position: absolute; top: 10px; left: 50%;
+    transform: translateX(-50%);
+    z-index: 20;
+    display: flex; flex-direction: column; align-items: center;
+    font-family: var(--font); font-weight: 700;
+    letter-spacing: 0.06em;
+    padding: 5px 18px 6px; border-radius: 16px;
+    pointer-events: none; user-select: none;
+    background: rgba(90, 50, 150, 0.6);
+    color: #e0d0ff;
+    box-shadow: 0 0 10px rgba(140, 90, 220, 0.35);
+    backdrop-filter: blur(8px);
+    transition: background 0.3s, color 0.3s, box-shadow 0.3s;
+  }
+  #mode-badge .badge-top {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 16px; line-height: 1.2;
+  }
+  #mode-badge .badge-sub {
+    font-size: 10px; font-weight: 400;
+    letter-spacing: 0.02em;
+    margin-top: 1px; opacity: 0.85;
+  }
+  #mode-badge .badge-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #b388ff;
+    animation: pulse-dot 1.2s ease-in-out infinite;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(179,136,255,0.6); }
+    50%      { opacity: 0.6; box-shadow: 0 0 0 5px rgba(179,136,255,0); }
+  }
+
+  /* ── Live physics badge (bottom-left) ─────────── */
+  #live-badge {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #333;
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(6px);
+    padding: 5px 10px 5px 8px;
+    border-radius: 4px;
+    pointer-events: none;
+    user-select: none;
+  }
+  #live-badge .live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ff3b30;
+    box-shadow: 0 0 6px 2px rgba(255, 59, 48, 0.6);
+    animation: live-pulse 1.2s ease-in-out infinite;
+  }
+  #live-badge .live-hint {
+    font-weight: 400;
+    font-size: 10px;
+    text-transform: none;
+    letter-spacing: 0;
+    color: #666;
+    margin-left: 4px;
+  }
+  @keyframes live-pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 6px 2px rgba(255,59,48,0.6); }
+    50%      { opacity: 0.7; box-shadow: 0 0 10px 4px rgba(255,59,48,0.3); }
+  }
+</style>
+</head>
+<body>
+
+<div id="wrapper">
+  <div id="container">
+    <div id="loading-overlay">
+      <div class="spinner"></div>
+      <div id="loading-status">Loading…</div>
+    </div>
+
+    <!-- ── Live physics badge (bottom-left) ────────── -->
+    <div id="live-badge">
+      <span class="live-dot"></span>
+      <span>Live Physics</span>
+      <span class="live-hint">— click &amp; drag robot to apply forces</span>
+    </div>
+
+    <!-- ── Mode indicator badge ────────────────────────── -->
+    <div id="mode-badge">
+      <div class="badge-top">
+        <span class="badge-dot"></span>
+        <span class="badge-label">Policy Rollout</span>
+      </div>
+    </div>
+
+    <div id="info-float" class="hidden">
+      <div>Task: <b id="info-task">—</b></div>
+      <div>Gains: kp=<b id="info-kp">—</b> kd=<b id="info-kd">—</b> dec=<b id="info-dec">—</b></div>
+    </div>
+
+    <div id="swap-overlay" class="hidden">
+      <div class="spinner"></div>
+      <div class="swap-label">Loading New Policy…</div>
+    </div>
+
+    <!-- Response plot (top-right) -->
+    <div id="response-float" class="hidden">
+      <div class="pf-title">Joint Response</div>
+      <canvas id="response-canvas"></canvas>
+      <div class="joint-sel-row" id="joint-selector">
+        <button class="joint-btn active" data-j="0">1</button>
+        <button class="joint-btn" data-j="1">2</button>
+        <button class="joint-btn" data-j="2">3</button>
+        <button class="joint-btn" data-j="3">4</button>
+        <button class="joint-btn" data-j="4">5</button>
+        <button class="joint-btn" data-j="5">6</button>
+        <button class="joint-btn" data-j="6">7</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="controls-bar">
+    <button class="ctrl-btn" id="reset-btn" title="Reset scene (R)">↻ Reset</button>
+    <button class="ctrl-btn primary" id="run-btn" title="Run policy (Space)">▶ Run</button>
+    <button class="ctrl-btn danger" id="stop-btn" title="Stop (Esc)" style="display:none">■ Stop</button>
+    <span id="step-label">Step 0 / 0</span>
+    <span id="status-badge"></span>
+    <div class="ctrl-group">
+      <span class="ctrl-label">Max steps</span>
+      <input type="number" id="max-steps-input" min="1" max="9999" value="400"
+             style="width:60px; font-size:12px; font-family:var(--font); border:1px solid var(--bar-border); border-radius:5px; padding:2px 6px; background:#fff; color:var(--bar-text); outline:none;">
+    </div>
+    <div style="flex:1"></div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">Speed</span>
+      <select id="speed-select">
+        <option value="0.5">0.5×</option>
+        <option value="1" selected>1×</option>
+        <option value="2">2×</option>
+        <option value="4">4×</option>
+        <option value="10">10×</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/"
+  }
+}
+</script>
+
+<!-- ONNX Runtime Web -->
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/ort.min.js"></script>
+
+<script type="module">
+import { MuJoCoViewer } from '../js/mujoco_viewer.js';
+
+// ── Parse URL params ──────────────────────────────────
+const params = new URLSearchParams(window.location.search);
+const scenePath  = params.get('scene');
+const policyPath = params.get('policy');
+const configPath = params.get('config');
+const autorunOnLoad = params.get('autorun') === '1';
+
+if (!scenePath || !policyPath || !configPath) {
+  document.getElementById('loading-status').textContent =
+    'Error: need ?scene=, ?policy=, and ?config= parameters.';
+  throw new Error('Missing required URL parameters');
+}
+
+const bgColor = '#' + (params.get('bg') || 'f0f2f5');
+let cameraPos = null, cameraTarget = null;
+if (params.get('camx')) cameraPos = [+params.get('camx'), +params.get('camy'), +params.get('camz')];
+if (params.get('tgtx')) cameraTarget = [+params.get('tgtx'), +params.get('tgty'), +params.get('tgtz')];
+
+// ── UI elements ───────────────────────────────────────
+const statusEl   = document.getElementById('loading-status');
+const overlayEl  = document.getElementById('loading-overlay');
+const resetBtn   = document.getElementById('reset-btn');
+const runBtn     = document.getElementById('run-btn');
+const stopBtn    = document.getElementById('stop-btn');
+const stepLabel  = document.getElementById('step-label');
+const statusBadge= document.getElementById('status-badge');
+const speedSel   = document.getElementById('speed-select');
+const infoFloat  = document.getElementById('info-float');
+const infoTask   = document.getElementById('info-task');
+const infoKp     = document.getElementById('info-kp');
+const infoKd     = document.getElementById('info-kd');
+const infoDec    = document.getElementById('info-dec');
+const responseFloat = document.getElementById('response-float');
+const respCanvas    = document.getElementById('response-canvas');
+const jointSelRow   = document.getElementById('joint-selector');
+
+// ── State ─────────────────────────────────────────────
+let policyConfig = null;
+let onnxSession  = null;
+let running      = false;
+let stepCount    = 0;
+let succeeded    = false;
+let viewer       = null;
+
+// History ring buffers (filled after reset)
+let qposHistory   = [];
+let qvelHistory   = [];
+let mocapHistory  = [];
+
+// ── Response plot state ────────────────────────────────
+const JOINT_COLORS = ['#e6194b','#3cb44b','#4363d8','#f58231','#911eb4','#42d4f4','#f032e6'];
+let selectedJoint = 0;
+const RESP_HISTORY = 50;
+const responseHistory = [];  // { qpos: [7], qdes: [7] }
+
+// ── Load config & ONNX ───────────────────────────────
+async function loadPolicyAssets() {
+  statusEl.textContent = 'Loading policy config…';
+  const resp = await fetch(configPath);
+  if (!resp.ok) throw new Error(`Failed to load config: ${resp.status}`);
+  policyConfig = await resp.json();
+
+  // Update info display
+  infoTask.textContent = policyConfig.task;
+  infoKp.textContent   = policyConfig.kp;
+  infoKd.textContent   = policyConfig.kd;
+  infoDec.textContent  = policyConfig.decimation;
+  infoFloat.classList.remove('hidden');
+
+  // Set max steps input from config default
+  document.getElementById('max-steps-input').value = policyConfig.max_steps || 400;
+
+  statusEl.textContent = 'Loading ONNX model…';
+  onnxSession = await ort.InferenceSession.create(policyPath, {
+    executionProviders: ['wasm'],
+    graphOptimizationLevel: 'all',
+  });
+  console.log('ONNX session loaded. Inputs:', onnxSession.inputNames, 'Outputs:', onnxSession.outputNames);
+}
+
+// ── Swap policy (called via postMessage, keeps scene intact) ──
+const swapOverlay = document.getElementById('swap-overlay');
+
+async function swapPolicy(newPolicyPath, newConfigPath, autorun = false) {
+  // Stop any running episode
+  if (running) stopPolicy();
+  await new Promise(r => setTimeout(r, 50)); // let stop settle
+
+  // Show overlay
+  swapOverlay.classList.remove('hidden');
+
+  try {
+    // Load new config
+    const resp = await fetch(newConfigPath);
+    if (!resp.ok) throw new Error(`Config fetch failed: ${resp.status}`);
+    policyConfig = await resp.json();
+
+    // Update info display
+    infoTask.textContent = policyConfig.task;
+    infoKp.textContent   = policyConfig.kp;
+    infoKd.textContent   = policyConfig.kd;
+    infoDec.textContent  = policyConfig.decimation;
+    document.getElementById('max-steps-input').value = policyConfig.max_steps || 400;
+
+    // Load new ONNX model
+    onnxSession = await ort.InferenceSession.create(newPolicyPath, {
+      executionProviders: ['wasm'],
+      graphOptimizationLevel: 'all',
+    });
+    console.log('Policy swapped. Inputs:', onnxSession.inputNames);
+
+    // Reset scene with new config
+    resetScene(policyConfig);
+    viewer.syncBodies();
+    clearResponseHistory();
+    stepCount = 0;
+    stepLabel.textContent = 'Step 0 / 0';
+
+    // Show "Policy Reloaded" briefly
+    statusBadge.className = 'reloaded';
+    statusBadge.textContent = '✔ Policy Reloaded';
+    statusBadge.style.display = 'inline-block';
+    setTimeout(() => { statusBadge.style.display = 'none'; }, 1800);
+
+    // Notify parent that swap is done
+    window.parent.postMessage({ type: 'policy-swap-done' }, '*');
+
+    // Auto-run if requested
+    if (autorun) {
+      setTimeout(() => runPolicy(), 100);
+    }
+  } catch (err) {
+    console.error('Policy swap failed:', err);
+  } finally {
+    swapOverlay.classList.add('hidden');
+  }
+}
+
+// Listen for policy swap requests from parent
+window.addEventListener('message', (e) => {
+  if (e.data && e.data.type === 'load-policy') {
+    swapPolicy(e.data.policy, e.data.config, e.data.autorun);
+  }
+});
+
+
+// ══════════════════════════════════════════════════════
+//  RESPONSE PLOT (actual vs target joint positions)
+// ══════════════════════════════════════════════════════
+
+let respSkip = 0;
+
+function recordResponse(qpos, qdes, nArm) {
+  respSkip++;
+  if (respSkip < 3) return;  // throttle recording
+  respSkip = 0;
+  const q = [], d = [];
+  for (let i = 0; i < Math.min(nArm, 7); i++) {
+    q.push(qpos[i]);
+    d.push(qdes[i]);
+  }
+  responseHistory.push({ qpos: q, qdes: d });
+  if (responseHistory.length > RESP_HISTORY) responseHistory.shift();
+}
+
+function clearResponseHistory() {
+  responseHistory.length = 0;
+  respSkip = 0;
+}
+
+function drawResponsePlot() {
+  if (!respCanvas) return;
+  const dpr = Math.min(window.devicePixelRatio, 2);
+  const W = respCanvas.clientWidth;
+  const H = respCanvas.clientHeight;
+  if (W === 0 || H === 0) return;
+  respCanvas.width  = W * dpr;
+  respCanvas.height = H * dpr;
+  const ctx = respCanvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const j = selectedJoint;
+  const color = JOINT_COLORS[j];
+  const n = responseHistory.length;
+
+  const padL = 38, padR = 6, padT = 20, padB = 8;
+  const pW = W - padL - padR;
+  const pH = H - padT - padB;
+
+  ctx.clearRect(0, 0, W, H);
+
+  if (n < 2) {
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.font = '13px ' + getComputedStyle(document.body).fontFamily;
+    ctx.textAlign = 'center';
+    ctx.fillText('Press Run to see response', W / 2, H / 2);
+    return;
+  }
+
+  // Y range
+  let yMin = Infinity, yMax = -Infinity;
+  for (const s of responseHistory) {
+    if (s.qpos[j] !== undefined) {
+      yMin = Math.min(yMin, s.qpos[j], s.qdes[j]);
+      yMax = Math.max(yMax, s.qpos[j], s.qdes[j]);
+    }
+  }
+  const span = yMax - yMin;
+  if (span < 0.3) {
+    const mid = (yMin + yMax) / 2;
+    yMin = mid - 0.15; yMax = mid + 0.15;
+  }
+  const yPad = (yMax - yMin) * 0.08;
+  yMin -= yPad; yMax += yPad;
+
+  function xOf(i) { return padL + (i / (RESP_HISTORY - 1)) * pW; }
+  function yOf(v) { return padT + (1 - (v - yMin) / (yMax - yMin)) * pH; }
+  const startIdx = RESP_HISTORY - n;
+
+  // Y-axis ticks
+  ctx.textAlign = 'right';
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.font = '11px ' + getComputedStyle(document.body).fontFamily;
+  for (let t = 0; t <= 3; t++) {
+    const v = yMin + (t / 3) * (yMax - yMin);
+    const y = padT + (1 - t / 3) * pH;
+    ctx.fillText(v.toFixed(2), padL - 4, y + 4);
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+    ctx.lineWidth = 0.5;
+    ctx.moveTo(padL, y); ctx.lineTo(padL + pW, y);
+    ctx.stroke();
+  }
+
+  // q_des — dashed (target / policy prediction)
+  ctx.beginPath();
+  ctx.setLineDash([4, 3]);
+  ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+  ctx.lineWidth = 1.5;
+  for (let i = 0; i < n; i++) {
+    const x = xOf(startIdx + i), y = yOf(responseHistory[i].qdes[j]);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // qpos — solid (actual)
+  ctx.beginPath();
+  ctx.setLineDash([]);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  for (let i = 0; i < n; i++) {
+    const x = xOf(startIdx + i), y = yOf(responseHistory[i].qpos[j]);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Legend
+  ctx.font = '12px ' + getComputedStyle(document.body).fontFamily;
+  ctx.textAlign = 'right';
+  ctx.fillStyle = color;
+  ctx.fillText('— actual', W - padR - 70, 15);
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  ctx.fillText('- - target', W - padR, 15);
+}
+
+// Joint selector
+jointSelRow.querySelectorAll('.joint-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    selectedJoint = parseInt(btn.dataset.j);
+    jointSelRow.querySelectorAll('.joint-btn').forEach(b => {
+      b.classList.remove('active');
+      b.style.background = '';
+    });
+    btn.classList.add('active');
+    btn.style.background = JOINT_COLORS[selectedJoint];
+    drawResponsePlot();
+  });
+  // Init first button color
+  if (btn.classList.contains('active')) {
+    btn.style.background = JOINT_COLORS[0];
+  }
+});
+
+// Continuously redraw the response plot when visible
+let _respRAF = null;
+function respRAFLoop() {
+  if (!responseFloat.classList.contains('hidden')) {
+    drawResponsePlot();
+  }
+  _respRAF = requestAnimationFrame(respRAFLoop);
+}
+respRAFLoop();
+
+
+// ══════════════════════════════════════════════════════
+//  ENV STATE EXTRACTORS (per task, matching Python envs)
+// ══════════════════════════════════════════════════════
+
+/**
+ * Convert scalar-first quaternion [w,x,y,z] to 3×3 rotation matrix (flat array, row-major).
+ */
+function quatToRotMat(q) {
+  const [w, x, y, z] = q;
+  const x2 = x+x, y2 = y+y, z2 = z+z;
+  const xx = x*x2, yy = y*y2, zz = z*z2;
+  const xy = x*y2, xz = x*z2, yz = y*z2;
+  const wx = w*x2, wy = w*y2, wz = w*z2;
+  // Row-major: m[row][col] → flat index = row*3 + col
+  return [
+    1-yy-zz, xy-wz,   xz+wy,
+    xy+wz,   1-xx-zz, yz-wx,
+    xz-wy,   yz+wx,   1-xx-yy
+  ];
+}
+
+/**
+ * Extract env_state from simulation data.
+ * Returns Float32Array of shape [num_objects, object_dim] flattened.
+ */
+function extractEnvState(sim, config) {
+  const type = config.env_state_type;
+
+  switch (type) {
+    case 'xyz_quat': {
+      // mug_hang / handover: object xyz + quat from qpos
+      const spec = config.env_state_spec.objects[0];
+      const xyz = [];
+      for (let i = spec.start; i < spec.end; i++) xyz.push(sim.qpos[i]);
+      return new Float32Array(xyz);  // [7]
+    }
+
+    case 'xyz_zaxis_and_rack': {
+      // dishrack_v2: plate xyz+zaxis (6) + rack xyz+xaxis (6) = [2, 6]
+      const plateSpec = config.env_state_spec.objects[0];
+      const rackSpec  = config.env_state_spec.objects[1];
+
+      // Plate: xyz from qpos, z-axis from quaternion
+      const pXyz  = [sim.qpos[plateSpec.start], sim.qpos[plateSpec.start+1], sim.qpos[plateSpec.start+2]];
+      const pQuat = [sim.qpos[plateSpec.start+3], sim.qpos[plateSpec.start+4],
+                     sim.qpos[plateSpec.start+5], sim.qpos[plateSpec.start+6]];
+      const pRot  = quatToRotMat(pQuat);
+      const pZAxis = [pRot[2], pRot[5], pRot[8]];  // column 2
+
+      // Rack: xyz from mocap_pos, x-axis from mocap quaternion
+      const rIdx = rackSpec.mocap_idx;
+      const rXyz = [sim.mocap_pos[rIdx*3], sim.mocap_pos[rIdx*3+1], sim.mocap_pos[rIdx*3+2]];
+      const rQuat = [sim.mocap_quat[rIdx*4], sim.mocap_quat[rIdx*4+1],
+                     sim.mocap_quat[rIdx*4+2], sim.mocap_quat[rIdx*4+3]];
+      const rRot = quatToRotMat(rQuat);
+      const rXAxis = [rRot[0], rRot[3], rRot[6]];  // column 0
+
+      return new Float32Array([...pXyz, ...pZAxis, ...rXyz, ...rXAxis]);  // [12] = [2,6]
+    }
+
+    case 'xyz_zaxis_3plates': {
+      // dishrack_unload: 3 plates, each xyz + z-axis = [3, 6]
+      const result = [];
+      for (const spec of config.env_state_spec.objects) {
+        const xyz = [sim.qpos[spec.start], sim.qpos[spec.start+1], sim.qpos[spec.start+2]];
+        const quat = [sim.qpos[spec.start+3], sim.qpos[spec.start+4],
+                      sim.qpos[spec.start+5], sim.qpos[spec.start+6]];
+        const rot = quatToRotMat(quat);
+        const zAxis = [rot[2], rot[5], rot[8]];
+        result.push(...xyz, ...zAxis);
+      }
+      return new Float32Array(result);  // [18] = [3,6]
+    }
+
+    case 'washer_state': {
+      // dishwasher_open: washer xy(2) + z_euler(1) + door(1) + drawer(1) = [1, 5]
+      const spec = config.env_state_spec.objects[0];
+      const mIdx = spec.mocap_idx;
+      const wX = sim.mocap_pos[mIdx*3];
+      const wY = sim.mocap_pos[mIdx*3+1];
+
+      // Z-euler from quaternion.
+      // IMPORTANT: Python env uses R.from_quat(mj_quat) WITHOUT scalar_first=True.
+      // MuJoCo stores [w,x,y,z] but scipy expects [x,y,z,w], so the quaternion
+      // is "misinterpreted". Training data was collected this way, so we must match.
+      // Reorder: MuJoCo [w,x,y,z] → feed as [z_mj, w_mj, x_mj, y_mj] to quatToRotMat
+      // so that quatToRotMat's [w,x,y,z] input maps to scipy's interpretation.
+      const q = [sim.mocap_quat[mIdx*4], sim.mocap_quat[mIdx*4+1],
+                 sim.mocap_quat[mIdx*4+2], sim.mocap_quat[mIdx*4+3]];
+      const wRot = quatToRotMat([q[3], q[0], q[1], q[2]]);
+      // scipy's as_euler('xyz') z component = atan2(r[1][0], r[0][0])
+      const zEulerRad = Math.atan2(wRot[3], wRot[0]);
+      const zEulerDeg = zEulerRad * 180 / Math.PI;
+
+      const doorPos   = sim.qpos[spec.door_qpos_idx];
+      const drawerPos = sim.qpos[spec.drawer_qpos_idx];
+
+      return new Float32Array([wX, wY, zEulerDeg, doorPos, drawerPos]);  // [5] = [1,5]
+    }
+
+    default:
+      throw new Error(`Unknown env_state_type: ${type}`);
+  }
+}
+
+/**
+ * Extract proprioception: qpos[0:robot_dof]
+ */
+function extractProprio(sim, config) {
+  const result = new Float32Array(config.robot_dof);
+  for (let i = 0; i < config.robot_dof; i++) {
+    result[i] = sim.qpos[i];
+  }
+  return result;
+}
+
+
+// ══════════════════════════════════════════════════════
+//  PD CONTROLLER
+// ══════════════════════════════════════════════════════
+
+function pdStep(sim, action, config) {
+  const kp = config.kp;
+  const kd = config.kd;
+
+  for (let dec = 0; dec < config.decimation; dec++) {
+    if (config.pd_type === 'single') {
+      // Single arm: 7 PD joints + 1 gripper passthrough
+      for (let i = 0; i < 7; i++) {
+        sim.ctrl[i] = kp * (action[i] - sim.qpos[i]) - kd * sim.qvel[i];
+      }
+      sim.ctrl[7] = action[7];  // gripper
+    } else if (config.pd_type === 'dual') {
+      // Dual arm: 7+7 PD joints + 2 gripper passthroughs
+      const lqpos = config.arm_qpos_indices[0];
+      const rqpos = config.arm_qpos_indices[1];
+      const lqvel = config.arm_qvel_indices[0];
+      const rqvel = config.arm_qvel_indices[1];
+      // Left arm
+      for (let i = 0; i < 7; i++) {
+        sim.ctrl[i] = kp * (action[i] - sim.qpos[lqpos[i]]) - kd * sim.qvel[lqvel[i]];
+      }
+      // Right arm
+      for (let i = 0; i < 7; i++) {
+        sim.ctrl[7 + i] = kp * (action[7 + i] - sim.qpos[rqpos[i]]) - kd * sim.qvel[rqvel[i]];
+      }
+      // Grippers
+      sim.ctrl[14] = action[14];
+      sim.ctrl[15] = action[15];
+    }
+
+    viewer.mujoco.mj_step(viewer.mjModel, viewer.mjData);
+  }
+}
+
+
+// ══════════════════════════════════════════════════════
+//  SUCCESS CHECKING
+// ══════════════════════════════════════════════════════
+
+function checkSuccess(sim, config) {
+  const sc = config.success;
+  if (!sc) return false;
+
+  switch (sc.type) {
+    case 'joint_thresholds': {
+      // dishwasher: all joint checks must pass
+      for (const chk of sc.checks) {
+        const val = sim.qpos[chk.qpos_idx];
+        if (chk.op === '>' && !(val > chk.value)) return false;
+        if (chk.op === '<' && !(val < chk.value)) return false;
+      }
+      return true;
+    }
+
+    case 'position_check': {
+      // handover: coordinate checks on object position
+      const start = sc.object_qpos_start;
+      for (const chk of sc.checks) {
+        const val = sim.qpos[start + chk.coord];
+        if (chk.op === '>' && !(val > chk.value)) return false;
+        if (chk.op === '<' && !(val < chk.value)) return false;
+      }
+      return true;
+    }
+
+    case 'plate_distances': {
+      // dishrack_unload: pairwise distances between plate centers
+      const ratio = sc.eval_threshold_ratio || 1.0;
+      const indices = sc.plate_qpos_indices;
+      const threshold = sc.dist_threshold * ratio;
+      const p1 = indices[0], p2 = indices[1], p3 = indices[2];
+      const d12 = Math.sqrt(
+        (sim.qpos[p1[0]] - sim.qpos[p2[0]])**2 +
+        (sim.qpos[p1[0]+1] - sim.qpos[p2[0]+1])**2 +
+        (sim.qpos[p1[0]+2] - sim.qpos[p2[0]+2])**2
+      );
+      const d13 = Math.sqrt(
+        (sim.qpos[p1[0]] - sim.qpos[p3[0]])**2 +
+        (sim.qpos[p1[0]+1] - sim.qpos[p3[0]+1])**2 +
+        (sim.qpos[p1[0]+2] - sim.qpos[p3[0]+2])**2
+      );
+      return d12 < threshold && d13 < threshold;
+    }
+
+    case 'relative_pose':
+    case 'relative_pose_to_rack': {
+      // mug_hang / dishrack_v2: relative pose check
+      // Simplified: just check position distance (rotation check omitted
+      // for simplicity in the web version; can be added later)
+      const ratio = sc.eval_threshold_ratio || 1.0;
+      const posThresh = sc.pos_threshold * ratio;
+
+      let objXyz, refXyz, refQuat;
+      if (sc.type === 'relative_pose') {
+        // object from qpos, reference from mocap
+        objXyz = [sim.qpos[sc.object_qpos_start], sim.qpos[sc.object_qpos_start+1], sim.qpos[sc.object_qpos_start+2]];
+        const objQuat = [sim.qpos[sc.object_qpos_start+3], sim.qpos[sc.object_qpos_start+4],
+                         sim.qpos[sc.object_qpos_start+5], sim.qpos[sc.object_qpos_start+6]];
+        const mIdx = sc.reference_mocap_idx;
+        refXyz = [sim.mocap_pos[mIdx*3], sim.mocap_pos[mIdx*3+1], sim.mocap_pos[mIdx*3+2]];
+        refQuat = [sim.mocap_quat[mIdx*4], sim.mocap_quat[mIdx*4+1],
+                   sim.mocap_quat[mIdx*4+2], sim.mocap_quat[mIdx*4+3]];
+
+        // Compute relative transform
+        const refRot = quatToRotMat(refQuat);
+        const objRot = quatToRotMat(objQuat);
+
+        // Inverse of ref: R_inv = R^T, t_inv = -R^T @ t
+        // Relative position: R_ref^T @ (obj_pos - ref_pos)
+        const dx = objXyz[0]-refXyz[0], dy = objXyz[1]-refXyz[1], dz = objXyz[2]-refXyz[2];
+        const relPos = [
+          refRot[0]*dx + refRot[3]*dy + refRot[6]*dz,
+          refRot[1]*dx + refRot[4]*dy + refRot[7]*dz,
+          refRot[2]*dx + refRot[5]*dy + refRot[8]*dz,
+        ];
+
+        // Check against any candidate
+        for (const cand of sc.target_rel_candidates) {
+          const tPos = [cand[0][3], cand[1][3], cand[2][3]];
+          const posDiff = Math.sqrt(
+            (relPos[0]-tPos[0])**2 + (relPos[1]-tPos[1])**2 + (relPos[2]-tPos[2])**2
+          );
+          if (posDiff < posThresh) return true;
+        }
+        return false;
+
+      } else {
+        // relative_pose_to_rack
+        objXyz = [sim.qpos[sc.object_qpos_start], sim.qpos[sc.object_qpos_start+1], sim.qpos[sc.object_qpos_start+2]];
+        const objQuat = [sim.qpos[sc.object_qpos_start+3], sim.qpos[sc.object_qpos_start+4],
+                         sim.qpos[sc.object_qpos_start+5], sim.qpos[sc.object_qpos_start+6]];
+        const mIdx = sc.rack_mocap_idx;
+        refXyz = [sim.mocap_pos[mIdx*3], sim.mocap_pos[mIdx*3+1], sim.mocap_pos[mIdx*3+2]];
+        refQuat = [sim.mocap_quat[mIdx*4], sim.mocap_quat[mIdx*4+1],
+                   sim.mocap_quat[mIdx*4+2], sim.mocap_quat[mIdx*4+3]];
+
+        const refRot = quatToRotMat(refQuat);
+        const dx = objXyz[0]-refXyz[0], dy = objXyz[1]-refXyz[1], dz = objXyz[2]-refXyz[2];
+        const relPos = [
+          refRot[0]*dx + refRot[3]*dy + refRot[6]*dz,
+          refRot[1]*dx + refRot[4]*dy + refRot[7]*dz,
+          refRot[2]*dx + refRot[5]*dy + refRot[8]*dz,
+        ];
+
+        const tRel = sc.target_rel;
+        const tPos = [tRel[0][3], tRel[1][3], tRel[2][3]];
+        const posDiff = Math.sqrt(
+          (relPos[0]-tPos[0])**2 + (relPos[1]-tPos[1])**2 + (relPos[2]-tPos[2])**2
+        );
+        return posDiff < posThresh;
+      }
+    }
+
+    default:
+      console.warn(`Unknown success type: ${sc.type}`);
+      return false;
+  }
+}
+
+
+// ══════════════════════════════════════════════════════
+//  SCENE RESET
+// ══════════════════════════════════════════════════════
+
+function resetScene(config) {
+  // Reset to zero state first
+  viewer.resetData();
+  const sim = viewer.mjData;
+
+  // Apply keyframe qpos and ctrl (mj_resetData zeros everything,
+  // but we need the keyframe values like mj_resetDataKeyframe would set)
+  if (config.keyframe_qpos) {
+    for (let i = 0; i < config.keyframe_qpos.length && i < sim.qpos.length; i++) {
+      sim.qpos[i] = config.keyframe_qpos[i];
+    }
+  }
+  if (config.keyframe_ctrl) {
+    for (let i = 0; i < config.keyframe_ctrl.length && i < sim.ctrl.length; i++) {
+      sim.ctrl[i] = config.keyframe_ctrl[i];
+    }
+  }
+
+  // Apply task-specific randomization
+  const rc = config.reset;
+  if (!rc) return;
+
+  // Mocap bodies
+  if (rc.mocap) {
+    for (const mc of rc.mocap) {
+      const idx = mc.idx;
+      if (mc.pos) {
+        for (let i = 0; i < 3; i++) {
+          if (mc.pos[i] !== null) sim.mocap_pos[idx*3+i] = mc.pos[i];
+        }
+      }
+      if (mc.pos_base) {
+        for (let i = 0; i < 3; i++) {
+          let val = mc.pos_base[i];
+          if (mc.pos_noise && mc.pos_noise[i]) {
+            const [lo, hi] = mc.pos_noise[i];
+            val += lo + Math.random() * (hi - lo);
+          }
+          sim.mocap_pos[idx*3+i] = val;
+        }
+      }
+      if (mc.quat_euler) {
+        const [axes, angles] = mc.quat_euler;
+        const q = eulerToQuat(axes, Array.isArray(angles) ? angles : [angles]);
+        for (let i = 0; i < 4; i++) sim.mocap_quat[idx*4+i] = q[i];
+      }
+      if (mc.quat_euler_mode === 'xz') {
+        const xAngle = mc.quat_x !== undefined ? mc.quat_x : 0;
+        let zAngle = 0;
+        if (mc.quat_z_range) {
+          zAngle = mc.quat_z_range[0] + Math.random() * (mc.quat_z_range[1] - mc.quat_z_range[0]);
+        }
+        const q = eulerXZToQuat(xAngle, zAngle);
+        for (let i = 0; i < 4; i++) sim.mocap_quat[idx*4+i] = q[i];
+      }
+    }
+  }
+
+  // Free bodies (objects in qpos)
+  if (rc.free_bodies) {
+    for (const fb of rc.free_bodies) {
+      if (fb.pos_base) {
+        for (let i = 0; i < 3; i++) {
+          let val = fb.pos_base[i];
+          if (fb.pos_noise && fb.pos_noise[i]) {
+            const [lo, hi] = fb.pos_noise[i];
+            val += lo + Math.random() * (hi - lo);
+          }
+          sim.qpos[fb.qpos_start + i] = val;
+        }
+      }
+      if (fb.quat_euler_mode === 'xz') {
+        let xAngle = fb.quat_x !== undefined ? fb.quat_x : 0;
+        if (fb.quat_x_choices) {
+          xAngle = fb.quat_x_choices[Math.floor(Math.random() * fb.quat_x_choices.length)];
+        }
+        let zAngle = 0;
+        if (fb.quat_z_range) {
+          zAngle = fb.quat_z_range[0] + Math.random() * (fb.quat_z_range[1] - fb.quat_z_range[0]);
+        }
+        const q = eulerXZToQuat(xAngle, zAngle);
+        for (let i = 0; i < 4; i++) sim.qpos[fb.qpos_start + 3 + i] = q[i];
+      }
+    }
+  }
+
+  // Zero velocities
+  for (let i = 0; i < sim.qvel.length; i++) sim.qvel[i] = 0;
+
+  viewer.mujoco.mj_forward(viewer.mjModel, viewer.mjData);
+}
+
+
+// ── Quaternion utilities ──────────────────────────────
+
+function eulerXZToQuat(xDeg, zDeg) {
+  // R = Rz @ Rx (matching scipy's from_euler('xz', [x, z], degrees=True))
+  const xRad = xDeg * Math.PI / 180;
+  const zRad = zDeg * Math.PI / 180;
+
+  // Quaternion for rotation about X
+  const qx = [Math.cos(xRad/2), Math.sin(xRad/2), 0, 0]; // [w,x,y,z]
+  // Quaternion for rotation about Z
+  const qz = [Math.cos(zRad/2), 0, 0, Math.sin(zRad/2)];
+
+  // Combined: q = qz * qx (scipy intrinsic convention)
+  return quatMul(qz, qx);
+}
+
+function eulerToQuat(axes, angles) {
+  // Simple single/double axis euler to quaternion
+  // axes can be 'x', 'xz', 'xyz', etc.
+  let q = [1, 0, 0, 0]; // identity
+  for (let i = 0; i < axes.length; i++) {
+    const angle = (Array.isArray(angles) ? angles[i] : angles) * Math.PI / 180;
+    let qi;
+    switch (axes[i]) {
+      case 'x': qi = [Math.cos(angle/2), Math.sin(angle/2), 0, 0]; break;
+      case 'y': qi = [Math.cos(angle/2), 0, Math.sin(angle/2), 0]; break;
+      case 'z': qi = [Math.cos(angle/2), 0, 0, Math.sin(angle/2)]; break;
+      default: qi = [1,0,0,0];
+    }
+    q = quatMul(qi, q);
+  }
+  return q;
+}
+
+function quatMul(a, b) {
+  // Hamilton product; [w,x,y,z] convention
+  return [
+    a[0]*b[0] - a[1]*b[1] - a[2]*b[2] - a[3]*b[3],
+    a[0]*b[1] + a[1]*b[0] + a[2]*b[3] - a[3]*b[2],
+    a[0]*b[2] - a[1]*b[3] + a[2]*b[0] + a[3]*b[1],
+    a[0]*b[3] + a[1]*b[2] - a[2]*b[1] + a[3]*b[0],
+  ];
+}
+
+
+// ══════════════════════════════════════════════════════
+//  INFERENCE LOOP
+// ══════════════════════════════════════════════════════
+
+function getSimState(sim) {
+  return {
+    qpos: Array.from(sim.qpos),
+    qvel: Array.from(sim.qvel),
+    mocap_pos: Array.from(sim.mocap_pos),
+    mocap_quat: Array.from(sim.mocap_quat),
+  };
+}
+
+function initHistory(sim, config) {
+  const state = getSimState(sim);
+  qposHistory  = [];
+  qvelHistory  = [];
+  mocapHistory = [];
+  for (let i = 0; i < config.history; i++) {
+    qposHistory.push([...state.qpos]);
+    qvelHistory.push([...state.qvel]);
+    // Interleave pos and quat per mocap body into [pos0, quat0, pos1, quat1, ...]
+    const nMocap = state.mocap_pos.length / 3;
+    const mocapPose = [];
+    for (let m = 0; m < nMocap; m++) {
+      mocapPose.push(
+        state.mocap_pos[m*3], state.mocap_pos[m*3+1], state.mocap_pos[m*3+2],
+        state.mocap_quat[m*4], state.mocap_quat[m*4+1], state.mocap_quat[m*4+2], state.mocap_quat[m*4+3]
+      );
+    }
+    mocapHistory.push(mocapPose);
+  }
+}
+
+function pushHistory(sim) {
+  const state = getSimState(sim);
+  qposHistory.push([...state.qpos]);
+  qvelHistory.push([...state.qvel]);
+  const nMocap = state.mocap_pos.length / 3;
+  const mocapPose = [];
+  for (let m = 0; m < nMocap; m++) {
+    mocapPose.push(
+      state.mocap_pos[m*3], state.mocap_pos[m*3+1], state.mocap_pos[m*3+2],
+      state.mocap_quat[m*4], state.mocap_quat[m*4+1], state.mocap_quat[m*4+2], state.mocap_quat[m*4+3]
+    );
+  }
+  mocapHistory.push(mocapPose);
+
+  // Keep only last `history` entries
+  const h = policyConfig.history;
+  if (qposHistory.length > h) {
+    qposHistory.splice(0, qposHistory.length - h);
+    qvelHistory.splice(0, qvelHistory.length - h);
+    mocapHistory.splice(0, mocapHistory.length - h);
+  }
+}
+
+/**
+ * Build proprio tensor [1, T, P] from history.
+ * proprio = qpos[..., :robot_dof] for each history frame.
+ */
+function buildProprioTensor(config) {
+  const T = config.history;
+  const P = config.proprio_dim;
+  const data = new Float32Array(T * P);
+  for (let t = 0; t < T; t++) {
+    for (let p = 0; p < P; p++) {
+      data[t * P + p] = qposHistory[t][p];
+    }
+  }
+  return new ort.Tensor('float32', data, [1, T, P]);
+}
+
+/**
+ * Build env_state tensor [1, T, N, O] from history.
+ * Uses extractEnvState for the *current* frame's sim,
+ * but for history we need to reconstruct from stored arrays.
+ */
+function buildEnvStateTensor(config) {
+  const T = config.history;
+  const N = config.num_objects;
+  const O = config.object_dim;
+  const data = new Float32Array(T * N * O);
+
+  for (let t = 0; t < T; t++) {
+    // Create a mock sim object with the historical state
+    const mockSim = {
+      qpos: qposHistory[t],
+      qvel: qvelHistory[t],
+      mocap_pos: [],
+      mocap_quat: [],
+    };
+    // Reconstruct mocap_pos and mocap_quat from interleaved history
+    const mp = mocapHistory[t];
+    const nMocap = mp.length / 7;
+    for (let m = 0; m < nMocap; m++) {
+      mockSim.mocap_pos.push(mp[m*7], mp[m*7+1], mp[m*7+2]);
+      mockSim.mocap_quat.push(mp[m*7+3], mp[m*7+4], mp[m*7+5], mp[m*7+6]);
+    }
+
+    const envState = extractEnvState(mockSim, config);
+    for (let i = 0; i < N * O; i++) {
+      data[t * N * O + i] = envState[i];
+    }
+  }
+
+  return new ort.Tensor('float32', data, [1, T, N, O]);
+}
+
+async function runOneStep(sim, config) {
+  // 1. Push current state to history
+  pushHistory(sim);
+
+  // 2. Build tensors
+  const proprioTensor = buildProprioTensor(config);
+  const envStateTensor = buildEnvStateTensor(config);
+
+  // 3. Run ONNX inference
+  const feeds = {
+    proprio: proprioTensor,
+    env_state: envStateTensor,
+  };
+  const results = await onnxSession.run(feeds);
+  const actionData = results.action.data;  // Float32Array [act_dim]
+
+  // 4. Execute PD control
+  pdStep(sim, actionData, config);
+
+  // 5. Record response for the plot (qpos actual vs action target)
+  recordResponse(sim.qpos, actionData, config.robot_dof);
+}
+
+async function runPolicy() {
+  if (running) return;
+  running = true;
+
+  runBtn.style.display = 'none';
+  stopBtn.style.display = '';
+  resetBtn.disabled = true;
+
+  // Show response plot
+  responseFloat.classList.remove('hidden');
+
+  const sim = viewer.mjData;
+  const speed = parseFloat(speedSel.value) || 1;
+  let episode = 0;
+
+  while (running) {
+    episode++;
+    succeeded = false;
+    stepCount = 0;
+
+    // Read max steps fresh each episode so user can change mid-run
+    const maxSteps = parseInt(document.getElementById('max-steps-input').value) || 400;
+
+    // Reset at the start of each episode
+    resetScene(policyConfig);
+    viewer.syncBodies();
+    initHistory(sim, policyConfig);
+    clearResponseHistory();
+
+    statusBadge.className = 'running';
+    statusBadge.textContent = `RUNNING (ep ${episode})`;
+    statusBadge.style.display = 'inline-block';
+
+    for (let step = 0; step < maxSteps; step++) {
+      if (!running) break;
+
+      await runOneStep(sim, policyConfig);
+      stepCount = step + 1;
+      stepLabel.textContent = `Ep ${episode} · Step ${stepCount} / ${maxSteps}`;
+
+      if (!succeeded && checkSuccess(sim, policyConfig)) {
+        succeeded = true;
+      }
+
+      if (speed <= 1 || step % Math.round(speed) === 0) {
+        viewer.syncBodies();
+        await new Promise(r => requestAnimationFrame(r));
+      }
+    }
+
+    // Brief pause to show result before next episode
+    if (running) {
+      viewer.syncBodies();
+      statusBadge.className = succeeded ? 'success' : 'fail';
+      statusBadge.textContent = succeeded ? `✓ SUCCESS (ep ${episode})` : `✗ FAILED (ep ${episode})`;
+      await new Promise(r => setTimeout(r, 1500));
+    }
+  }
+
+  // Stopped
+  stopBtn.style.display = 'none';
+  runBtn.style.display = '';
+  resetBtn.disabled = false;
+}
+
+function stopPolicy() {
+  running = false;
+}
+
+
+// ══════════════════════════════════════════════════════
+//  INITIALIZATION
+// ══════════════════════════════════════════════════════
+
+const viewer_instance = new MuJoCoViewer(document.getElementById('container'), {
+  sceneXML:     scenePath,
+  wasmURL:      '../dist/mujoco_wasm.js',
+  background:   bgColor,
+  cameraPos,
+  cameraTarget,
+  enableDrag:   true,
+  onStatus: (msg) => { statusEl.textContent = msg; },
+  onReady: async () => {
+    try {
+      await loadPolicyAssets();
+      overlayEl.classList.add('hidden');
+      viewer = viewer_instance;
+
+      // CRITICAL: Pause the viewer's built-in physics loop.
+      // We control physics exclusively via pdStep / mj_step.
+      // Without this, the viewer's _animate() runs mj_step1/mj_step2
+      // every frame, double-stepping the simulation.
+      viewer.paused = true;
+
+      // Initial reset
+      resetScene(policyConfig);
+      viewer.syncBodies();
+
+      // Auto-run if requested
+      if (autorunOnLoad) {
+        setTimeout(() => runPolicy(), 100);
+      }
+    } catch (err) {
+      console.error('Init error:', err);
+      statusEl.textContent = 'Error: ' + err.message;
+    }
+  },
+});
+
+viewer_instance.init().catch(err => {
+  console.error('MuJoCo init failed:', err);
+  statusEl.textContent = 'Failed: ' + err.message;
+});
+
+// ── Button handlers ──────────────────────────────────
+resetBtn.addEventListener('click', () => {
+  if (running) return;
+  resetScene(policyConfig);
+  viewer.syncBodies();
+  stepCount = 0;
+  stepLabel.textContent = 'Step 0 / 0';
+  statusBadge.style.display = 'none';
+});
+
+runBtn.addEventListener('click', () => runPolicy());
+stopBtn.addEventListener('click', () => stopPolicy());
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+  if (e.key === ' ' || e.code === 'Space') {
+    e.preventDefault();
+    if (running) stopPolicy();
+    else runPolicy();
+  }
+  if (e.key === 'r' || e.key === 'R') {
+    if (!running) {
+      resetScene(policyConfig);
+      viewer.syncBodies();
+      stepCount = 0;
+      stepLabel.textContent = 'Step 0 / 0';
+      statusBadge.style.display = 'none';
+    }
+  }
+  if (e.key === 'Escape') {
+    stopPolicy();
+  }
+});
+
+</script>
+</body>
+</html>

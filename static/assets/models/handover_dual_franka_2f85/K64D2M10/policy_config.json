@@ -1,0 +1,231 @@
+{
+  "task": "handover_dual_franka_2f85",
+  "dataset": "handover_dual_franka_2f85/v0",
+  "kp": 64.0,
+  "kd": 2.0,
+  "decimation": 10,
+  "history": 10,
+  "action_chunk": 1,
+  "robot_dof": 26,
+  "num_objects": 1,
+  "object_dim": 7,
+  "proprio_dim": 26,
+  "act_dim": 16,
+  "pd_type": "dual",
+  "keyframe_qpos": [
+    0,
+    0,
+    0,
+    -1.57079,
+    0,
+    1.57079,
+    0.7853,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    -1.57079,
+    0,
+    1.57079,
+    0.7853,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    0.2,
+    1,
+    0,
+    0,
+    0
+  ],
+  "keyframe_ctrl": [
+    0,
+    0,
+    0,
+    -1.57079,
+    0,
+    1.57079,
+    -0.7853,
+    0,
+    0,
+    0,
+    -1.57079,
+    0,
+    1.57079,
+    -0.7853,
+    0.0,
+    0.0
+  ],
+  "arm_joint_indices": [
+    [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    [
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13
+    ]
+  ],
+  "arm_qpos_indices": [
+    [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    [
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19
+    ]
+  ],
+  "arm_qvel_indices": [
+    [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    [
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19
+    ]
+  ],
+  "gripper_ctrl_indices": [
+    14,
+    15
+  ],
+  "gripper_action_indices": [
+    14,
+    15
+  ],
+  "env_state_type": "xyz_quat",
+  "env_state_spec": {
+    "objects": [
+      {
+        "name": "peg",
+        "source": "qpos",
+        "start": 26,
+        "end": 33,
+        "repr": "xyz_quat"
+      }
+    ]
+  },
+  "scene_xml": "xmls/scene_handover.xml",
+  "max_steps": 400,
+  "reset": {
+    "keyframe": "home",
+    "mocap": [
+      {
+        "idx": 0,
+        "pos": [
+          null,
+          -0.2,
+          0.05
+        ],
+        "quat_euler": [
+          "x",
+          30
+        ]
+      },
+      {
+        "idx": 1,
+        "pos": [
+          null,
+          0.2,
+          0.05
+        ],
+        "quat_euler": [
+          "x",
+          -30
+        ]
+      }
+    ],
+    "free_bodies": [
+      {
+        "qpos_start": 26,
+        "qpos_end": 33,
+        "pos_base": [
+          0.4,
+          -0.3,
+          0.03
+        ],
+        "pos_noise": [
+          [
+            -0.05,
+            0.05
+          ],
+          [
+            -0.05,
+            0.05
+          ],
+          [
+            0,
+            0
+          ]
+        ],
+        "quat_euler_mode": "xz",
+        "quat_x_choices": [
+          -90,
+          0,
+          90
+        ],
+        "quat_z_range": [
+          -90,
+          90
+        ]
+      }
+    ]
+  },
+  "success": {
+    "type": "position_check",
+    "object_qpos_start": 26,
+    "checks": [
+      {
+        "coord": 1,
+        "op": ">",
+        "value": 0.2
+      },
+      {
+        "coord": 2,
+        "op": "<",
+        "value": 0.25
+      }
+    ]
+  },
+  "onnx_file": "policy.onnx"
+}

@@ -1,0 +1,19 @@
+<mujoco model="cubelet_with_colors">
+  <default>
+    <default class="visual">
+      <geom group="2" type="mesh" contype="0" conaffinity="0"/>
+    </default>
+    <default class="collision">
+      <geom group="3" type="mesh"/>
+    </default>
+  </default>
+  <asset>
+    <mesh file="cubelet_with_colors.obj"/>
+  </asset>
+  <worldbody>
+    <body name="cubelet_with_colors">
+      <geom mesh="cubelet_with_colors" class="visual"/>
+      <geom mesh="cubelet_with_colors" class="collision"/>
+    </body>
+  </worldbody>
+</mujoco>

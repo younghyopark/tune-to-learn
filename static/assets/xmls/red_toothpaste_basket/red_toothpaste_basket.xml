@@ -1,0 +1,32 @@
+<mujoco model="red_toothpaste_basket">
+  <default>
+    <default class="red_toothpaste_baskset_visual">
+      <geom group="2" type="mesh" contype="0" conaffinity="0"/>
+    </default>
+    <default class="red_toothpaste_baskset_collision">
+      <geom group="3" type="mesh"/>
+    </default>
+  </default>
+  <asset>
+    <texture type="2d" name="baked_mesh_3946066f_tex0" file="baked_mesh_3946066f_tex0.png"/>
+    <material name="red_toothpaste_basket_Texture" texture="baked_mesh_3946066f_tex0" specular="0.5" shininess="0.5"/>
+    <mesh file="red_toothpaste_basket.obj"/>
+    <mesh file="red_toothpaste_basket_collision_0.obj"/>
+    <mesh file="red_toothpaste_basket_collision_1.obj"/>
+    <mesh file="red_toothpaste_basket_collision_2.obj"/>
+    <mesh file="red_toothpaste_basket_collision_3.obj"/>
+    <mesh file="red_toothpaste_basket_collision_4.obj"/>
+    <mesh file="red_toothpaste_basket_collision_5.obj"/>
+  </asset>
+  <worldbody>
+    <body name="red_toothpaste_basket" mocap="true">
+      <geom material="red_toothpaste_basket_Texture" mesh="red_toothpaste_basket" class="red_toothpaste_baskset_visual"/>
+      <geom mesh="red_toothpaste_basket_collision_0" rgba="0.1392035401053221 0.45117648995023096 0.3054434694171544 1" class="red_toothpaste_baskset_collision"/>
+      <geom mesh="red_toothpaste_basket_collision_1" rgba="0.5154219615280661 0.44524509316447713 0.8628652333864074 1" class="red_toothpaste_baskset_collision"/>
+      <geom mesh="red_toothpaste_basket_collision_2" rgba="0.34287747695839976 0.32920990706743003 0.014125241134398614 1" class="red_toothpaste_baskset_collision"/>
+      <geom mesh="red_toothpaste_basket_collision_3" rgba="0.3573136737937427 0.828803835239 0.4736907957130545 1" class="red_toothpaste_baskset_collision"/>
+      <geom mesh="red_toothpaste_basket_collision_4" rgba="0.9902814254457839 0.39894846178949206 0.35098080575746937 1" class="red_toothpaste_baskset_collision"/>
+      <geom mesh="red_toothpaste_basket_collision_5" rgba="0.7210914103781159 0.9157214145749989 0.8829790906453974 1" class="red_toothpaste_baskset_collision"/>
+    </body>
+  </worldbody>
+</mujoco>

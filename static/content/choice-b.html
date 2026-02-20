@@ -1,0 +1,106 @@
+<!-- ════════════════════════════════════════════════════════════
+     Content for Choice B: "Tune based on the Task"
+     Edit this file independently — it gets fetched & injected.
+     ════════════════════════════════════════════════════════════ -->
+
+<section class="section alt-bg" id="results">
+  <div class="container container-medium">
+    <h2>Controller Gains do not Determine Task Compliance</h2>
+    <div class="container">
+      <p>
+        As noted above, the effective stiffness of a learned policy is not determined by the controller gains alone — the policy's own reactions play an equally important role. 
+        To drive this point home, we demonstrate that <em>a closed-loop policy can realize arbitrary task-level impedance, independent of the low-level controller gains.</em>
+        Below, we show two intentionally counterintuitive pairings.
+      </p>
+    </div>
+
+    <!-- Two side-by-side videos -->
+    <div class="figure-grid cols-2" style="margin-top:1.5rem;">
+      <figure>
+        <figcaption>
+          (a) <strong>Stiff</strong> behavior with <strong>compliant</strong> gains
+          <button class="how-btn" data-modal="modal-stiff" title="How did we do this?">
+            <i class="fas fa-question-circle"></i> How?
+          </button>
+        </figcaption>
+        <video class="media-video" autoplay loop muted playsinline style="width:100%; border-radius:var(--radius-lg); border:1px solid var(--border);">
+          <source src="static/videos/stiff-with-compliance-3 1_22.00.mp4" type="video/mp4" />
+          Your browser does not support the video tag.
+        </video>
+      </figure>
+      <figure>
+        <figcaption>
+          (b) <strong>Compliant</strong> behavior with <strong>stiff</strong> gains
+          <button class="how-btn" data-modal="modal-compliant" title="How did we do this?">
+            <i class="fas fa-question-circle"></i> How?
+          </button>
+        </figcaption>
+        <video class="media-video" autoplay loop muted playsinline style="width:100%; border-radius:var(--radius-lg); border:1px solid var(--border);">
+          <source src="static/videos/compliance-with-stiff-3 1_22.00.mp4" type="video/mp4" />
+          Your browser does not support the video tag.
+        </video>
+      </figure>
+    </div>
+
+    <br>
+
+    <div class="container">
+      <p>
+        Given that gains alone do not determine task compliance and thus should not be tuned based on the desired task behavior, 
+        the question becomes: <b>how should we tune the gains?</b>
+        <!--  -->
+        We argue that gain selection should instead be guided by learnability: how amenable different gain settings are to the learning algorithm in use. 
+        Before we do that, first tell us: what learning algorithm do you use the most often in your current robot learning pipeline? 
+        <!-- In the next sections, we systematically investigate how position controller gains affect three core components of modern robot learning pipelines: offline imitation learning, reinforcement learning from scratch, and sim-to-real transfer. -->
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ Modal: Stiff with compliant ═══ -->
+<div class="info-modal-overlay" id="modal-stiff">
+  <div class="info-modal">
+    <button class="info-modal-close" aria-label="Close"><i class="fas fa-times"></i></button>
+    <h3><u>Stiff</u> behavior with <u>compliant</u> gains</h3>
+    <p>
+      We train a reinforcement learning policy to maintain a fixed pose under external disturbances.
+      Although the low-level controller operates with compliant (low-gain) impedance, we induce stiff
+      task-level behavior by randomly applying force disturbances during training and rewarding the policy
+      for remaining close to a target pose. Specifically, we use a sharp distance-based reward:
+    </p>
+    <p style="text-align:center; margin:1rem 0;">
+      $$r(\mathbf{q})= 1-\tanh\!\bigl(\|\mathbf{q}-\mathbf{g}\|^2 /\lambda\bigr)$$
+    </p>
+    <p>
+      where a small $\lambda$ strongly penalizes deviations from the goal. This encourages the policy
+      to actively counteract disturbances and maintain its pose, resulting in stiff task-level responses
+      despite compliant low-level control.
+    </p>
+  </div>
+</div>
+
+<!-- ═══ Modal: Compliant with stiff ═══ -->
+<div class="info-modal-overlay" id="modal-compliant">
+  <div class="info-modal">
+    <button class="info-modal-close" aria-label="Close"><i class="fas fa-times"></i></button>
+    <h3><u>Compliant</u> behavior with <u>stiff</u> gains</h3>
+    <p>
+      To elicit compliant task-level responses despite a stiff (high-gain) low-level controller, we soften
+      the goal-tracking objective and discourage aggressive controller corrections:
+    </p>
+    <p style="text-align:center; margin:1rem 0;">
+      $$r(\mathbf{q})= 1-\tanh\!\bigl(\|\mathbf{q}-\mathbf{g}\|^2 /\lambda_{\text{large}}\bigr) - \alpha \|\Delta a_t\|^2$$
+    </p>
+    <p>
+      A large $\lambda$ reduces the incentive to tightly regulate the goal pose, while the $\Delta a$ penalty
+      suppresses high-frequency corrective behavior, encouraging the policy to yield smoothly under disturbances
+      even when executed with stiff gains.
+    </p>
+  </div>
+</div>
+
+
+<!-- Learning-algorithm poll (shared component, loaded dynamically) -->
+<div class="learning-poll-placeholder"></div>
+
+

@@ -1,0 +1,79 @@
+<!-- ════════════════════════════════════════════════════════════
+     Shared Learning-Algorithm Poll
+     Injected into every choice-X.html via a placeholder div.
+     ════════════════════════════════════════════════════════════ -->
+
+<section class="section" id="learning-poll">
+  <div class="container container-medium">
+    <div class="poll-box">
+      <p class="poll-onboarding">One more question —</p>
+      <h2 class="poll-question">What learning algorithm do you mostly rely on?</h2>
+
+      <div class="poll-options lp-options">
+        <!-- Option: BC -->
+        <button class="poll-card lp-card lp-card-no-avatar" data-lp="bc">
+          <div class="poll-card-text">
+            <span class="poll-card-title lp-title-bc">Behavior Cloning</span>
+            <span class="poll-card-desc">I train BC policies offline from demonstrations (diffusion policy, ACT, etc.).</span>
+          </div>
+        </button>
+
+        <!-- Option: RL -->
+        <button class="poll-card lp-card lp-card-no-avatar" data-lp="rl">
+          <div class="poll-card-text">
+            <span class="poll-card-title lp-title-rl">Reinforcement Learning</span>
+            <span class="poll-card-desc">I train policies from scratch with reward signals using RL algorithms (PPO, SAC, etc.).</span>
+          </div>
+        </button>
+
+        <!-- Option: Sim-to-Real -->
+        <button class="poll-card lp-card lp-card-no-avatar" data-lp="sim2real">
+          <div class="poll-card-text">
+            <span class="poll-card-title lp-title-sim2real">Sim-to-Real Transfer</span>
+            <span class="poll-card-desc">I train in simulation and transfer to the real robot (domain randomization, system ID, etc.).</span>
+          </div>
+        </button>
+      </div>
+
+      <p class="poll-subtitle">Select the approach closest to your pipeline — we'll show tailored findings.</p>
+
+    </div>
+
+    <!-- Response panels -->
+    <div class="poll-response lp-response" id="lp-response-bc">
+      <div class="poll-response-header lp-header-orange">
+        <strong>You said: Behavior Cloning</strong>
+      </div>
+      <p>
+        Great — our experiments show that gain selection matters <em>a lot</em> for offline imitation learning.
+        Compliant and overdamped gain regimes consistently outperform stiff settings,
+        because they produce smoother, more forgiving dynamics that are easier to clone from demonstrations.
+      </p>
+    </div>
+
+    <div class="poll-response lp-response" id="lp-response-rl">
+      <div class="poll-response-header lp-header-teal">
+        <strong>You said: Reinforcement Learning</strong>
+      </div>
+      <p>
+        Good news — RL is the most robust to gain choice. Our experiments show that
+        RL can succeed across <em>all</em> gain regimes, as long as the hyperparameters
+        (learning rate, entropy bonus, etc.) are tuned to match the dynamics induced by the gains.
+      </p>
+    </div>
+
+    <div class="poll-response lp-response" id="lp-response-sim2real">
+      <div class="poll-response-header lp-header-indigo">
+        <strong>You said: Sim-to-Real Transfer</strong>
+      </div>
+      <p>
+        This is where gain selection is most critical. Stiff and overdamped regimes amplify
+        the sim-to-real gap, making transferred policies brittle. Compliant and
+        critically damped settings transfer much more reliably.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- Dynamic content injected here based on learning poll choice -->
+<div id="lp-dynamic-content"></div>

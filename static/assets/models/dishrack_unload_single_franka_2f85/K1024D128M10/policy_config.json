@@ -1,0 +1,106 @@
+{
+  "task": "dishrack_unload_single_franka_2f85",
+  "dataset": "dishrack_unload_single_franka_2f85/v0",
+  "kp": 1024.0,
+  "kd": 128.0,
+  "decimation": 10,
+  "history": 10,
+  "action_chunk": 1,
+  "robot_dof": 13,
+  "num_objects": 3,
+  "object_dim": 6,
+  "proprio_dim": 13,
+  "act_dim": 8,
+  "pd_type": "single",
+  "arm_joint_indices": [
+    [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ]
+  ],
+  "arm_qpos_indices": [
+    [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ]
+  ],
+  "arm_qvel_indices": [
+    [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ]
+  ],
+  "gripper_ctrl_indices": [
+    7
+  ],
+  "gripper_action_indices": [
+    7
+  ],
+  "env_state_type": "xyz_zaxis_3plates",
+  "env_state_spec": {
+    "objects": [
+      {
+        "name": "plate1",
+        "source": "qpos",
+        "start": 13,
+        "end": 20,
+        "repr": "xyz_zaxis"
+      },
+      {
+        "name": "plate2",
+        "source": "qpos",
+        "start": 20,
+        "end": 27,
+        "repr": "xyz_zaxis"
+      },
+      {
+        "name": "plate3",
+        "source": "qpos",
+        "start": 27,
+        "end": 34,
+        "repr": "xyz_zaxis"
+      }
+    ]
+  },
+  "scene_xml": "xmls/franka_emika_panda/scene_dishrack_unload.xml",
+  "max_steps": 400,
+  "reset": {
+    "keyframe": "home",
+    "comments": "Complex reset with rack-relative plate positions; see env source"
+  },
+  "success": {
+    "type": "plate_distances",
+    "eval_threshold_ratio": 2.0,
+    "plate_qpos_indices": [
+      [
+        13,
+        16
+      ],
+      [
+        20,
+        23
+      ],
+      [
+        27,
+        30
+      ]
+    ],
+    "dist_threshold": 0.03
+  },
+  "onnx_file": "policy.onnx"
+}

@@ -1,0 +1,147 @@
+{
+  "task": "dishwasher_open_2f85",
+  "dataset": "dishwasher_open_2f85/v0",
+  "kp": 32.0,
+  "kd": 2.0,
+  "decimation": 10,
+  "history": 10,
+  "action_chunk": 1,
+  "robot_dof": 13,
+  "num_objects": 1,
+  "object_dim": 5,
+  "proprio_dim": 13,
+  "act_dim": 8,
+  "pd_type": "single",
+  "keyframe_qpos": [
+    0,
+    0,
+    0,
+    -1.57079,
+    0,
+    1.57079,
+    0.7853,
+    0.04,
+    0.04,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "keyframe_ctrl": [
+    0,
+    0,
+    0,
+    -1.57079,
+    0,
+    1.57079,
+    -0.7853,
+    0.0
+  ],
+  "arm_joint_indices": [
+    [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ]
+  ],
+  "arm_qpos_indices": [
+    [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ]
+  ],
+  "arm_qvel_indices": [
+    [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ]
+  ],
+  "gripper_ctrl_indices": [
+    7
+  ],
+  "gripper_action_indices": [
+    7
+  ],
+  "env_state_type": "washer_state",
+  "env_state_spec": {
+    "objects": [
+      {
+        "name": "washer",
+        "source": "mixed",
+        "repr": "xy_euler_hinge_slide",
+        "mocap_idx": 0,
+        "door_qpos_idx": 13,
+        "drawer_qpos_idx": 14
+      }
+    ]
+  },
+  "scene_xml": "xmls/franka_emika_panda/scene_dishwasher_open.xml",
+  "max_steps": 400,
+  "reset": {
+    "keyframe": "home",
+    "mocap": [
+      {
+        "idx": 0,
+        "pos_base": [
+          0.9,
+          -0.6,
+          0.0
+        ],
+        "pos_noise": [
+          [
+            0,
+            0.05
+          ],
+          [
+            0,
+            0.05
+          ],
+          [
+            0,
+            0
+          ]
+        ],
+        "quat_euler_mode": "xz",
+        "quat_x": 0,
+        "quat_z_range": [
+          -90,
+          -80
+        ]
+      }
+    ]
+  },
+  "success": {
+    "type": "joint_thresholds",
+    "checks": [
+      {
+        "qpos_idx": 13,
+        "op": ">",
+        "value": 0.9
+      },
+      {
+        "qpos_idx": 14,
+        "op": ">",
+        "value": 0.25
+      }
+    ]
+  },
+  "onnx_file": "policy.onnx"
+}

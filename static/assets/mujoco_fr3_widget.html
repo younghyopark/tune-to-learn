@@ -1,0 +1,1361 @@
+<!--
+  Interactive MuJoCo FR3 Simulation Widget
+  
+  Runs a real-time MuJoCo simulation of the Franka Research 3 in the browser.
+  Users can drag links to apply perturbation forces and observe the PD controller
+  response. Gains (Kp/Kd) are synced from the PD response widget via postMessage.
+  
+  Dependencies: mujoco-js (WASM, self-hosted), three.js (CDN).
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interactive FR3 Simulation</title>
+<style>
+  :root {
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    --bar-text: #444;
+    --bar-text-light: #888;
+    --bar-border: rgba(0,0,0,0.08);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #f0f2f5; font-family: var(--font); }
+
+  #container {
+    width: 100%; height: 100%;
+    position: relative;
+  }
+
+  canvas { display: block; width: 100%; height: 100%; }
+
+  /* Loading overlay */
+  #loading-overlay {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: #f0f2f5; color: #555;
+    font-family: var(--font);
+    z-index: 100; transition: opacity 0.5s;
+  }
+  #loading-overlay.hidden { opacity: 0; pointer-events: none; }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid rgba(0,0,0,0.08);
+    border-top-color: #7c8cf8;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: 14px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loading-status { font-size: 13px; opacity: 0.6; }
+
+  /* ── Gain grid panel (transparent, top-left) ─────────── */
+  #gain-grid-panel {
+    position: absolute; top: 10px; left: 10px;
+    z-index: 10;
+    padding: 8px;
+    width: 180px;
+  }
+  #gain-grid-panel .pf-title {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: var(--bar-text-light);
+    margin-bottom: 4px;
+  }
+  #gain-grid-canvas {
+    width: 100%; aspect-ratio: 1;
+    display: block;
+    border-radius: 4px;
+    cursor: crosshair;
+  }
+  .gain-vals {
+    display: flex; justify-content: space-between;
+    font-size: 10px; color: var(--bar-text-light);
+    padding: 2px 0;
+  }
+  .gain-vals b {
+    color: var(--bar-text);
+    font-weight: 600;
+  }
+
+  /* ── Excitation mode panel (bottom-right) ─────────── */
+  #mode-panel {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    z-index: 20;
+    font-family: var(--font);
+    font-size: 11px;
+    color: var(--bar-text);
+    background: transparent;
+    padding: 8px 12px 10px;
+    user-select: none;
+    width: 28%;
+    min-width: 180px;
+  }
+  #mode-panel .mp-title {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--bar-text-light);
+    margin-bottom: 6px;
+  }
+  #mode-panel .mp-desc {
+    font-size: 10px;
+    color: #666;
+    line-height: 1.4;
+    margin-bottom: 8px;
+  }
+  .mode-row {
+    display: flex; align-items: center; gap: 4px;
+  }
+  .mode-row button {
+    flex: 1;
+    padding: 5px 8px;
+    font-family: var(--font);
+    font-size: 10px;
+    border: 1px solid var(--bar-border);
+    border-radius: 3px;
+    background: transparent;
+    color: var(--bar-text-light);
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .mode-row button:hover {
+    border-color: rgba(0,0,0,0.2);
+  }
+  .mode-row button.active {
+    background: #5a6acf;
+    color: #fff;
+    border-color: transparent;
+  }
+
+  /* ── Live physics badge (bottom-left) ─────────── */
+  #live-badge {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #333;
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(6px);
+    padding: 5px 10px 5px 8px;
+    border-radius: 4px;
+    pointer-events: none;
+    user-select: none;
+  }
+  #live-badge .live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ff3b30;
+    box-shadow: 0 0 6px 2px rgba(255, 59, 48, 0.6);
+    animation: live-pulse 1.2s ease-in-out infinite;
+  }
+  #live-badge .live-hint {
+    font-weight: 400;
+    font-size: 10px;
+    text-transform: none;
+    letter-spacing: 0;
+    color: #666;
+    margin-left: 4px;
+  }
+  @keyframes live-pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 6px 2px rgba(255,59,48,0.6); }
+    50%      { opacity: 0.7; box-shadow: 0 0 10px 4px rgba(255,59,48,0.3); }
+  }
+
+  /* ── Joint response plot (top-right, transparent) ─────────── */
+  #joint-plot {
+    position: absolute; top: 10px; right: 10px;
+    width: 220px; height: 180px;
+    z-index: 10;
+    padding: 8px;
+  }
+  #joint-plot .pf-title {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--bar-text-light);
+    margin-bottom: 4px;
+  }
+  #joint-plot .pf-legend {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 9px;
+    color: var(--bar-text-light);
+  }
+  #joint-plot .pf-legend .leg-actual {
+    color: #e6194b;
+    margin-right: 10px;
+  }
+  #joint-plot .pf-legend .leg-target {
+    color: #aaa;
+  }
+  #joint-plot canvas {
+    width: 100%; height: 130px;
+    display: block;
+    border-radius: 4px;
+  }
+  #joint-selector {
+    display: flex; gap: 2px; justify-content: center;
+    margin-top: 4px;
+  }
+  #joint-selector button {
+    font-family: var(--font); font-size: 10px;
+    width: 22px; height: 18px;
+    border: 1px solid var(--bar-border);
+    border-radius: 3px; cursor: pointer;
+    background: transparent; color: var(--bar-text-light);
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0;
+  }
+  #joint-selector button:hover { border-color: rgba(0,0,0,0.2); }
+  #joint-selector button.active {
+    border-color: transparent;
+    color: #fff;
+  }
+</style>
+</head>
+<body>
+
+<div id="container">
+  <div id="loading-overlay">
+    <div class="spinner"></div>
+    <div id="loading-status">Loading MuJoCo…</div>
+  </div>
+  <div id="gain-grid-panel">
+    <div class="pf-title">PD Gains</div>
+    <canvas id="gain-grid-canvas"></canvas>
+    <div class="gain-vals">
+      <span>kp <b id="kp-val">200</b></span>
+      <span>kd <b id="kd-val">10</b></span>
+    </div>
+  </div>
+  <div id="joint-plot">
+    <div class="pf-title">Joint Response</div>
+    <div class="pf-legend"><span class="leg-actual">— actual</span><span class="leg-target">- - target</span></div>
+    <canvas id="joint-plot-canvas"></canvas>
+    <div id="joint-selector">
+      <button data-joint="0">1</button>
+      <button data-joint="1">2</button>
+      <button data-joint="2">3</button>
+      <button class="active" data-joint="3">4</button>
+      <button data-joint="4">5</button>
+      <button data-joint="5">6</button>
+      <button data-joint="6">7</button>
+    </div>
+  </div>
+  <div id="live-badge">
+    <span class="live-dot"></span>
+    <span>Live Physics</span>
+    <span class="live-hint">— click &amp; drag robot to apply forces</span>
+  </div>
+  <div id="mode-panel">
+    <div class="mp-title">Excitation Mode</div>
+    <div class="mp-desc">See how the controller tracks different commanded trajectories.</div>
+    <div class="mode-row">
+      <button data-mode="hold">Hold</button>
+      <button class="active" data-mode="sine">Sine</button>
+      <button data-mode="step">Step</button>
+    </div>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ═══════════════════════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════════════════════
+// Widget is at static/assets/mujoco_fr3_widget.html
+// WASM is at  static/dist/mujoco_wasm.js
+const MUJOCO_WASM_URL = '../dist/mujoco_wasm.js';
+const MODEL_BASE = 'mujoco_menagerie/franka_fr3/';
+
+// PD gains (scalar — multiplied by per-joint base)
+let scalarKp = 200;
+let scalarKd = 10;
+const GAIN_BASE = [1, 1, 1, 1, 0.6, 0.6, 0.6];
+const HOME_QPOS = [0, 0, 0, -1.57079, 0, 1.57079, -0.7853];
+const TORQUE_LIMITS = [87, 87, 87, 87, 12, 12, 12];
+const NUM_JOINTS = 7;
+
+// Excitation mode: 'hold' | 'sine' | 'step'
+let excitationMode = 'sine';
+const EXCITATION_AMPLITUDE = 0.1;  // radians
+const SINE_FREQUENCY = 0.5;       // Hz
+const STEP_PERIOD = 2.0;          // seconds per half-cycle
+let simTime = 0;                  // cumulative simulation time (seconds)
+let currentQDes = HOME_QPOS.slice();  // current desired joint positions
+
+// Files to load into MEMFS
+const ALL_FILES = [
+  'scene.xml',
+  'fr3.xml',
+  // Visual .obj meshes
+  'assets/link0_0.obj', 'assets/link0_1.obj', 'assets/link0_2.obj',
+  'assets/link0_3.obj', 'assets/link0_4.obj', 'assets/link0_5.obj',
+  'assets/link0_6.obj',
+  'assets/link1.obj', 'assets/link2.obj',
+  'assets/link3_0.obj', 'assets/link3_1.obj',
+  'assets/link4_0.obj', 'assets/link4_1.obj',
+  'assets/link5_0.obj', 'assets/link5_1.obj', 'assets/link5_2.obj',
+  'assets/link6_0.obj', 'assets/link6_1.obj', 'assets/link6_2.obj',
+  'assets/link6_3.obj', 'assets/link6_4.obj', 'assets/link6_5.obj',
+  'assets/link6_6.obj', 'assets/link6_7.obj',
+  'assets/link7_0.obj', 'assets/link7_1.obj', 'assets/link7_2.obj',
+  'assets/link7_3.obj',
+  // Collision .stl meshes
+  'assets/link0.stl', 'assets/link1.stl', 'assets/link2.stl',
+  'assets/link3.stl', 'assets/link4.stl', 'assets/link5.stl',
+  'assets/link6.stl', 'assets/link7.stl',
+  // Hand meshes
+  'assets/hand_0.obj', 'assets/hand_1.obj', 'assets/hand_2.obj', 
+  'assets/hand_3.obj', 'assets/hand_4.obj', 'assets/hand.stl', 
+  'assets/finger_0.obj', 'assets/finger_1.obj',   
+
+];
+
+// ═══════════════════════════════════════════════════════════
+//  GLOBALS
+// ═══════════════════════════════════════════════════════════
+let mujoco, mjModel, mjData;
+let scene, camera, renderer, controls;
+let mujocoRoot;
+let bodies = {};
+let bodyMeshes = [];
+
+// Drag state
+let dragging = false;
+let dragBodyId = -1;
+let dragPointLocal = new THREE.Vector3();  // hit point in body-local frame (fixed)
+let dragPointWorld = new THREE.Vector3();  // recomputed each frame from body transform
+let dragCursorWorld = new THREE.Vector3(); // where the mouse cursor currently projects
+let dragPlane = new THREE.Plane();
+let dragArrow = null;
+let raycaster = new THREE.Raycaster();
+let pointer = new THREE.Vector2();
+
+const statusEl = document.getElementById('loading-status');
+const overlayEl = document.getElementById('loading-overlay');
+
+// ═══════════════════════════════════════════════════════════
+//  COORDINATE HELPERS
+//  (from zalo/mujoco_wasm mujocoUtils.js)
+//  MuJoCo Z-up → Three.js Y-up
+// ═══════════════════════════════════════════════════════════
+function getPosition(buffer, index, target) {
+  return target.set(
+     buffer[(index * 3) + 0],
+     buffer[(index * 3) + 2],
+    -buffer[(index * 3) + 1]);
+}
+
+function getQuaternion(buffer, index, target) {
+  return target.set(
+    -buffer[(index * 4) + 1],
+    -buffer[(index * 4) + 3],
+     buffer[(index * 4) + 2],
+    -buffer[(index * 4) + 0]);
+}
+
+function toMujocoPos(target) {
+  return target.set(target.x, -target.z, target.y);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  LOAD MUJOCO WASM
+// ═══════════════════════════════════════════════════════════
+async function loadMuJoCo() {
+  statusEl.textContent = 'Loading MuJoCo WASM…';
+  const module = await import(MUJOCO_WASM_URL);
+  const loadModule = module.default;
+  mujoco = await loadModule();
+  mujoco.FS.mkdir('/working');
+  mujoco.FS.mount(mujoco.MEMFS, { root: '.' }, '/working');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  LOAD MODEL FILES INTO MEMFS
+// ═══════════════════════════════════════════════════════════
+async function loadModelFiles() {
+  statusEl.textContent = 'Downloading FR3 model…';
+
+  // Ensure directories exist
+  const dirs = new Set();
+  ALL_FILES.forEach(f => {
+    const parts = f.split('/');
+    let cur = '/working';
+    for (let i = 0; i < parts.length - 1; i++) {
+      cur += '/' + parts[i];
+      dirs.add(cur);
+    }
+  });
+  for (const d of dirs) {
+    if (!mujoco.FS.analyzePath(d).exists) {
+      mujoco.FS.mkdir(d);
+    }
+  }
+
+  let loaded = 0;
+  const total = ALL_FILES.length;
+
+  async function fetchFile(path) {
+    const url = MODEL_BASE + path;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`Failed to fetch ${url}: ${resp.status}`);
+    const isBinary = path.endsWith('.stl') || path.endsWith('.png');
+    if (isBinary) {
+      const buf = await resp.arrayBuffer();
+      mujoco.FS.writeFile('/working/' + path, new Uint8Array(buf));
+    } else {
+      const text = await resp.text();
+      mujoco.FS.writeFile('/working/' + path, text);
+    }
+    loaded++;
+    statusEl.textContent = `Downloading FR3 model… (${loaded}/${total})`;
+  }
+
+  await Promise.all(ALL_FILES.map(fetchFile));
+}
+
+// ═══════════════════════════════════════════════════════════
+//  INIT MUJOCO MODEL
+// ═══════════════════════════════════════════════════════════
+function initModel() {
+  statusEl.textContent = 'Compiling model…';
+  mjModel = mujoco.MjModel.loadFromXML('/working/scene.xml');
+  mjData = new mujoco.MjData(mjModel);
+  for (let i = 0; i < NUM_JOINTS; i++) {
+    mjData.qpos[i] = HOME_QPOS[i];
+  }
+  mujoco.mj_forward(mjModel, mjData);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  BUILD THREE.JS SCENE
+// ═══════════════════════════════════════════════════════════
+function buildScene() {
+  statusEl.textContent = 'Building 3D scene…';
+
+  const container = document.getElementById('container');
+  const w = container.clientWidth;
+  const h = container.clientHeight;
+
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(w, h);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.0;
+  container.appendChild(renderer.domElement);
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xf0f2f5);
+  scene.fog = new THREE.Fog(0xf0f2f5, 4, 10);
+
+  camera = new THREE.PerspectiveCamera(45, w / h, 0.01, 20);
+  camera.position.set(1.124, 0.896, 0.817);
+  camera.lookAt(0.214, 0.452, 0.048);
+
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.target.set(0.214, 0.452, 0.048);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.1;
+  controls.minDistance = 0.4;
+  controls.maxDistance = 4;
+  controls.addEventListener('change', () => {
+    const p = camera.position;
+    const t = controls.target;
+    // console.log(`camera.position.set(${p.x.toFixed(3)}, ${p.y.toFixed(3)}, ${p.z.toFixed(3)});`);
+    // console.log(`controls.target.set(${t.x.toFixed(3)}, ${t.y.toFixed(3)}, ${t.z.toFixed(3)});`);
+  });
+  controls.update();
+
+  // Lighting
+  scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+  const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+  dirLight.position.set(2, 4, 3);
+  dirLight.castShadow = true;
+  dirLight.shadow.mapSize.set(1024, 1024);
+  dirLight.shadow.camera.near = 0.1;
+  dirLight.shadow.camera.far = 10;
+  dirLight.shadow.camera.left = -2;
+  dirLight.shadow.camera.right = 2;
+  dirLight.shadow.camera.top = 2;
+  dirLight.shadow.camera.bottom = -2;
+  scene.add(dirLight);
+  const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
+  fillLight.position.set(-2, 1, -1);
+  scene.add(fillLight);
+
+  // Ground
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(10, 10),
+    new THREE.ShadowMaterial({ opacity: 0.12 })
+  );
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  const grid = new THREE.GridHelper(4, 20, 0xcccccc, 0xe0e0e0);
+  grid.position.y = 0.001;
+  scene.add(grid);
+
+  // Force arrow (cylinder shaft + cone head for visible thickness)
+  {
+    const arrowMat = new THREE.MeshPhysicalMaterial({
+      color: 0xff4444, roughness: 0.4, metalness: 0.0,
+      transparent: true, opacity: 0.9,
+    });
+    const shaftGeo = new THREE.CylinderGeometry(0.008, 0.008, 1, 12);
+    shaftGeo.translate(0, 0.5, 0); // pivot at bottom
+    const shaft = new THREE.Mesh(shaftGeo, arrowMat);
+    shaft.name = 'shaft';
+
+    const headGeo = new THREE.ConeGeometry(0.022, 0.06, 16);
+    headGeo.translate(0, 0.03, 0); // pivot at base of cone
+    const head = new THREE.Mesh(headGeo, arrowMat);
+    head.name = 'head';
+
+    dragArrow = new THREE.Group();
+    dragArrow.add(shaft);
+    dragArrow.add(head);
+    dragArrow.visible = false;
+    scene.add(dragArrow);
+  }
+
+  buildMuJoCoBodies();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  BUILD MUJOCO BODIES → THREE.JS
+//  (Adapted from zalo/mujoco_wasm mujocoUtils.js)
+// ═══════════════════════════════════════════════════════════
+function buildMuJoCoBodies() {
+  let meshGeometries = {};
+
+  mujocoRoot = new THREE.Group();
+  mujocoRoot.name = "MuJoCo Root";
+  scene.add(mujocoRoot);
+
+  for (let g = 0; g < mjModel.ngeom; g++) {
+    if (!(mjModel.geom_group[g] < 3)) continue;
+
+    let b    = mjModel.geom_bodyid[g];
+    let type = mjModel.geom_type[g];
+    let size = [
+      mjModel.geom_size[(g*3) + 0],
+      mjModel.geom_size[(g*3) + 1],
+      mjModel.geom_size[(g*3) + 2]
+    ];
+
+    if (!(b in bodies)) {
+      bodies[b] = new THREE.Group();
+      bodies[b].bodyID = b;
+      bodies[b].has_custom_mesh = false;
+    }
+
+    let geometry = new THREE.SphereGeometry(size[0] * 0.5);
+
+    if (type == 0) {
+      // Plane — skip (we have our own ground)
+      continue;
+    } else if (type == 2) {
+      geometry = new THREE.SphereGeometry(size[0]);
+    } else if (type == 3) {
+      geometry = new THREE.CapsuleGeometry(size[0], size[1] * 2.0, 20, 20);
+    } else if (type == 5) {
+      geometry = new THREE.CylinderGeometry(size[0], size[0], size[1] * 2.0);
+    } else if (type == 6) {
+      geometry = new THREE.BoxGeometry(size[0]*2, size[2]*2, size[1]*2);
+    } else if (type == 7) {
+      // Mesh geom
+      let meshID = mjModel.geom_dataid[g];
+      if (meshID < 0) continue;
+
+      if (!(meshID in meshGeometries)) {
+        geometry = new THREE.BufferGeometry();
+
+        // IMPORTANT: use .slice() to COPY data — subarray() is a view that
+        // would mutate MuJoCo's internal buffers when we swizzle.
+        let vertex_buffer = new Float32Array(mjModel.mesh_vert.subarray(
+          mjModel.mesh_vertadr[meshID] * 3,
+          (mjModel.mesh_vertadr[meshID] + mjModel.mesh_vertnum[meshID]) * 3));
+
+        // Swizzle Y/Z for three.js (on our copy, not the original)
+        for (let v = 0; v < vertex_buffer.length; v += 3) {
+          let temp = vertex_buffer[v + 1];
+          vertex_buffer[v + 1] = vertex_buffer[v + 2];
+          vertex_buffer[v + 2] = -temp;
+        }
+
+        let normal_buffer;
+        if (mjModel.mesh_normaladr && mjModel.mesh_normalnum) {
+          normal_buffer = new Float32Array(mjModel.mesh_normal.subarray(
+            mjModel.mesh_normaladr[meshID] * 3,
+            (mjModel.mesh_normaladr[meshID] + mjModel.mesh_normalnum[meshID]) * 3));
+          for (let v = 0; v < normal_buffer.length; v += 3) {
+            let temp = normal_buffer[v + 1];
+            normal_buffer[v + 1] = normal_buffer[v + 2];
+            normal_buffer[v + 2] = -temp;
+          }
+        }
+
+        let face_buffer = new Int32Array(mjModel.mesh_face.subarray(
+          mjModel.mesh_faceadr[meshID] * 3,
+          (mjModel.mesh_faceadr[meshID] + mjModel.mesh_facenum[meshID]) * 3));
+
+        geometry.setAttribute("position", new THREE.BufferAttribute(vertex_buffer, 3));
+        if (normal_buffer && normal_buffer.length === vertex_buffer.length) {
+          geometry.setAttribute("normal", new THREE.BufferAttribute(normal_buffer, 3));
+        }
+        geometry.setIndex(Array.from(face_buffer));
+        geometry.computeVertexNormals();
+
+        meshGeometries[meshID] = geometry;
+      } else {
+        // Clone so each geom instance gets its own transform
+        geometry = meshGeometries[meshID].clone();
+      }
+      bodies[b].has_custom_mesh = true;
+    } else {
+      continue;
+    }
+
+    // Material
+    let color;
+    if (mjModel.geom_matid[g] !== -1) {
+      let matId = mjModel.geom_matid[g];
+      color = [
+        mjModel.mat_rgba[(matId * 4) + 0],
+        mjModel.mat_rgba[(matId * 4) + 1],
+        mjModel.mat_rgba[(matId * 4) + 2],
+        mjModel.mat_rgba[(matId * 4) + 3]
+      ];
+    } else {
+      color = [
+        mjModel.geom_rgba[(g * 4) + 0],
+        mjModel.geom_rgba[(g * 4) + 1],
+        mjModel.geom_rgba[(g * 4) + 2],
+        mjModel.geom_rgba[(g * 4) + 3]
+      ];
+    }
+
+    let material = new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color(color[0], color[1], color[2]),
+      transparent: color[3] < 1.0,
+      opacity: color[3],
+      roughness: 0.45,
+      metalness: 0.1,
+      clearcoat: 0.05,
+    });
+
+    let mesh = new THREE.Mesh(geometry, material);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.bodyID = b;
+    bodies[b].add(mesh);
+    bodyMeshes.push(mesh);
+
+    // Set local geom pose within body
+    getPosition(mjModel.geom_pos, g, mesh.position);
+    getQuaternion(mjModel.geom_quat, g, mesh.quaternion);
+  }
+
+  // Add bodies to scene hierarchy
+  for (let b = 0; b < mjModel.nbody; b++) {
+    if (!(b in bodies)) {
+      bodies[b] = new THREE.Group();
+      bodies[b].bodyID = b;
+      bodies[b].has_custom_mesh = false;
+    }
+    if (b === 0) {
+      mujocoRoot.add(bodies[b]);
+    } else {
+      bodies[0].add(bodies[b]);
+    }
+  }
+
+  syncBodies();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SYNC MUJOCO STATE → THREE.JS
+// ═══════════════════════════════════════════════════════════
+function syncBodies() {
+  for (let b = 0; b < mjModel.nbody; b++) {
+    if (!(b in bodies)) continue;
+    getPosition(mjData.xpos, b, bodies[b].position);
+    getQuaternion(mjData.xquat, b, bodies[b].quaternion);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  COMPUTE DESIRED JOINT POSITIONS BASED ON MODE
+// ═══════════════════════════════════════════════════════════
+function updateDesiredPositions() {
+  for (let i = 0; i < NUM_JOINTS; i++) {
+    let offset = 0;
+    if (excitationMode === 'sine') {
+      // Sinusoidal excitation: 0.1 rad amplitude sine wave
+      offset = EXCITATION_AMPLITUDE * Math.sin(2 * Math.PI * SINE_FREQUENCY * simTime);
+    } else if (excitationMode === 'step') {
+      // Step excitation: toggle between +0.1 and -0.1 every STEP_PERIOD seconds
+      const phase = Math.floor(simTime / STEP_PERIOD) % 2;
+      offset = phase === 0 ? EXCITATION_AMPLITUDE : -EXCITATION_AMPLITUDE;
+    }
+    // else 'hold': offset stays 0
+    currentQDes[i] = HOME_QPOS[i] + offset;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  PD CONTROL LOOP
+// ═══════════════════════════════════════════════════════════
+function applyPDControl() {
+  updateDesiredPositions();
+  for (let i = 0; i < NUM_JOINTS; i++) {
+    const kp = scalarKp * GAIN_BASE[i];
+    const kd = scalarKd * GAIN_BASE[i];
+    const posError = currentQDes[i] - mjData.qpos[i];
+    const velError = -mjData.qvel[i];
+    let torque = kp * posError + kd * velError;
+    torque = Math.max(-TORQUE_LIMITS[i], Math.min(TORQUE_LIMITS[i], torque));
+    mjData.ctrl[i] = torque;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  DRAG INTERACTION
+// ═══════════════════════════════════════════════════════════
+function onPointerDown(e) {
+  if (e.button !== 0) return;
+
+  const rect = renderer.domElement.getBoundingClientRect();
+  pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+  raycaster.setFromCamera(pointer, camera);
+  const hits = raycaster.intersectObjects(bodyMeshes, false);
+
+  for (const hit of hits) {
+    const bid = hit.object.bodyID;
+    if (bid !== undefined && bid > 1) {
+      dragging = true;
+      dragBodyId = bid;
+
+      // Store hit point in the body's LOCAL frame so it tracks with the body
+      dragPointWorld.copy(hit.point);
+      dragCursorWorld.copy(hit.point);
+      const bodyGroup = bodies[bid];
+      dragPointLocal.copy(hit.point);
+      bodyGroup.worldToLocal(dragPointLocal);
+
+      const camDir = new THREE.Vector3();
+      camera.getWorldDirection(camDir);
+      dragPlane.setFromNormalAndCoplanarPoint(camDir, hit.point);
+
+      controls.enabled = false;
+
+      // Capture pointer so we get pointerup even if cursor leaves the iframe
+      if (e.pointerId !== undefined) {
+        renderer.domElement.setPointerCapture(e.pointerId);
+      }
+
+      const hint = document.getElementById('hint-overlay');
+      if (hint) hint.style.opacity = '0';
+      return;
+    }
+  }
+}
+
+function onPointerMove(e) {
+  if (!dragging) return;
+
+  const rect = renderer.domElement.getBoundingClientRect();
+  pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+  // Recompute anchor world position from the body's current transform
+  updateDragAnchor();
+
+  // Update the drag plane to stay with the body (keeps cursor projection consistent)
+  const camDir = new THREE.Vector3();
+  camera.getWorldDirection(camDir);
+  dragPlane.setFromNormalAndCoplanarPoint(camDir, dragPointWorld);
+
+  raycaster.setFromCamera(pointer, camera);
+  const target = new THREE.Vector3();
+  if (!raycaster.ray.intersectPlane(dragPlane, target)) return;
+  dragCursorWorld.copy(target);
+
+  applyDragForce();
+}
+
+// Recompute the world-space anchor from body-local point
+function updateDragAnchor() {
+  if (!dragging) return;
+  const bodyGroup = bodies[dragBodyId];
+  dragPointWorld.copy(dragPointLocal);
+  bodyGroup.localToWorld(dragPointWorld);
+}
+
+// Compute and apply the spring force + update the arrow visual
+function applyDragForce() {
+  if (!dragging) return;
+
+  const disp = dragCursorWorld.clone().sub(dragPointWorld);
+  const len = disp.length();
+
+  // Update arrow: starts at the body anchor, points toward cursor
+  if (len > 0.001) {
+    const arrowLen = Math.min(len, 0.5);
+    const dir = disp.clone().normalize();
+
+    // Position the group at the anchor point
+    dragArrow.position.copy(dragPointWorld);
+
+    // Orient: default cylinder points +Y, rotate to match dir
+    const quat = new THREE.Quaternion();
+    quat.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+    dragArrow.quaternion.copy(quat);
+
+    // Scale shaft length, place head at tip
+    const shaft = dragArrow.getObjectByName('shaft');
+    const head  = dragArrow.getObjectByName('head');
+    const headLen = Math.min(arrowLen * 0.35, 0.06);
+    const shaftLen = arrowLen - headLen;
+    shaft.scale.set(1, Math.max(shaftLen, 0.001), 1);
+    head.position.set(0, shaftLen, 0);
+    head.scale.set(1, 1, 1);
+
+    dragArrow.visible = true;
+  } else {
+    dragArrow.visible = false;
+  }
+
+  // Clear + apply perturbation
+  for (let i = 0; i < mjData.qfrc_applied.length; i++) {
+    mjData.qfrc_applied[i] = 0;
+  }
+
+  const mass = mjModel.body_mass[dragBodyId];
+  const forceScale = mass * 250;
+  const forceVec = toMujocoPos(disp.clone().multiplyScalar(forceScale));
+  const pointVec = toMujocoPos(dragPointWorld.clone());
+
+  mujoco.mj_applyFT(
+    mjModel, mjData,
+    new Float64Array([forceVec.x, forceVec.y, forceVec.z]),
+    new Float64Array([0, 0, 0]),
+    new Float64Array([pointVec.x, pointVec.y, pointVec.z]),
+    dragBodyId,
+    mjData.qfrc_applied
+  );
+}
+
+function onPointerUp(e) {
+  if (dragging) {
+    dragging = false;
+    dragBodyId = -1;
+    dragArrow.visible = false;
+    for (let i = 0; i < mjData.qfrc_applied.length; i++) {
+      mjData.qfrc_applied[i] = 0;
+    }
+    // Release pointer capture
+    if (e && e.pointerId !== undefined) {
+      try { renderer.domElement.releasePointerCapture(e.pointerId); } catch(_) {}
+    }
+    // Re-enable OrbitControls after a short delay to avoid stale state
+    setTimeout(() => { controls.enabled = true; }, 0);
+  }
+}
+
+// Cleanup drag state without event (for blur/visibility handlers)
+function cancelDrag() {
+  if (dragging) {
+    dragging = false;
+    dragBodyId = -1;
+    dragArrow.visible = false;
+    controls.enabled = true;
+    for (let i = 0; i < mjData.qfrc_applied.length; i++) {
+      mjData.qfrc_applied[i] = 0;
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  JOINT PLOT (rolling desired vs achieved)
+// ═══════════════════════════════════════════════════════════
+const PLOT_HISTORY = 200;  // number of samples to keep
+const jointHistory = [];   // array of { desired: Float64[7], achieved: Float64[7] }
+let plotFrameSkip = 0;
+
+const JOINT_NAMES = ['J1','J2','J3','J4','J5','J6','J7'];
+let selectedJoint = 3;  // Default to joint 3 to match PD widget
+
+function selectJoint(j, broadcast = true) {
+  selectedJoint = j;
+  document.querySelectorAll('#joint-selector button').forEach(b => {
+    if (parseInt(b.dataset.joint) === j) {
+      b.classList.add('active');
+    } else {
+      b.classList.remove('active');
+    }
+  });
+  updateSelectorColors();
+  drawJointPlot();
+  if (broadcast) broadcastJoint();
+}
+
+function broadcastJoint() {
+  try {
+    window.parent.postMessage({ type: 'mujoco-joint-changed', joint: selectedJoint }, '*');
+  } catch(_) {}
+}
+
+// Joint selector buttons
+document.querySelectorAll('#joint-selector button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    selectJoint(parseInt(btn.dataset.joint));
+  });
+});
+
+// Mode selector buttons
+document.querySelectorAll('.mode-row button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    excitationMode = btn.dataset.mode;
+    document.querySelectorAll('.mode-row button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    // Reset simulation time when changing modes for clean transitions
+    simTime = 0;
+    // Clear joint history for a fresh plot
+    jointHistory.length = 0;
+  });
+});
+
+function updateSelectorColors() {
+  // Use gain-dependent color instead of per-joint colors
+  const activeColor = gainColor(gainNormX, gainNormY);
+  document.querySelectorAll('#joint-selector button').forEach(b => {
+    if (b.classList.contains('active')) {
+      b.style.background = activeColor;
+      b.style.borderColor = 'transparent';
+    } else {
+      b.style.background = '';
+      b.style.borderColor = '';
+    }
+  });
+}
+// Note: updateSelectorColors() called from applyGains() after gainColor is available
+
+function recordJointState() {
+  const desired  = currentQDes.slice();
+  const achieved = [];
+  for (let i = 0; i < NUM_JOINTS; i++) achieved.push(mjData.qpos[i]);
+  jointHistory.push({ desired, achieved });
+  if (jointHistory.length > PLOT_HISTORY) jointHistory.shift();
+}
+
+function drawJointPlot() {
+  const canvas = document.getElementById('joint-plot-canvas');
+  if (!canvas) return;
+  const dpr = Math.min(window.devicePixelRatio, 2);
+  // Use fixed canvas size from CSS
+  const W = 204;  // 220 - 16 padding
+  const H = 130;
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const n = jointHistory.length;
+  if (n < 2) return;
+
+  const j = selectedJoint;
+  const color = gainColor(gainNormX, gainNormY);  // Use gain-dependent color
+
+  // Layout — no title row, less padding
+  const padL = 28, padR = 4, padT = 8, padB = 4;
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
+
+  // Y range for this joint only, with a minimum span of 0.3 rad
+  let yMin = Infinity, yMax = -Infinity;
+  for (const s of jointHistory) {
+    yMin = Math.min(yMin, s.desired[j], s.achieved[j]);
+    yMax = Math.max(yMax, s.desired[j], s.achieved[j]);
+  }
+  const MIN_SPAN = 0.3;  // minimum Y range in radians
+  const span = yMax - yMin;
+  if (span < MIN_SPAN) {
+    const mid = (yMin + yMax) / 2;
+    yMin = mid - MIN_SPAN / 2;
+    yMax = mid + MIN_SPAN / 2;
+  }
+  const yPad = (yMax - yMin) * 0.08;
+  yMin -= yPad; yMax += yPad;
+
+  // Clear (transparent)
+  ctx.clearRect(0, 0, W, H);
+
+  // Y-axis ticks
+  ctx.fillStyle = '#888';
+  ctx.font = '8px -apple-system, BlinkMacSystemFont, sans-serif';
+  ctx.textAlign = 'right';
+  const nTicks = 3;
+  for (let t = 0; t <= nTicks; t++) {
+    const v = yMin + (t / nTicks) * (yMax - yMin);
+    const y = padT + (1 - t / nTicks) * plotH;
+    ctx.fillText(v.toFixed(2), padL - 3, y + 3);
+    // Gridline
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+    ctx.lineWidth = 0.5;
+    ctx.moveTo(padL, y);
+    ctx.lineTo(padL + plotW, y);
+    ctx.stroke();
+  }
+
+  function xOf(i) { return padL + (i / (PLOT_HISTORY - 1)) * plotW; }
+  function yOf(v) { return padT + (1 - (v - yMin) / (yMax - yMin)) * plotH; }
+
+  const startIdx = PLOT_HISTORY - n;
+
+  // Desired — dashed
+  ctx.beginPath();
+  ctx.setLineDash([4, 3]);
+  ctx.strokeStyle = '#aaa';
+  ctx.lineWidth = 1.2;
+  for (let i = 0; i < n; i++) {
+    const x = xOf(startIdx + i);
+    const y = yOf(jointHistory[i].desired[j]);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Achieved — solid
+  ctx.beginPath();
+  ctx.setLineDash([]);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.8;
+  for (let i = 0; i < n; i++) {
+    const x = xOf(startIdx + i);
+    const y = yOf(jointHistory[i].achieved[j]);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SIMULATION + RENDER LOOP
+// ═══════════════════════════════════════════════════════════
+let lastTime = 0;
+
+function animate(time) {
+  requestAnimationFrame(animate);
+
+  const dt = Math.min(time - lastTime, 50);
+  lastTime = time;
+  const timestepMs = mjModel.opt.timestep * 1000;
+  const nsteps = Math.floor(dt / timestepMs);
+
+  for (let i = 0; i < Math.min(nsteps, 30); i++) {
+    // Update simulation time
+    simTime += mjModel.opt.timestep;
+
+    if (dragging) {
+      // Recompute anchor from the body's latest pose each sub-step
+      syncBodies();
+      updateDragAnchor();
+      applyDragForce();
+    } else {
+      for (let j = 0; j < mjData.qfrc_applied.length; j++) {
+        mjData.qfrc_applied[j] = 0;
+      }
+    }
+
+    mujoco.mj_step1(mjModel, mjData);
+    applyPDControl();
+    mujoco.mj_step2(mjModel, mjData);
+  }
+
+  // Record & plot joint state (throttled to ~20 Hz)
+  plotFrameSkip++;
+  if (plotFrameSkip >= 3) {
+    plotFrameSkip = 0;
+    recordJointState();
+    drawJointPlot();
+  }
+
+  syncBodies();
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  RESIZE
+// ═══════════════════════════════════════════════════════════
+function onResize() {
+  const c = document.getElementById('container');
+  const w = c.clientWidth;
+  const h = c.clientHeight;
+  if (renderer) {
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  RESET
+// ═══════════════════════════════════════════════════════════
+function resetSimulation() {
+  if (!mjModel || !mjData) return;
+  mujoco.mj_resetData(mjModel, mjData);
+  for (let i = 0; i < NUM_JOINTS; i++) {
+    mjData.qpos[i] = HOME_QPOS[i];
+    mjData.ctrl[i] = 0;
+  }
+  for (let i = 0; i < mjData.qfrc_applied.length; i++) {
+    mjData.qfrc_applied[i] = 0;
+  }
+  mujoco.mj_forward(mjModel, mjData);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  KP/KD GRID CONTROL + BIDIRECTIONAL SYNC
+// ═══════════════════════════════════════════════════════════
+const KPS = [16, 32, 64, 128, 256, 512];
+const KDS = [1, 2, 4, 8, 12, 16, 24];
+
+// Normalized position on the grid [0,1] — log-interpolated
+let gainNormX = 0.729;  // → Kp≈200
+let gainNormY = 0.725;  // → Kd≈10
+let gainDragging = false;
+
+// Corner colors matching the PD response widget
+const GC_A = [140,140,140], GC_B = [76,114,176], GC_C = [196,78,82], GC_D = [129,114,178];
+
+function lerpColor(c1, c2, t) {
+  return [c1[0]+(c2[0]-c1[0])*t, c1[1]+(c2[1]-c1[1])*t, c1[2]+(c2[2]-c1[2])*t];
+}
+function gainColor(nx, ny) {
+  const bot = lerpColor(GC_A, GC_B, nx);
+  const top = lerpColor(GC_C, GC_D, nx);
+  const c = lerpColor(bot, top, ny);
+  return `rgb(${Math.round(c[0])},${Math.round(c[1])},${Math.round(c[2])})`;
+}
+
+function gainsFromNorm(nx, ny) {
+  const logKp = (1 - nx) * Math.log(KPS[0]) + nx * Math.log(KPS[KPS.length - 1]);
+  const logKd = (1 - ny) * Math.log(KDS[0]) + ny * Math.log(KDS[KDS.length - 1]);
+  return { kp: Math.exp(logKp), kd: Math.exp(logKd) };
+}
+function normFromGains(kp, kd) {
+  const nx = (Math.log(kp) - Math.log(KPS[0])) / (Math.log(KPS[KPS.length-1]) - Math.log(KPS[0]));
+  const ny = (Math.log(kd) - Math.log(KDS[0])) / (Math.log(KDS[KDS.length-1]) - Math.log(KDS[0]));
+  return { nx: Math.max(0, Math.min(1, nx)), ny: Math.max(0, Math.min(1, ny)) };
+}
+
+function applyGains(nx, ny, broadcast) {
+  gainNormX = Math.max(0, Math.min(1, nx));
+  gainNormY = Math.max(0, Math.min(1, ny));
+  const g = gainsFromNorm(gainNormX, gainNormY);
+  scalarKp = g.kp;
+  scalarKd = g.kd;
+  updateGainDisplay();
+  drawGainGrid();
+  updateSelectorColors();  // Update joint button color when gains change
+  if (broadcast) {
+    try {
+      window.parent.postMessage({ type: 'mujoco-gains-changed', kp: scalarKp, kd: scalarKd }, '*');
+    } catch(_) {}
+  }
+}
+
+function updateGainDisplay() {
+  document.getElementById('kp-val').textContent = Math.round(scalarKp);
+  document.getElementById('kd-val').textContent = Math.round(scalarKd * 10) / 10;
+}
+
+function drawGainGrid() {
+  const canvas = document.getElementById('gain-grid-canvas');
+  if (!canvas) return;
+  const dpr = Math.min(window.devicePixelRatio, 2);
+  const S = canvas.clientWidth;
+  if (S === 0) return;
+  canvas.width  = S * dpr;
+  canvas.height = S * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const padBot = 18, padLeft = 18, padTop = 22, padRight = 18;
+  const gs = Math.min(S - padLeft - padRight, S - padTop - padBot);
+  ctx.clearRect(0, 0, S, S);
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(0,0,0,0.10)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 6; i++) {
+    const f = i / 6;
+    ctx.beginPath(); ctx.moveTo(padLeft + f * gs, padTop); ctx.lineTo(padLeft + f * gs, padTop + gs); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(padLeft, padTop + f * gs); ctx.lineTo(padLeft + gs, padTop + f * gs); ctx.stroke();
+  }
+
+  // Axes
+  ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(padLeft, padTop + gs); ctx.lineTo(padLeft + gs + 4, padTop + gs); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(padLeft, padTop + gs); ctx.lineTo(padLeft, padTop - 4); ctx.stroke();
+
+  // Axis labels
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.font = 'bold 14px ' + getComputedStyle(document.body).fontFamily;
+  ctx.textAlign = 'center';
+  ctx.fillText('kp →', padLeft + gs / 2, S - 2);
+  ctx.save();
+  ctx.translate(padLeft / 2, padTop + gs / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textBaseline = 'middle';
+  ctx.fillText('kd →', 0, 0);
+  ctx.restore();
+
+  // Indicator dot
+  const cx = padLeft + gainNormX * gs;
+  const cy = padTop + (1 - gainNormY) * gs;
+  ctx.beginPath(); ctx.arc(cx, cy, 9, 0, Math.PI * 2);
+  ctx.fillStyle = gainColor(gainNormX, gainNormY);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+// Grid interaction
+{
+  const gc = document.getElementById('gain-grid-canvas');
+  function gridNormFromEvent(e) {
+    const rect = gc.getBoundingClientRect();
+    const padLeft = 18, padTop = 22;
+    const gs = rect.width - padLeft - 18;
+    const nx = (e.clientX - rect.left - padLeft) / gs;
+    const ny = 1 - (e.clientY - rect.top - padTop) / gs;
+    return { nx, ny };
+  }
+  gc.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    gainDragging = true;
+    gc.setPointerCapture(e.pointerId);
+    const { nx, ny } = gridNormFromEvent(e);
+    applyGains(nx, ny, true);
+  });
+  gc.addEventListener('pointermove', (e) => {
+    if (!gainDragging) return;
+    const { nx, ny } = gridNormFromEvent(e);
+    applyGains(nx, ny, true);
+  });
+  gc.addEventListener('pointerup', () => { gainDragging = false; });
+  gc.addEventListener('pointerleave', () => { gainDragging = false; });
+}
+
+// Listen for gains from PD response widget (via parent relay)
+window.addEventListener('message', (e) => {
+  if (e.data && e.data.type === 'pd-gains-changed') {
+    const kp = e.data.kp, kd = e.data.kd;
+    const n = normFromGains(kp, kd);
+    applyGains(n.nx, n.ny, false);  // false = don't re-broadcast
+  }
+  // Listen for joint changes from PD response widget (via parent relay)
+  if (e.data && e.data.type === 'pd-joint-changed') {
+    const j = e.data.joint;
+    if (j >= 0 && j < NUM_JOINTS) {
+      selectJoint(j, false);  // false = don't re-broadcast
+    }
+  }
+});
+
+// Initial draw
+applyGains(gainNormX, gainNormY, false);
+// Set up initial active button for joint 3
+selectJoint(selectedJoint, false);
+
+// ═══════════════════════════════════════════════════════════
+//  MAIN
+// ═══════════════════════════════════════════════════════════
+async function main() {
+  try {
+    await loadMuJoCo();
+    await loadModelFiles();
+    initModel();
+    buildScene();
+
+    // Events
+    renderer.domElement.addEventListener('pointerdown', onPointerDown);
+    renderer.domElement.addEventListener('pointermove', onPointerMove);
+    renderer.domElement.addEventListener('pointerup', onPointerUp);
+    renderer.domElement.addEventListener('pointercancel', onPointerUp);
+    // Safety fallback: cancel drag if window loses focus
+    window.addEventListener('blur', cancelDrag);
+    window.addEventListener('resize', onResize);
+
+    // Touch
+    renderer.domElement.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        const t = e.touches[0];
+        onPointerDown({ button: 0, clientX: t.clientX, clientY: t.clientY });
+      }
+    }, { passive: true });
+    renderer.domElement.addEventListener('touchmove', (e) => {
+      if (dragging && e.touches.length === 1) {
+        e.preventDefault();
+        const t = e.touches[0];
+        onPointerMove({ clientX: t.clientX, clientY: t.clientY });
+      }
+    }, { passive: false });
+    renderer.domElement.addEventListener('touchend', cancelDrag);
+
+    updateGainDisplay();
+    overlayEl.classList.add('hidden');
+    lastTime = performance.now();
+    requestAnimationFrame(animate);
+  } catch (err) {
+    console.error('MuJoCo init failed:', err);
+    statusEl.textContent = 'Failed to load: ' + err.message;
+  }
+}
+
+main();
+</script>
+</body>
+</html>

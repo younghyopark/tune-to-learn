@@ -1,0 +1,202 @@
+<mujoco model="airpods_case">
+  
+  <compiler angle="radian" meshdir="assets" autolimits="true" eulerseq="xyz" />
+
+  <default>
+    <default class="airpods_visual">
+      <geom group="2" type="mesh" contype="0" conaffinity="0"/>
+    </default>
+    <default class="airpods_collision">
+      <geom group="3" type="mesh" conaffinity="2"/>
+    </default>
+  </default>
+
+  <asset>
+    <material name="material_0" specular="0.4000000000000001" shininess="0.001" rgba="1.00000000 1.00000000 1.00000000 1.0"/>
+    <mesh file="bottom_case_resized_proper_1.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_0.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_1.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_2.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_3.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_4.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_5.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_6.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_7.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_8.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_9.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_10.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_11.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_12.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_13.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_14.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_15.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_16.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_17.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_18.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_19.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_20.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_21.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_22.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_23.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_24.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_25.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_26.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_27.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_28.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_29.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_30.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_31.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_32.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_33.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_34.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_35.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_36.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_37.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_38.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_39.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_40.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_41.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_42.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_43.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_44.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="bottom_case_resized_proper_1_collision_45.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_0.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_1.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_2.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_3.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_4.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_5.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_6.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_7.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_8.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_9.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_10.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_11.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_12.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_13.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_14.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_15.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_16.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_17.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_18.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_19.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_20.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_21.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_22.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_23.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_24.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_25.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_26.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_27.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_28.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_29.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_30.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_31.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_32.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_33.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_34.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_35.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_36.obj" scale="0.5 0.5 0.5"/>
+    <mesh file="upper_case_resized_proper_1_collision_37.obj" scale="0.5 0.5 0.5"/>
+  </asset>
+
+  <worldbody>
+    <body name="bottom_case_resized_proper" euler="3.141592 0 0 ">
+      <freejoint/>
+      <geom material="material_0" mesh="bottom_case_resized_proper_1" class="airpods_visual"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_0" rgba="0.2785742524361745 0.4521811568731291 0.034637497642885706 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_1" rgba="0.39219067580243094 0.4882786598197322 0.7713645759992812 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_2" rgba="0.5806726609660999 0.12467068295680495 0.1303841166073325 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_3" rgba="0.3298261933137705 0.7767136226077102 0.5235492765502833 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_4" rgba="0.33726044356108575 0.11043030471619275 0.48913344480899446 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_5" rgba="0.2569979979536394 0.5830792322413944 0.4148395491653021 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_6" rgba="0.8416885904616718 0.29304446513107707 0.5455876545563133 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_7" rgba="0.4356848876436553 0.9040845848676617 0.3701698288631785 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_8" rgba="0.5550230600706484 0.43865260273743434 0.6123402778296112 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_9" rgba="0.42748770399228697 0.8167733591986555 0.40889427186676985 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_10" rgba="0.17685442377432792 0.36658448828655565 0.912259453574502 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_11" rgba="0.2799095927491859 0.3761654832244987 0.9534423262108387 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_12" rgba="0.3540203273409035 0.8247025831717465 0.40814024994487297 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_13" rgba="0.40794811723362 0.8928191842595968 0.17208809617641063 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_14" rgba="0.3442084905987348 0.3234281727529813 0.4146705523015549 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_15" rgba="0.3945732083323078 0.6141168978354339 0.9030722649934739 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_16" rgba="0.6656442942284853 0.6355694805501362 0.2655977174350499 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_17" rgba="0.3903199875609613 0.8947099677840887 0.8497240335165984 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_18" rgba="0.43103980501356554 0.14147856499352252 0.9142524069293189 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_19" rgba="0.4580960675695853 0.9175751387580899 0.027916514114781465 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_20" rgba="0.8942811467979311 0.6511221072416649 0.7862607352530782 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_21" rgba="0.5773700020965864 0.0780039679692085 0.3351161511222056 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_22" rgba="0.5796512564674818 0.8234430813376643 0.3145637007570318 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_23" rgba="0.05139206104780858 0.18108112219228023 0.8796720206212871 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_24" rgba="0.4824818349832246 0.2287195443960166 0.3561679543607875 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_25" rgba="0.5277226951764112 0.5489724025260139 0.46679982738742787 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_26" rgba="0.9010616803541345 0.8785743950795093 0.5185985490754643 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_27" rgba="0.8049536947966477 0.26056665206500607 0.058602853523571974 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_28" rgba="0.18234986777132212 0.4152042407976342 0.5324472944231049 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_29" rgba="0.6587876179315255 0.5819444906289504 0.7493206397489974 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_30" rgba="0.3386931558231522 0.15421120355531726 0.19051853380922346 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_31" rgba="0.451700430342599 0.7638292599807477 0.18479495891501452 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_32" rgba="0.03214583218780942 0.6076673386520831 0.6790354955068008 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_33" rgba="0.2924834529171485 0.18901570197683737 0.5327175815101799 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_34" rgba="0.7722844581187618 0.7509850485528016 0.7880939726510545 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_35" rgba="0.36986425001565737 0.9666532863959838 0.912220539143618 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_36" rgba="0.42539911983276824 0.4590297574922566 0.6500399394733405 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_37" rgba="0.22623922307023248 0.6432274410737547 0.07928761990940203 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_38" rgba="0.42718967341833414 0.11334513882556319 0.5024157108229323 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_39" rgba="0.9728552389432507 0.6725255061527169 0.18670551039726424 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_40" rgba="0.4933327990017322 0.5497509331064641 0.8919845925169463 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_41" rgba="0.6454682011329784 0.8613864440656798 0.09037156067983565 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_42" rgba="0.40083074200010416 0.8258181488260872 0.43329709723225285 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_43" rgba="0.8742288756183914 0.583023764935039 0.6649927643603664 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_44" rgba="0.5253728056059104 0.46202049959309277 0.7738161506860283 1" class="airpods_collision"/>
+      <geom mesh="bottom_case_resized_proper_1_collision_45" rgba="0.36246998093791916 0.18338067218167065 0.2601301431945454 1" class="airpods_collision"/>
+
+        <body name="upper_case_resized_proper">
+          <joint axis="1 0 0" name="joint_upper_case_resized_proper"  pos="0 -0.0125 -0.0015" range="-0.15 2" frictionloss="1" springdamper="0 0" springref="2"/>
+          <body name="upper_case_meshes" pos="0 -0.0006 -0.0001">
+            <geom material="material_0" mesh="upper_case_resized_proper_1" class="airpods_visual"/>
+            <geom mesh="upper_case_resized_proper_1_collision_0" rgba="0.16641449419337795 0.5203667368178123 0.15096410292867302 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_1" rgba="0.49038146800301086 0.36295352190150143 0.4848476773631629 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_2" rgba="0.6845946820868736 0.8397405974385738 0.934371534976638 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_3" rgba="0.6751710943004179 0.12483871680324987 0.4122171204543782 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_4" rgba="0.5348062273053661 0.5657136825680666 0.45449387376618033 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_5" rgba="0.9978664195416785 0.9138384897468755 0.23683357303070607 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_6" rgba="0.8821088038888262 0.5642813591305371 0.21119419709639942 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_7" rgba="0.2330041505080762 0.35952783307735103 0.12103817136808681 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_8" rgba="0.5683966076857302 0.40785505920284015 0.949029185451127 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_9" rgba="0.03792492656973623 0.36082335699118284 0.16860739101938682 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_10" rgba="0.5501550157502942 0.5971139650926999 0.12303014924869549 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_11" rgba="0.6414045303921123 0.275650417648155 0.7730518534065047 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_12" rgba="0.49687225143540414 0.9878812149121592 0.12169212716199973 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_13" rgba="0.9300982544623366 0.8198426140923706 0.04662121427136956 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_14" rgba="0.35127561944138863 0.6242797628965239 0.5236915847529005 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_15" rgba="0.8794213375379165 0.6987973434412341 0.4106984157172213 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_16" rgba="0.14661599596067232 0.1439547447206645 0.9487112159181388 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_17" rgba="0.6504028626216352 0.9121014006379587 0.25949020927540756 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_18" rgba="0.4854831087631317 0.43647017272027255 0.41923475441241365 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_19" rgba="0.32935232364930545 0.8670591292000998 0.1692982104898969 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_20" rgba="0.3924865202314005 0.9773694189280938 0.4226785112458358 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_21" rgba="0.974236782468711 0.5577675930636788 0.320519174902384 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_22" rgba="0.5951996096633179 0.31490315650087564 0.6376582484455625 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_23" rgba="0.725234489211007 0.6234164211105417 0.5805514432596621 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_24" rgba="0.9290080444954761 0.5846302725189784 0.7365929698883437 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_25" rgba="0.5587565907895005 0.16893003975484167 0.78898905214999 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_26" rgba="0.18839106340771405 0.21626709013868461 0.6604223346307158 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_27" rgba="0.6929834937430281 0.7222050085232717 0.5802316920547035 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_28" rgba="0.5916480875155412 0.17976321511793436 0.3432950666527258 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_29" rgba="0.824492508276539 0.27982696453692035 0.23952287417101015 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_30" rgba="0.637348643770558 0.5130708466021244 0.7034186061873041 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_31" rgba="0.9763615225442783 0.8268250121596682 0.8740483981962234 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_32" rgba="0.6899856997707461 0.30021231222339695 0.8688514759450497 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_33" rgba="0.7179125059048967 0.4589529796481757 0.6545849370676837 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_34" rgba="0.4159974592378676 0.035983246886154396 0.35246303544230606 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_35" rgba="0.5378769865268784 0.42645974700157674 0.37903089286835967 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_36" rgba="0.4795603717628898 0.3981354624346941 0.9036373339160372 1" class="airpods_collision"/>
+            <geom mesh="upper_case_resized_proper_1_collision_37" rgba="0.5015764856315549 0.919401551546054 0.008791750459092862 1" class="airpods_collision"/>
+          </body>
+        </body>
+    </body>
+  </worldbody>
+
+</mujoco>

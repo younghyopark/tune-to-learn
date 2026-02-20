@@ -1,0 +1,41 @@
+<mujoco model="square_table_top">
+  <default>
+    <default class="square_table_top_visual">
+      <geom group="2" type="mesh" contype="0" conaffinity="0"/>
+    </default>
+    <default class="square_table_top_collision">
+      <geom group="3" type="mesh" solref="0.01 1" solimp=".95 .99 .0001" friction="0.5"/>
+    </default>
+  </default>
+  <asset>
+    <texture type="2d" name="tag36_11_00004" file="tag36_11_00004.png"/>
+    <material name="square_table_top_Material" texture="tag36_11_00004" specular="0.5" shininess="0.25"/>
+    <texture type="2d" name="tag36_11_00005" file="tag36_11_00005.png"/>
+    <material name="square_table_top_Material.001" texture="tag36_11_00005" specular="0.5" shininess="0.25"/>
+    <texture type="2d" name="tag36_11_00006" file="tag36_11_00006.png"/>
+    <material name="square_table_top_Material.002" texture="tag36_11_00006" specular="0.5" shininess="0.25"/>
+    <texture type="2d" name="tag36_11_00007" file="tag36_11_00007.png"/>
+    <material name="square_table_top_Material.003" texture="tag36_11_00007" specular="0.5" shininess="0.25"/>
+    <material name="square_table_top_Material.004" specular="0.5" shininess="0.25" rgba="0.800000 0.800000 0.800000 1.000000"/>
+    <mesh file="square_table_top_0.obj"/>
+    <mesh file="square_table_top_1.obj"/>
+    <mesh file="square_table_top_2.obj"/>
+    <mesh file="square_table_top_3.obj"/>
+    <mesh file="square_table_top_4.obj"/>
+  </asset>
+  <worldbody>
+    <body name="square_table_top">
+      <freejoint/>
+      <geom mesh="square_table_top_0" material="square_table_top_Material.003" class="square_table_top_visual"/>
+      <geom mesh="square_table_top_1" material="square_table_top_Material.002" class="square_table_top_visual"/>
+      <geom mesh="square_table_top_2" material="square_table_top_Material.001" class="square_table_top_visual"/>
+      <geom mesh="square_table_top_3" material="square_table_top_Material" class="square_table_top_visual"/>
+      <geom mesh="square_table_top_4" material="square_table_top_Material.004" class="square_table_top_visual"/>
+      <geom mesh="square_table_top_0" type="sdf" class="square_table_top_collision"/>
+      <geom mesh="square_table_top_1" type="sdf"  class="square_table_top_collision"/>
+      <geom mesh="square_table_top_2" type="sdf"  class="square_table_top_collision"/>
+      <geom mesh="square_table_top_3" type="sdf"  class="square_table_top_collision"/>
+      <geom mesh="square_table_top_4" type="sdf"  class="square_table_top_collision"/>
+    </body>
+  </worldbody>
+</mujoco>

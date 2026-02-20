@@ -1,0 +1,19 @@
+<mujoco model="cubelet">
+  <default>
+    <default class="visual">
+      <geom group="2" type="mesh" contype="0" conaffinity="0"/>
+    </default>
+    <default class="collision">
+      <geom group="3" type="mesh"/>
+    </default>
+  </default>
+  <asset>
+    <mesh file="cubelet.obj"/>
+  </asset>
+  <worldbody>
+    <body name="cubelet">
+      <geom mesh="cubelet" class="visual"/>
+      <geom mesh="cubelet" class="collision"/>
+    </body>
+  </worldbody>
+</mujoco>

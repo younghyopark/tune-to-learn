@@ -1,0 +1,37 @@
+<!-- ════════════════════════════════════════════════════════════
+     Learning Poll → Sim-to-Real Transfer Findings
+     ════════════════════════════════════════════════════════════ -->
+
+<section class="section alt-bg">
+  <div class="container container-medium">
+    <h2>Gains &amp; Sim-to-Real Transfer</h2>
+    <div class="container">
+      <p>
+        Sim-to-real transfer is the <strong>most sensitive</strong> to gain selection.
+        Stiff and overdamped gain regimes amplify the reality gap: small modelling errors
+        in contact dynamics, friction, and latency get magnified into catastrophic failures.
+      </p>
+      <p>
+        Compliant and critically damped settings act as a natural low-pass filter,
+        absorbing sim-to-real discrepancies and enabling significantly more reliable transfer.
+        In our experiments, policies trained with compliant gains transferred successfully
+        while identical policies with stiff gains failed consistently.
+      </p>
+    </div>
+
+    <div class="figure-grid cols-2" style="margin-top:1.5rem;">
+      <figure>
+        <div class="placeholder-img" style="height:250px;">
+          <i class="fas fa-chart-bar"></i><span>Sim-to-Real Success Rate</span>
+        </div>
+        <figcaption>Real-world success rate vs. gain regime for transferred policies.</figcaption>
+      </figure>
+      <figure>
+        <div class="placeholder-img" style="height:250px;">
+          <i class="fas fa-chart-line"></i><span>Sim–Real Gap Analysis</span>
+        </div>
+        <figcaption>Tracking error gap between sim and real across gain settings.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,1448 @@
+<!--
+  MuJoCo Trajectory Player
+
+  Plays back recorded demonstration trajectories inside a MuJoCo WASM viewer.
+
+  Parameters:
+    scene – path to MuJoCo XML, relative to this HTML file (required)
+    traj  – path(s) to trajectory JSON, comma-separated or range (required)
+           e.g. traj=datasets/dishrack/ep0.json
+                traj=datasets/dishrack/ep0-19.json
+                traj=ep0.json,ep5.json,ep10-12.json
+    bg    – background hex color without # (default: f0f2f5)
+    camx,camy,camz – camera position
+    tgtx,tgty,tgtz – camera target (orbit center)
+    speed – initial speed multiplier (default: 1)
+    loop  – loop playback: 1 or 0 (default: 1)
+    auto  – auto-play on load: 1 or 0 (default: 1)
+
+  Embed in an iframe:
+    <iframe src="static/assets/mujoco_trajectory.html?scene=xmls/franka_emika_panda/scene_dishrack.xml&traj=datasets/dishrack/ep0.json"
+            style="width:100%; height:500px; border:none;"></iframe>
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MuJoCo Trajectory Player</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #f0f2f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; }
+  #wrapper { display: flex; flex-direction: column; width: 100%; height: 100%; }
+  #container { width: 100%; flex: 1; position: relative; min-height: 0; }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  /* Loading overlay */
+  #loading-overlay {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: #f0f2f5; color: #555;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    z-index: 100; transition: opacity 0.5s;
+  }
+  #loading-overlay.hidden { opacity: 0; pointer-events: none; }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid rgba(0,0,0,0.08);
+    border-top-color: #7c8cf8;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: 14px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loading-status { font-size: 13px; opacity: 0.6; }
+
+  /* ── Controls bar below viewer ─────────────────────────── */
+  :root {
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    --accent: #6c7bf0;
+    --bar-text: #444;
+    --bar-text-light: #888;
+    --bar-border: rgba(0,0,0,0.08);
+  }
+
+  #controls-bar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+    background: #f0f2f5;
+    border-top: 1px solid var(--bar-border);
+    font-family: var(--font);
+    font-size: 13px;
+    color: var(--bar-text);
+    user-select: none;
+  }
+
+  /* ── Playback panel (right side, flex-fills) ─────── */
+  #panel {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 6px 12px 6px 12px;
+    gap: 4px;
+  }
+  #panel-header { display: none; }
+
+  .panel-body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  /* ── Play row: button + scrubber + step label ────── */
+  .play-row {
+    display: flex; align-items: center; gap: 8px;
+  }
+  #play-btn {
+    width: 30px; height: 30px;
+    background: var(--accent); border: none;
+    border-radius: 7px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; flex-shrink: 0;
+    transition: background 0.12s, transform 0.08s;
+  }
+  #play-btn:hover { background: #8290ff; }
+  #play-btn:active { transform: scale(0.93); }
+  #play-btn svg { width: 12px; height: 12px; fill: currentColor; }
+
+  #scrubber-wrap {
+    flex: 1; height: 14px; position: relative;
+    display: flex; align-items: center; cursor: pointer;
+  }
+  #scrubber-track {
+    width: 100%; height: 4px; border-radius: 2px;
+    background: rgba(0,0,0,0.08);
+    position: relative; overflow: visible;
+  }
+  #scrubber-fill {
+    height: 100%; border-radius: 2px;
+    background: var(--accent); width: 0%;
+    transition: width 0.05s linear;
+  }
+  #scrubber-thumb {
+    position: absolute; top: 50%; width: 10px; height: 10px;
+    border-radius: 50%; background: #fff;
+    border: 2px solid var(--accent);
+    box-shadow: 0 0 3px rgba(0,0,0,0.15);
+    transform: translate(-50%, -50%); left: 0%;
+    pointer-events: none;
+    transition: left 0.05s linear;
+  }
+
+  #step-label {
+    font-variant-numeric: tabular-nums;
+    font-size: 12px; color: var(--bar-text-light);
+    flex-shrink: 0; white-space: nowrap;
+  }
+
+  /* ── Episode picker (inline in play row) ─────────── */
+  #ep-section.hidden { display: none; }
+  #ep-section {
+    display: flex; align-items: center; gap: 3px;
+    margin-left: 4px;
+    padding-left: 8px;
+    border-left: 1px solid var(--bar-border);
+  }
+  .ep-prefix {
+    font-size: 12px; color: var(--bar-text-light);
+    margin-right: 4px;
+  }
+  .ep-nav-btn {
+    width: 20px; height: 20px;
+    background: rgba(0,0,0,0.04);
+    border: 1px solid var(--bar-border);
+    border-radius: 4px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--bar-text-light); flex-shrink: 0;
+    transition: background 0.15s;
+  }
+  .ep-nav-btn:hover { background: rgba(0,0,0,0.08); }
+  .ep-nav-btn:disabled { opacity: 0.25; cursor: default; }
+  .ep-nav-btn svg { width: 8px; height: 8px; fill: currentColor; }
+  #ep-label {
+    font-size: 12px; font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    min-width: 36px; text-align: center;
+    color: var(--bar-text);
+  }
+
+  /* ── Keyboard hints ─────────────────────────────── */
+  .kbd-row { display: none; }
+
+  /* ── Floating physics panels (inside viewer) ─────── */
+  .phys-float {
+    position: absolute;
+    z-index: 30;
+    background: none;
+    font-family: var(--font);
+    font-size: 11px;
+    color: var(--bar-text);
+    user-select: none;
+    padding: 8px;
+    transition: opacity 0.2s;
+  }
+  .phys-float.hidden { display: none; }
+
+  #gain-float {
+    top: 10px; left: 10px;
+    width: 180px;
+  }
+
+  #response-float {
+    top: 10px; right: 10px;
+    width: 220px;
+  }
+
+  .phys-float .pf-title {
+    font-weight: 600; font-size: 10px; letter-spacing: 0.3px;
+    text-transform: uppercase; color: var(--bar-text-light);
+    margin-bottom: 4px;
+  }
+
+  /* Gain grid */
+  #gain-grid-canvas {
+    width: 100%; aspect-ratio: 1;
+    display: block;
+    border-radius: 4px;
+    cursor: crosshair;
+  }
+  .gain-vals {
+    display: flex; justify-content: space-between;
+    font-size: 10px; color: var(--bar-text-light);
+    padding: 2px 0;
+  }
+  .gain-vals b {
+    color: var(--bar-text);
+    font-weight: 600;
+  }
+
+  /* Response plot */
+  #response-canvas {
+    width: 100%;
+    height: 150px;
+    display: block;
+    border-radius: 4px;
+  }
+
+  /* Joint selector row */
+  .joint-sel-row {
+    display: flex; gap: 2px; justify-content: center;
+    margin-top: 4px;
+  }
+  .joint-btn {
+    font-family: var(--font); font-size: 10px;
+    width: 22px; height: 18px;
+    border: 1px solid var(--bar-border);
+    border-radius: 3px; cursor: pointer;
+    background: transparent; color: var(--bar-text-light);
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0;
+  }
+  .joint-btn:hover { border-color: rgba(0,0,0,0.2); }
+  .joint-btn.active {
+    border-color: transparent;
+    color: #fff;
+  }
+
+  /* Noise panel (bottom-right) */
+  #noise-float {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    z-index: 20;
+    font-family: var(--font);
+    font-size: 11px;
+    color: var(--bar-text);
+    background: transparent;
+    padding: 8px 12px 10px;
+    user-select: none;
+    width: 30%;
+  }
+  #noise-float.hidden { display: none; }
+  #noise-float .nf-title {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--bar-text-light);
+    margin-bottom: 6px;
+  }
+  #noise-float .nf-desc {
+    font-size: 10px;
+    color: #666;
+    line-height: 1.4;
+    margin-bottom: 8px;
+  }
+  .noise-row {
+    display: flex; align-items: center; gap: 6px;
+  }
+  #noise-slider {
+    flex: 1;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: rgba(0,0,0,0.15);
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  #noise-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px; height: 12px;
+    background: var(--bar-text);
+    border-radius: 50%;
+    cursor: pointer;
+  }
+  #noise-val {
+    font-family: 'JetBrains Mono', 'SF Mono', 'Menlo', monospace;
+    font-size: 11px; font-weight: 600;
+    color: var(--bar-text);
+    min-width: 32px;
+    text-align: right;
+  }
+
+  /* ── Mode indicator badge (top-center) ─────────── */
+  #mode-badge {
+    position: absolute; top: 10px; left: 50%;
+    transform: translateX(-50%);
+    z-index: 20;
+    display: flex; flex-direction: column; align-items: center;
+    font-family: var(--font); font-weight: 700;
+    letter-spacing: 0.06em;
+    padding: 5px 18px 6px; border-radius: 16px;
+    pointer-events: none; user-select: none;
+    backdrop-filter: blur(8px);
+    transition: background 0.3s, color 0.3s, box-shadow 0.3s;
+  }
+  #mode-badge .badge-top {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 16px; line-height: 1.2;
+  }
+  #mode-badge .badge-sub {
+    font-size: 10px; font-weight: 400;
+    letter-spacing: 0.02em;
+    margin-top: 1px; opacity: 0;
+    max-height: 0; overflow: hidden;
+    transition: opacity 0.3s, max-height 0.3s;
+  }
+  #mode-badge[data-mode="physics"] .badge-sub {
+    opacity: 0.85; max-height: 20px;
+  }
+  #mode-badge[data-mode="replay"] {
+    background: rgba(60,80,120,0.55);
+    color: rgba(200,215,255,0.9);
+    box-shadow: 0 0 6px rgba(80,120,200,0.25);
+  }
+  #mode-badge[data-mode="physics"] {
+    background: rgba(180,90,20,0.6);
+    color: #ffd9a0;
+    box-shadow: 0 0 10px rgba(255,140,30,0.35);
+  }
+  #mode-badge .badge-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+  }
+  #mode-badge[data-mode="replay"] .badge-dot {
+    background: rgba(140,170,255,0.7);
+  }
+  #mode-badge[data-mode="physics"] .badge-dot {
+    background: #ff9f33;
+    animation: pulse-dot 1.2s ease-in-out infinite;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(255,160,50,0.6); }
+    50%      { opacity: 0.6; box-shadow: 0 0 0 5px rgba(255,160,50,0); }
+  }
+
+  /* ── Live physics badge (bottom-left) ─────────── */
+  #live-badge {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #333;
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(6px);
+    padding: 5px 10px 5px 8px;
+    border-radius: 4px;
+    pointer-events: none;
+    user-select: none;
+  }
+  #live-badge .live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ff3b30;
+    box-shadow: 0 0 6px 2px rgba(255, 59, 48, 0.6);
+    animation: live-pulse 1.2s ease-in-out infinite;
+  }
+  #live-badge .live-hint {
+    font-weight: 400;
+    font-size: 10px;
+    text-transform: none;
+    letter-spacing: 0;
+    color: #666;
+    margin-left: 4px;
+  }
+  @keyframes live-pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 6px 2px rgba(255,59,48,0.6); }
+    50%      { opacity: 0.7; box-shadow: 0 0 10px 4px rgba(255,59,48,0.3); }
+  }
+
+  /* ── Onboarding tour (spotlight cutout) ───────────── */
+  #tour-spotlight {
+    position: fixed;
+    z-index: 180;
+    border-radius: 8px;
+    /* The magic: transparent center with huge dark box-shadow */
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
+    pointer-events: none;
+    transition: top 0.3s ease, left 0.3s ease, width 0.3s ease, height 0.3s ease, opacity 0.3s ease;
+  }
+  #tour-spotlight.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+  #tour-spotlight::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border: 3px solid rgba(108, 123, 240, 0.8);
+    border-radius: 10px;
+    box-shadow: 0 0 12px 4px rgba(108, 123, 240, 0.4);
+    pointer-events: none;
+  }
+
+  /* Highlighted element gets elevated z-index so it's interactive */
+  .tour-target-elevated {
+    z-index: 185 !important;
+  }
+
+  #tour-tooltip {
+    position: fixed;
+    z-index: 200;
+    background: #fff;
+    border-radius: 10px;
+    padding: 16px 18px 14px;
+    width: 280px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.25);
+    opacity: 1;
+    transition: opacity 0.25s, transform 0.25s, top 0.3s ease, left 0.3s ease;
+    font-family: var(--font);
+  }
+  #tour-tooltip.hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(8px);
+  }
+
+  /* Tooltip arrow */
+  #tour-tooltip::before {
+    content: '';
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: #fff;
+    transform: rotate(45deg);
+  }
+  #tour-tooltip[data-arrow="bottom"]::before {
+    bottom: -6px;
+    left: 24px;
+  }
+  #tour-tooltip[data-arrow="top"]::before {
+    top: -6px;
+    left: 24px;
+  }
+  #tour-tooltip[data-arrow="left"]::before {
+    left: -6px;
+    top: 20px;
+  }
+  #tour-tooltip[data-arrow="right"]::before {
+    right: -6px;
+    top: 20px;
+  }
+  #tour-tooltip[data-arrow="top-banner"]::before {
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%) rotate(45deg);
+  }
+
+  .tour-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .tour-step-num {
+    width: 24px;
+    height: 24px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .tour-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #222;
+  }
+  .tour-desc {
+    font-size: 12px;
+    line-height: 1.55;
+    color: #555;
+    margin-bottom: 14px;
+  }
+  .tour-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .tour-progress {
+    font-size: 11px;
+    color: #999;
+  }
+  .tour-btns {
+    display: flex;
+    gap: 8px;
+  }
+  .tour-btn {
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.12s, transform 0.08s;
+    border: none;
+  }
+  .tour-btn:active {
+    transform: scale(0.96);
+  }
+  .tour-btn-skip {
+    background: transparent;
+    color: #888;
+  }
+  .tour-btn-skip:hover {
+    background: rgba(0,0,0,0.05);
+    color: #666;
+  }
+  .tour-btn-next {
+    background: var(--accent);
+    color: #fff;
+  }
+  .tour-btn-next:hover {
+    background: #8290ff;
+  }
+</style>
+</head>
+<body>
+
+<div id="wrapper">
+  <div id="container">
+    <div id="loading-overlay">
+      <div class="spinner"></div>
+      <div id="loading-status">Loading…</div>
+    </div>
+
+    <!-- ── Live physics badge (bottom-left) ────────── -->
+    <div id="live-badge">
+      <span class="live-dot"></span>
+      <span>Live Physics</span>
+      <span class="live-hint">— click &amp; drag robot to apply forces</span>
+    </div>
+
+    <!-- ── Noise panel (bottom-right, physics mode) ──── -->
+    <div id="noise-float" class="hidden">
+      <div class="nf-title">Noise Injection</div>
+      <div class="nf-desc">See how different gain settings propagate noise through the demonstration.</div>
+      <div class="noise-row">
+        <input type="range" id="noise-slider" min="0" max="0.1" step="0.005" value="0">
+        <span id="noise-val">0.00</span>
+      </div>
+    </div>
+
+    <!-- ── Mode indicator badge ────────────────────────── -->
+    <div id="mode-badge" data-mode="replay">
+      <div class="badge-top">
+        <span class="badge-dot"></span>
+        <span class="badge-label">REPLAY</span>
+      </div>
+    </div>
+
+    <!-- ── Floating gain grid (top-left, physics mode) ── -->
+    <div id="gain-float" class="phys-float hidden">
+      <div class="pf-title">PD Gains</div>
+      <canvas id="gain-grid-canvas"></canvas>
+      <div class="gain-vals">
+        <span>kp <b id="kp-val">200</b></span>
+        <span>kd <b id="kd-val">10</b></span>
+      </div>
+    </div>
+
+    <!-- ── Floating response curve (top-right, physics mode) ── -->
+    <div id="response-float" class="phys-float hidden">
+      <div class="pf-title">Joint Response</div>
+      <canvas id="response-canvas"></canvas>
+      <div class="joint-sel-row" id="joint-selector">
+        <button class="joint-btn active" data-j="0">1</button>
+        <button class="joint-btn" data-j="1">2</button>
+        <button class="joint-btn" data-j="2">3</button>
+        <button class="joint-btn" data-j="3">4</button>
+        <button class="joint-btn" data-j="4">5</button>
+        <button class="joint-btn" data-j="5">6</button>
+        <button class="joint-btn" data-j="6">7</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Controls bar below viewer ───────────────────── -->
+  <div id="controls-bar">
+    <!-- Playback controls panel -->
+    <div id="panel">
+      <div id="panel-header"></div>
+      <div class="panel-body">
+
+        <!-- Single row: Play + scrubber + episode nav + step label -->
+        <div class="play-row">
+          <button id="play-btn" title="Play / Pause (Space)">
+            <svg id="icon-play" viewBox="0 0 16 16"><polygon points="5,2 14,8 5,14"/></svg>
+            <svg id="icon-pause" viewBox="0 0 16 16" style="display:none">
+              <rect x="3" y="2" width="3.5" height="12"/>
+              <rect x="9.5" y="2" width="3.5" height="12"/>
+            </svg>
+          </button>
+          <div id="scrubber-wrap">
+            <div id="scrubber-track">
+              <div id="scrubber-fill"></div>
+              <div id="scrubber-thumb"></div>
+            </div>
+          </div>
+          <div id="ep-section" class="hidden">
+            <span class="ep-prefix">Episode</span>
+            <button class="ep-nav-btn" id="ep-prev" title="Previous (↑)">
+              <svg viewBox="0 0 10 10"><polygon points="7,1 3,5 7,9"/></svg>
+            </button>
+            <span id="ep-label">1/1</span>
+            <button class="ep-nav-btn" id="ep-next" title="Next (↓)">
+              <svg viewBox="0 0 10 10"><polygon points="3,1 7,5 3,9"/></svg>
+            </button>
+          </div>
+          <span id="step-label">0 / 0</span>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Tour spotlight & tooltip (outside wrapper for full coverage) ──── -->
+<div id="tour-spotlight" class="hidden"></div>
+<div id="tour-tooltip" class="hidden">
+  <div class="tour-header">
+    <span class="tour-step-num" id="tour-step-num">1</span>
+    <span class="tour-title" id="tour-title">Title</span>
+  </div>
+  <div class="tour-desc" id="tour-desc">Description</div>
+  <div class="tour-footer">
+    <span class="tour-progress" id="tour-progress">1 of 4</span>
+    <div class="tour-btns">
+      <button class="tour-btn tour-btn-skip" id="tour-skip">Skip</button>
+      <button class="tour-btn tour-btn-next" id="tour-next">Next</button>
+    </div>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import { MuJoCoViewer } from '../js/mujoco_viewer.js';
+
+// ── Parse URL params ──────────────────────────────────
+const params = new URLSearchParams(window.location.search);
+const scenePath = params.get('scene');
+const trajParam = params.get('traj');
+
+if (!scenePath || !trajParam) {
+  document.getElementById('loading-status').textContent =
+    'Error: need ?scene= and ?traj= parameters.';
+  throw new Error('Missing ?scene= or ?traj=');
+}
+
+// Support comma-separated trajectory paths + range expansion
+// e.g. "ep0-19.json" → ep0.json, ep1.json, ..., ep19.json
+//      "datasets/dishrack/ep0-4.json,ep10.json" → 6 files
+function expandTrajPaths(raw) {
+  const parts = raw.split(',').map(s => s.trim()).filter(Boolean);
+  const result = [];
+  const rangeRe = /^(.*?)(\d+)-(\d+)(\.[^.]+)$/;  // prefix{start}-{end}.ext
+  for (const p of parts) {
+    const m = p.match(rangeRe);
+    if (m) {
+      const [, prefix, startStr, endStr, ext] = m;
+      const start = parseInt(startStr, 10);
+      const end   = parseInt(endStr, 10);
+      const pad   = startStr.length;  // preserve zero-padding width
+      const lo = Math.min(start, end), hi = Math.max(start, end);
+      for (let i = lo; i <= hi; i++) {
+        result.push(prefix + String(i).padStart(pad, '0') + ext);
+      }
+    } else {
+      result.push(p);
+    }
+  }
+  return result;
+}
+const trajPaths = expandTrajPaths(trajParam);
+
+const bgColor     = '#' + (params.get('bg') || 'f0f2f5');
+const initSpeed   = +(params.get('speed') || 1);
+const doLoop      = params.get('loop') === '1';
+const autoPlay    = params.get('auto') !== '0';
+
+let cameraPos = null, cameraTarget = null;
+if (params.get('camx')) cameraPos = [+params.get('camx'), +params.get('camy'), +params.get('camz')];
+if (params.get('tgtx')) cameraTarget = [+params.get('tgtx'), +params.get('tgty'), +params.get('tgtz')];
+
+// ── UI elements ───────────────────────────────────────
+const statusEl   = document.getElementById('loading-status');
+const overlayEl  = document.getElementById('loading-overlay');
+const playBtn    = document.getElementById('play-btn');
+const iconPlay   = document.getElementById('icon-play');
+const iconPause  = document.getElementById('icon-pause');
+const scrubWrap  = document.getElementById('scrubber-wrap');
+const scrubFill  = document.getElementById('scrubber-fill');
+const scrubThumb = document.getElementById('scrubber-thumb');
+const stepLabel  = document.getElementById('step-label');
+const epSection  = document.getElementById('ep-section');
+const epPrev     = document.getElementById('ep-prev');
+const epNext     = document.getElementById('ep-next');
+const epLabel    = document.getElementById('ep-label');
+const panel      = document.getElementById('panel');
+
+// ── Sequential Onboarding Tour ────────────────────────
+const TOUR_KEY = 'mujoco-traj-toured';
+
+const TOUR_STEPS = [
+  {
+    target: 'gain-float',
+    title: 'PD Gain Grid',
+    desc: 'Click anywhere on this grid to change the stiffness (Kp) and damping (Kd) gains. Watch how the commanded actions change while the robot follows the same trajectory.',
+    arrow: 'left'
+  },
+  {
+    target: 'response-float',
+    title: 'Joint Response Plot',
+    desc: 'This plot shows how each joint tracks its target position. Select different joints below to see how gains affect tracking accuracy.',
+    arrow: 'right'
+  },
+  {
+    target: 'live-badge',
+    title: 'Live Physics',
+    desc: 'The simulation runs real physics! Click and drag directly on the robot to apply forces. See how different gain settings affect the robot\'s compliance.',
+    arrow: 'bottom'
+  },
+  {
+    target: 'noise-float',
+    title: 'Noise Injection',
+    desc: 'Drag the slider to inject noise into the actions. Observe how different gains amplify or dampen noise — this is key to understanding why gain choice matters for learning.',
+    arrow: 'right'
+  },
+  {
+    target: null,
+    title: 'Switch Tasks',
+    desc: 'Use the tabs above to explore different manipulation tasks — each with unique gain-dependent behaviors.',
+    arrow: 'top-banner'
+  }
+];
+
+let tourStep = 0;
+let tourActive = false;
+let tourHiddenElements = [];
+let tourCurrentTarget = null;
+
+function showOnboardingIfNeeded() {
+  if (localStorage.getItem(TOUR_KEY)) return;
+  startTour();
+}
+
+function startTour() {
+  tourStep = 0;
+  tourActive = true;
+  tourHiddenElements = [];
+  tourCurrentTarget = null;
+  showTourStep(tourStep);
+}
+
+function showTourStep(idx) {
+  const spotlight = document.getElementById('tour-spotlight');
+  const tooltip = document.getElementById('tour-tooltip');
+  const stepNumEl = document.getElementById('tour-step-num');
+  const titleEl = document.getElementById('tour-title');
+  const descEl = document.getElementById('tour-desc');
+  const progressEl = document.getElementById('tour-progress');
+  const nextBtn = document.getElementById('tour-next');
+  
+  // Remove elevation from previous target
+  if (tourCurrentTarget) {
+    tourCurrentTarget.classList.remove('tour-target-elevated');
+  }
+  
+  if (idx >= TOUR_STEPS.length) {
+    // Tour complete
+    endTour();
+    return;
+  }
+  
+  const step = TOUR_STEPS[idx];
+  const targetEl = step.target ? document.getElementById(step.target) : null;
+  
+  // Special case: no target means "point outside iframe" (e.g., to parent tabs)
+  if (!step.target) {
+    tourCurrentTarget = null;
+    
+    requestAnimationFrame(() => {
+      // Position spotlight as a bar at the very top edge
+      spotlight.style.top = '-10px';
+      spotlight.style.left = '0px';
+      spotlight.style.width = '100%';
+      spotlight.style.height = '20px';
+      spotlight.classList.remove('hidden');
+      
+      // Update tooltip content
+      stepNumEl.textContent = idx + 1;
+      titleEl.textContent = step.title;
+      descEl.textContent = step.desc;
+      progressEl.textContent = `${idx + 1} of ${TOUR_STEPS.length}`;
+      nextBtn.textContent = idx === TOUR_STEPS.length - 1 ? 'Done' : 'Next';
+      
+      // Position tooltip at top center
+      tooltip.style.left = (window.innerWidth / 2 - 140) + 'px';
+      tooltip.style.top = '30px';
+      tooltip.dataset.arrow = 'top-banner';
+      tooltip.classList.remove('hidden');
+    });
+    return;
+  }
+  
+  if (!targetEl) {
+    // Skip this step if element not found
+    showTourStep(idx + 1);
+    return;
+  }
+  
+  // Make sure target is visible (remove hidden class temporarily)
+  const wasHidden = targetEl.classList.contains('hidden');
+  if (wasHidden) {
+    targetEl.classList.remove('hidden');
+    tourHiddenElements.push(targetEl);
+  }
+  
+  // Elevate target so it's clickable above the spotlight shadow
+  targetEl.classList.add('tour-target-elevated');
+  tourCurrentTarget = targetEl;
+  
+  // Get target position (use a small delay to ensure layout is updated)
+  requestAnimationFrame(() => {
+    const rect = targetEl.getBoundingClientRect();
+    const padding = 8;
+    
+    // Position and size the spotlight to cut out the target
+    spotlight.style.top = (rect.top - padding) + 'px';
+    spotlight.style.left = (rect.left - padding) + 'px';
+    spotlight.style.width = (rect.width + padding * 2) + 'px';
+    spotlight.style.height = (rect.height + padding * 2) + 'px';
+    spotlight.classList.remove('hidden');
+    
+    // Update tooltip content
+    stepNumEl.textContent = idx + 1;
+    titleEl.textContent = step.title;
+    descEl.textContent = step.desc;
+    progressEl.textContent = `${idx + 1} of ${TOUR_STEPS.length}`;
+    nextBtn.textContent = idx === TOUR_STEPS.length - 1 ? 'Done' : 'Next';
+    
+    // Position tooltip relative to target (using viewport coordinates)
+    let left, top;
+    
+    if (step.arrow === 'left') {
+      left = rect.right + 20;
+      top = rect.top + (rect.height / 2) - 50;
+    } else if (step.arrow === 'right') {
+      left = rect.left - 310;
+      top = rect.top - 40;
+    } else if (step.arrow === 'top') {
+      left = rect.left + (rect.width / 2) - 140;
+      top = rect.bottom + 20;
+    } else if (step.arrow === 'bottom') {
+      left = rect.left + (rect.width / 2) - 140;
+      top = rect.top - 200;
+    }
+    
+    // Clamp to viewport bounds
+    left = Math.max(10, Math.min(left, window.innerWidth - 290));
+    top = Math.max(10, Math.min(top, window.innerHeight - 180));
+    
+    tooltip.style.left = left + 'px';
+    tooltip.style.top = top + 'px';
+    tooltip.dataset.arrow = step.arrow;
+    tooltip.classList.remove('hidden');
+  });
+}
+
+function endTour() {
+  const spotlight = document.getElementById('tour-spotlight');
+  const tooltip = document.getElementById('tour-tooltip');
+  
+  spotlight.classList.add('hidden');
+  tooltip.classList.add('hidden');
+  
+  // Remove elevation from current target
+  if (tourCurrentTarget) {
+    tourCurrentTarget.classList.remove('tour-target-elevated');
+    tourCurrentTarget = null;
+  }
+  
+  // Restore hidden state for elements we revealed
+  tourHiddenElements.forEach(el => el.classList.add('hidden'));
+  tourHiddenElements = [];
+  
+  tourActive = false;
+  localStorage.setItem(TOUR_KEY, '1');
+}
+
+// Tour navigation handlers
+document.getElementById('tour-next')?.addEventListener('click', () => {
+  tourStep++;
+  showTourStep(tourStep);
+});
+
+document.getElementById('tour-skip')?.addEventListener('click', () => {
+  endTour();
+});
+
+// Dismiss tour when clicking dark backdrop (but not the highlighted element or tooltip)
+document.addEventListener('click', (e) => {
+  if (!tourActive) return;
+  
+  const tooltip = document.getElementById('tour-tooltip');
+  const target = tourCurrentTarget;
+  
+  // If click is inside the tooltip, don't dismiss
+  if (tooltip && tooltip.contains(e.target)) return;
+  
+  // If click is inside the highlighted element, let them interact
+  if (target && target.contains(e.target)) return;
+  
+  // Otherwise, they clicked the dark backdrop - dismiss the tour
+  endTour();
+});
+
+// Allow Escape to exit tour
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && tourActive) {
+    endTour();
+  }
+});
+const panelHeader= document.getElementById('panel-header');
+
+// Gain controls
+const gainFloat    = document.getElementById('gain-float');
+const responseFloat= document.getElementById('response-float');
+const noiseFloat   = document.getElementById('noise-float');
+const gainCanvas   = document.getElementById('gain-grid-canvas');
+const kpValEl      = document.getElementById('kp-val');
+const kdValEl      = document.getElementById('kd-val');
+const respCanvas   = document.getElementById('response-canvas');
+const jointSelRow  = document.getElementById('joint-selector');
+
+// ── Panel collapse toggle (no-op in bar layout) ──────
+
+// ── Episode state ─────────────────────────────────────
+let currentEpIdx = 0;
+let loadingEp    = false;
+
+function updateEpUI() {
+  epLabel.textContent = `${currentEpIdx + 1} / ${trajPaths.length}`;
+  epPrev.disabled = currentEpIdx === 0;
+  epNext.disabled = currentEpIdx === trajPaths.length - 1;
+}
+
+async function loadEpisode(idx, andPlay = false) {
+  if (loadingEp || idx < 0 || idx >= trajPaths.length) return;
+  loadingEp = true;
+  currentEpIdx = idx;
+  updateEpUI();
+
+  // Pause current playback
+  viewer.trajPause();
+  syncPlayIcon(false);
+  resetScrubber();
+
+  try {
+    await viewer.loadTrajectory(trajPaths[idx]);
+    stepLabel.textContent = `0 / ${viewer.trajLength}`;
+
+    if (andPlay) {
+      viewer.trajPlay();
+      syncPlayIcon(true);
+    }
+  } catch (err) {
+    console.error('Episode load failed:', err);
+  }
+  loadingEp = false;
+}
+
+function resetScrubber() {
+  scrubFill.style.width = '0%';
+  scrubThumb.style.left = '0%';
+}
+
+// ── Create viewer (no drag in trajectory mode) ────────
+const viewer = new MuJoCoViewer(document.getElementById('container'), {
+  sceneXML:     scenePath,
+  wasmURL:      '../dist/mujoco_wasm.js',
+  background:   bgColor,
+  cameraPos,
+  cameraTarget,
+  enableDrag:   true,
+  onStatus: (msg) => { statusEl.textContent = msg; },
+  onReady:  async () => {
+    statusEl.textContent = 'Loading trajectory…';
+
+    try {
+      // Apply settings (speed 1x, loop on)
+      viewer.trajSpeed = initSpeed;
+      viewer.trajLoop  = doLoop;
+
+      // Initialize gain display
+      applyGains(gainNormX, gainNormY);
+
+      // Physics step callback → record response
+      viewer.onPhysicsStep((qpos, qdes, nArm) => {
+        recordResponse(qpos, qdes, nArm);
+      });
+
+      // Start response plot redraw loop
+      respRAFLoop();
+
+      // Step callback → update UI
+      viewer.onTrajStep((step, len) => {
+        const pct = (step / (len - 1)) * 100;
+        scrubFill.style.width = pct + '%';
+        scrubThumb.style.left = pct + '%';
+        stepLabel.textContent = `${step} / ${len}`;
+      });
+
+      viewer.onTrajDone(() => {
+        // Auto-advance to next episode, or loop back to first
+        if (trajPaths.length > 1) {
+          const nextIdx = (currentEpIdx + 1) % trajPaths.length;
+          loadEpisode(nextIdx, true);
+        } else {
+          syncPlayIcon(false);
+        }
+      });
+
+      // Show episode picker if multiple trajectories
+      if (trajPaths.length > 1) {
+        epSection.classList.remove('hidden');
+        updateEpUI();
+      }
+
+      // Load first episode
+      await loadEpisode(0, autoPlay);
+
+      // Default to physics mode
+      setMode('step');
+
+      overlayEl.classList.add('hidden');
+
+      // ── Show onboarding for first-time visitors ──
+      showOnboardingIfNeeded();
+    } catch (err) {
+      console.error('Trajectory load failed:', err);
+      statusEl.textContent = 'Failed to load trajectory: ' + err.message;
+    }
+  },
+});
+
+viewer.init().catch(err => {
+  console.error('MuJoCo init failed:', err);
+  statusEl.textContent = 'Failed: ' + err.message;
+});
+
+// ── Transport controls ────────────────────────────────
+
+function syncPlayIcon(playing) {
+  iconPlay.style.display  = playing ? 'none' : '';
+  iconPause.style.display = playing ? '' : 'none';
+}
+
+function updateScrubberFromViewer() {
+  const pct = (viewer.trajStep / (viewer.trajLength - 1)) * 100;
+  scrubFill.style.width = pct + '%';
+  scrubThumb.style.left = pct + '%';
+  stepLabel.textContent = `${viewer.trajStep} / ${viewer.trajLength}`;
+}
+
+playBtn.addEventListener('click', () => {
+  const playing = viewer.trajToggle();
+  syncPlayIcon(playing);
+});
+
+// ── Physics mode (always on) ─────────────────────────────────
+function setMode(mode) {
+  viewer.trajMode = mode;
+  gainFloat.classList.toggle('hidden', mode !== 'step');
+  responseFloat.classList.toggle('hidden', mode !== 'step');
+  noiseFloat.classList.toggle('hidden', mode !== 'step');
+  // Update top-center badge
+  const badge = document.getElementById('mode-badge');
+  const isPhys = mode === 'step';
+  badge.dataset.mode = isPhys ? 'physics' : 'replay';
+  badge.querySelector('.badge-label').textContent = isPhys ? 'Dataset Replay' : 'REPLAY states only';
+  if (mode === 'step') {
+    responseHistory.length = 0;  // clear history on mode switch
+    requestAnimationFrame(() => { drawGainGrid(); drawResponsePlot(); });
+  }
+}
+
+// ── Joint selector ────────────────────────────────────
+const JOINT_COLORS = ['#e6194b','#3cb44b','#4363d8','#f58231','#911eb4','#42d4f4','#f032e6'];
+let selectedJoint = 0;
+
+jointSelRow.querySelectorAll('.joint-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    selectedJoint = parseInt(btn.dataset.j);
+    jointSelRow.querySelectorAll('.joint-btn').forEach(b => {
+      b.classList.remove('active');
+      b.style.background = '';
+    });
+    btn.classList.add('active');
+    btn.style.background = JOINT_COLORS[selectedJoint];
+    drawResponsePlot();
+  });
+  // Init first button color
+  if (btn.classList.contains('active')) {
+    btn.style.background = JOINT_COLORS[0];
+  }
+});
+
+// ── Response plot history ─────────────────────────────
+const RESP_HISTORY = 300;
+const responseHistory = [];  // { qpos: Float64[7], qdes: Float64[7] }
+let respSkip = 0;
+
+function recordResponse(qpos, qdes, nArm) {
+  respSkip++;
+  if (respSkip < 3) return;  // throttle to ~333 Hz → ~111 Hz recording
+  respSkip = 0;
+  const q = [], d = [];
+  for (let i = 0; i < nArm; i++) {
+    q.push(qpos[i]);
+    d.push(qdes[i]);
+  }
+  responseHistory.push({ qpos: q, qdes: d });
+  if (responseHistory.length > RESP_HISTORY) responseHistory.shift();
+}
+
+function drawResponsePlot() {
+  if (!respCanvas) return;
+  const dpr = Math.min(window.devicePixelRatio, 2);
+  const W = respCanvas.clientWidth;
+  const H = respCanvas.clientHeight;
+  if (W === 0 || H === 0) return;
+  respCanvas.width  = W * dpr;
+  respCanvas.height = H * dpr;
+  const ctx = respCanvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const j = selectedJoint;
+  const color = JOINT_COLORS[j];
+  const n = responseHistory.length;
+
+  const padL = 38, padR = 6, padT = 20, padB = 8;
+  const pW = W - padL - padR;
+  const pH = H - padT - padB;
+
+  ctx.clearRect(0, 0, W, H);
+
+  if (n < 2) {
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.font = '13px ' + getComputedStyle(document.body).fontFamily;
+    ctx.textAlign = 'center';
+    ctx.fillText('Play in Physics mode to see response', W / 2, H / 2);
+    return;
+  }
+
+  // Y range
+  let yMin = Infinity, yMax = -Infinity;
+  for (const s of responseHistory) {
+    yMin = Math.min(yMin, s.qpos[j], s.qdes[j]);
+    yMax = Math.max(yMax, s.qpos[j], s.qdes[j]);
+  }
+  const span = yMax - yMin;
+  if (span < 0.3) {
+    const mid = (yMin + yMax) / 2;
+    yMin = mid - 0.15; yMax = mid + 0.15;
+  }
+  const yPad = (yMax - yMin) * 0.08;
+  yMin -= yPad; yMax += yPad;
+
+  function xOf(i) { return padL + (i / (RESP_HISTORY - 1)) * pW; }
+  function yOf(v) { return padT + (1 - (v - yMin) / (yMax - yMin)) * pH; }
+  const startIdx = RESP_HISTORY - n;
+
+  // Y-axis ticks
+  ctx.textAlign = 'right';
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.font = '11px ' + getComputedStyle(document.body).fontFamily;
+  for (let t = 0; t <= 3; t++) {
+    const v = yMin + (t / 3) * (yMax - yMin);
+    const y = padT + (1 - t / 3) * pH;
+    ctx.fillText(v.toFixed(2), padL - 4, y + 4);
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+    ctx.lineWidth = 0.5;
+    ctx.moveTo(padL, y); ctx.lineTo(padL + pW, y);
+    ctx.stroke();
+  }
+
+  // q_des — dashed
+  ctx.beginPath();
+  ctx.setLineDash([4, 3]);
+  ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+  ctx.lineWidth = 1.5;
+  for (let i = 0; i < n; i++) {
+    const x = xOf(startIdx + i), y = yOf(responseHistory[i].qdes[j]);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // qpos — solid
+  ctx.beginPath();
+  ctx.setLineDash([]);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  for (let i = 0; i < n; i++) {
+    const x = xOf(startIdx + i), y = yOf(responseHistory[i].qpos[j]);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Legend
+  ctx.font = '12px ' + getComputedStyle(document.body).fontFamily;
+  ctx.textAlign = 'right';
+  ctx.fillStyle = color;
+  ctx.fillText('— actual', W - padR - 70, 15);
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  ctx.fillText('- - target', W - padR, 15);
+}
+
+// Periodically redraw the response plot (~20fps)
+let _respRAF = null;
+function respRAFLoop() {
+  if (!responseFloat.classList.contains('hidden')) {
+    drawResponsePlot();
+  }
+  _respRAF = requestAnimationFrame(respRAFLoop);
+}
+
+// ── Gain grid (kp / kd) ──────────────────────────────
+const KPS = [16, 32, 64, 128, 256, 512];
+const KDS = [1, 2, 4, 8, 12, 16, 24];
+const GC_A = [140,140,140], GC_B = [76,114,176];
+const GC_C = [196,78,82],   GC_D = [129,114,178];
+
+let gainNormX = 0.729;   // → kp ≈ 200
+let gainNormY = 0.725;   // → kd ≈ 10
+let gainDragging = false;
+
+function lerpC(a, b, t) {
+  return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t];
+}
+function gainColor(nx, ny) {
+  const c = lerpC(lerpC(GC_A, GC_B, nx), lerpC(GC_C, GC_D, nx), ny);
+  return `rgb(${c.map(Math.round).join(',')})`;
+}
+function gainsFromNorm(nx, ny) {
+  return {
+    kp: Math.exp((1 - nx) * Math.log(KPS[0]) + nx * Math.log(KPS[KPS.length - 1])),
+    kd: Math.exp((1 - ny) * Math.log(KDS[0]) + ny * Math.log(KDS[KDS.length - 1]))
+  };
+}
+
+function applyGains(nx, ny) {
+  gainNormX = Math.max(0, Math.min(1, nx));
+  gainNormY = Math.max(0, Math.min(1, ny));
+  const g = gainsFromNorm(gainNormX, gainNormY);
+  viewer.trajScalarKp = g.kp;
+  viewer.trajScalarKd = g.kd;
+  kpValEl.textContent = Math.round(g.kp);
+  kdValEl.textContent = (Math.round(g.kd * 10) / 10).toString();
+  drawGainGrid();
+}
+
+function drawGainGrid() {
+  if (!gainCanvas) return;
+  const dpr = Math.min(window.devicePixelRatio, 2);
+  const S = gainCanvas.clientWidth;
+  if (S === 0) return;
+  gainCanvas.width  = S * dpr;
+  gainCanvas.height = S * dpr;
+  const ctx = gainCanvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const padBot = 18, padLeft = 18, padTop = 22, padRight = 18;
+  const gs = Math.min(S - padLeft - padRight, S - padTop - padBot);
+  ctx.clearRect(0, 0, S, S);
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(0,0,0,0.10)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 6; i++) {
+    const f = i / 6;
+    ctx.beginPath(); ctx.moveTo(padLeft + f * gs, padTop); ctx.lineTo(padLeft + f * gs, padTop + gs); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(padLeft, padTop + f * gs); ctx.lineTo(padLeft + gs, padTop + f * gs); ctx.stroke();
+  }
+
+  // Axes
+  ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(padLeft, padTop + gs); ctx.lineTo(padLeft + gs + 4, padTop + gs); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(padLeft, padTop + gs); ctx.lineTo(padLeft, padTop - 4); ctx.stroke();
+
+  // Axis labels
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.font = 'bold 14px ' + getComputedStyle(document.body).fontFamily;
+  ctx.textAlign = 'center';
+  ctx.fillText('kp →', padLeft + gs / 2, S - 2);
+  ctx.save();
+  ctx.translate(padLeft / 2, padTop + gs / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textBaseline = 'middle';
+  ctx.fillText('kd →', 0, 0);
+  ctx.restore();
+
+  // Indicator dot
+  const cx = padLeft + gainNormX * gs;
+  const cy = padTop + (1 - gainNormY) * gs;
+  ctx.beginPath(); ctx.arc(cx, cy, 9, 0, Math.PI * 2);
+  ctx.fillStyle = gainColor(gainNormX, gainNormY);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+// Gain grid pointer interaction
+gainCanvas.addEventListener('pointerdown', (e) => {
+  if (e.button !== 0) return;
+  gainDragging = true;
+  gainCanvas.setPointerCapture(e.pointerId);
+  const rect = gainCanvas.getBoundingClientRect();
+  const pad = 12, gs = rect.width - 2 * pad;
+  applyGains((e.clientX - rect.left - pad) / gs, 1 - (e.clientY - rect.top - pad) / gs);
+});
+gainCanvas.addEventListener('pointermove', (e) => {
+  if (!gainDragging) return;
+  const rect = gainCanvas.getBoundingClientRect();
+  const pad = 12, gs = rect.width - 2 * pad;
+  applyGains((e.clientX - rect.left - pad) / gs, 1 - (e.clientY - rect.top - pad) / gs);
+});
+gainCanvas.addEventListener('pointerup', () => { gainDragging = false; });
+
+// Noise slider
+const noiseSlider = document.getElementById('noise-slider');
+const noiseValEl  = document.getElementById('noise-val');
+noiseSlider.addEventListener('input', () => {
+  const v = parseFloat(noiseSlider.value);
+  viewer.trajNoise = v;
+  noiseValEl.textContent = v.toFixed(2);
+});
+
+// Episode prev/next
+epPrev.addEventListener('click', () => loadEpisode(currentEpIdx - 1, autoPlay));
+epNext.addEventListener('click', () => loadEpisode(currentEpIdx + 1, autoPlay));
+
+// Scrubber seek
+let scrubbing = false;
+
+function seekFromPointer(e) {
+  const rect = scrubWrap.getBoundingClientRect();
+  const pct  = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  const step = Math.round(pct * (viewer.trajLength - 1));
+  viewer.trajSeek(step);
+  const pctStr = (pct * 100) + '%';
+  scrubFill.style.width = pctStr;
+  scrubThumb.style.left = pctStr;
+  stepLabel.textContent = `${step} / ${viewer.trajLength}`;
+}
+
+scrubWrap.addEventListener('pointerdown', (e) => {
+  scrubbing = true;
+  viewer.trajPause();
+  syncPlayIcon(false);
+  seekFromPointer(e);
+  scrubWrap.setPointerCapture(e.pointerId);
+});
+
+scrubWrap.addEventListener('pointermove', (e) => {
+  if (!scrubbing) return;
+  seekFromPointer(e);
+});
+
+scrubWrap.addEventListener('pointerup', () => {
+  scrubbing = false;
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    const playing = viewer.trajToggle();
+    syncPlayIcon(playing);
+  } else if (e.code === 'ArrowRight') {
+    viewer.trajPause();
+    syncPlayIcon(false);
+    viewer.trajSeek(viewer.trajStep + 1);
+    updateScrubberFromViewer();
+  } else if (e.code === 'ArrowLeft') {
+    viewer.trajPause();
+    syncPlayIcon(false);
+    viewer.trajSeek(viewer.trajStep - 1);
+    updateScrubberFromViewer();
+  } else if (e.code === 'ArrowUp' && trajPaths.length > 1) {
+    e.preventDefault();
+    loadEpisode(currentEpIdx - 1, autoPlay);
+  } else if (e.code === 'ArrowDown' && trajPaths.length > 1) {
+    e.preventDefault();
+    loadEpisode(currentEpIdx + 1, autoPlay);
+  } else if (e.code === 'KeyM') {
+    setMode(viewer.trajMode === 'forward' ? 'step' : 'forward');
+  }
+});
+</script>
+</body>
+</html>

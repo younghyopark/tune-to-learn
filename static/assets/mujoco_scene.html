@@ -1,0 +1,136 @@
+<!--
+  Universal MuJoCo Scene Viewer
+
+  Embed any MuJoCo XML scene by passing URL parameters:
+    mujoco_scene.html?scene=xmls/scene_handover.xml
+    mujoco_scene.html?scene=xmls/scene_toy_insertion.xml&bg=1a1a2e
+
+  Parameters:
+    scene  – path to MuJoCo XML, relative to this HTML file (required)
+    bg     – background hex color without # (default: f0f2f5)
+    camx,camy,camz – camera position
+    tgtx,tgty,tgtz – camera target (orbit center)
+
+  Embed in an iframe:
+    <iframe src="static/assets/mujoco_scene.html?scene=xmls/scene_handover.xml"
+            style="width:100%; height:500px; border:none;"></iframe>
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MuJoCo Scene Viewer</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #f0f2f5; }
+  #container { width: 100%; height: 100%; position: relative; }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  #loading-overlay {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: #f0f2f5; color: #555;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    z-index: 100; transition: opacity 0.5s;
+  }
+  #loading-overlay.hidden { opacity: 0; pointer-events: none; }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid rgba(0,0,0,0.08);
+    border-top-color: #7c8cf8;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: 14px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loading-status { font-size: 13px; opacity: 0.6; }
+
+  #reset-btn {
+    position: absolute; bottom: 10px; right: 10px;
+    background: rgba(255,255,255,0.88);
+    backdrop-filter: blur(8px);
+    color: #555; border: 1px solid rgba(0,0,0,0.08);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    font-size: 12px; padding: 6px 12px; border-radius: 6px;
+    cursor: pointer; z-index: 10;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  #reset-btn:hover { background: rgba(255,255,255,1); }
+
+  #hint-overlay {
+    position: absolute; bottom: 10px; left: 10px;
+    color: rgba(100,100,120,0.5);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    font-size: 11px; z-index: 10; pointer-events: none;
+    transition: opacity 0.5s;
+  }
+</style>
+</head>
+<body>
+
+<div id="container">
+  <div id="loading-overlay">
+    <div class="spinner"></div>
+    <div id="loading-status">Loading…</div>
+  </div>
+  <button id="reset-btn">↻ Reset</button>
+  <div id="hint-overlay">Click &amp; drag to perturb · Right-click: orbit · Scroll: zoom</div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import { MuJoCoViewer } from '../js/mujoco_viewer.js';
+
+// ── Parse URL params ──────────────────────────────────
+const params = new URLSearchParams(window.location.search);
+const scenePath = params.get('scene');
+if (!scenePath) {
+  document.getElementById('loading-status').textContent =
+    'Error: no ?scene= parameter. Usage: mujoco_scene.html?scene=xmls/scene_handover.xml';
+  throw new Error('Missing ?scene= parameter');
+}
+
+const bgColor = '#' + (params.get('bg') || 'f0f2f5');
+
+// Camera (optional)
+let cameraPos = null, cameraTarget = null;
+if (params.get('camx')) {
+  cameraPos = [+params.get('camx'), +params.get('camy'), +params.get('camz')];
+}
+if (params.get('tgtx')) {
+  cameraTarget = [+params.get('tgtx'), +params.get('tgty'), +params.get('tgtz')];
+}
+
+// ── Create viewer ─────────────────────────────────────
+const statusEl  = document.getElementById('loading-status');
+const overlayEl = document.getElementById('loading-overlay');
+
+const viewer = new MuJoCoViewer(document.getElementById('container'), {
+  sceneXML:     scenePath,
+  wasmURL:      '../dist/mujoco_wasm.js',
+  background:   bgColor,
+  cameraPos:    cameraPos,
+  cameraTarget: cameraTarget,
+  onStatus: (msg) => { statusEl.textContent = msg; },
+  onReady:  () => { overlayEl.classList.add('hidden'); },
+});
+
+document.getElementById('reset-btn').addEventListener('click', () => viewer.resetData());
+
+viewer.init().catch(err => {
+  console.error('MuJoCo init failed:', err);
+  statusEl.textContent = 'Failed: ' + err.message;
+});
+</script>
+</body>
+</html>
