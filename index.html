@@ -322,6 +322,24 @@ Position controllers have become the dominant interface for executing learned ma
 <!-- JavaScript -->
 <script src="static/js/script.js"></script>
 
+<!-- Pause/resume widgets when scrolled off-screen -->
+<script>
+(function() {
+  function postVis(el, visible) {
+    try { if (el.contentWindow) el.contentWindow.postMessage({ type: 'widget-visibility', visible: visible }, '*'); } catch(e) {}
+  }
+  function watch(el) {
+    new IntersectionObserver(function(entries) {
+      postVis(el, entries[0].isIntersecting);
+    }, { threshold: 0 }).observe(el);
+  }
+  var mj = document.getElementById('mujoco-iframe');
+  if (mj) watch(mj);
+  var pd = document.querySelector('iframe[data-src*="pd_response_widget"]');
+  if (pd) watch(pd);
+})();
+</script>
+
 <!-- Relay gains bidirectionally: PD widget ↔ MuJoCo widget -->
 <script>
 (function() {

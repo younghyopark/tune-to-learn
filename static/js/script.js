@@ -2,6 +2,104 @@
    Academic Project Page — Interactivity
    ═══════════════════════════════════════════════════════════════ */
 
+/* ── Supabase Poll Backend ─────────────────────────────────── */
+const SUPABASE_URL = 'https://ocbkyjrmshepindrbqxk.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9jYmt5anJtc2hlcGluZHJicXhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2MTg0NzIsImV4cCI6MjA4NzE5NDQ3Mn0.jk0tqHyErUrU4QdVXhAr832UmWcNnf7LDFEGMKef4fI';
+
+async function supabaseSubmitVote(pollId, option) {
+  if (localStorage.getItem('poll-voted-' + pollId)) return;
+  try {
+    const res = await fetch(SUPABASE_URL + '/rest/v1/poll_votes', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ poll_id: pollId, option: option })
+    });
+    if (res.ok) localStorage.setItem('poll-voted-' + pollId, option);
+  } catch (e) { console.warn('Vote submit failed:', e); }
+}
+
+async function supabaseFetchCounts(pollId) {
+  try {
+    const res = await fetch(
+      SUPABASE_URL + '/rest/v1/poll_votes?poll_id=eq.' + pollId + '&select=option',
+      { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY } }
+    );
+    if (!res.ok) return null;
+    const rows = await res.json();
+    const counts = {};
+    rows.forEach(r => { counts[r.option] = (counts[r.option] || 0) + 1; });
+    return { counts, total: rows.length };
+  } catch (e) { console.warn('Fetch counts failed:', e); return null; }
+}
+
+function renderVoteBars(cards, dataAttr, counts, total) {
+  if (!counts || total === 0) return;
+  cards.forEach(card => {
+    const opt = card.getAttribute(dataAttr);
+    const count = counts[opt] || 0;
+    const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+    let bar = card.querySelector('.poll-vote-bar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.className = 'poll-vote-bar';
+      bar.innerHTML = '<div class="poll-vote-fill"></div><span class="poll-vote-label"></span>';
+      const textEl = card.querySelector('.poll-card-text') || card;
+      textEl.appendChild(bar);
+    }
+    bar.querySelector('.poll-vote-label').textContent = pct + '%  \u00b7  ' + count + (count === 1 ? ' vote' : ' votes');
+    bar.classList.add('visible');
+    requestAnimationFrame(() => {
+      bar.querySelector('.poll-vote-fill').style.width = pct + '%';
+    });
+  });
+}
+
+async function showGainPollResults() {
+  const data = await supabaseFetchCounts('gain');
+  if (!data || data.total === 0) return;
+  renderVoteBars(document.querySelectorAll('.poll-card[data-poll]'), 'data-poll', data.counts, data.total);
+  const sub = document.querySelector('#poll .poll-subtitle');
+  if (sub) sub.textContent = data.total + ' reader' + (data.total !== 1 ? 's have' : ' has') + ' responded so far.';
+}
+
+async function showLearningPollResults() {
+  const data = await supabaseFetchCounts('learning');
+  if (!data || data.total === 0) return;
+  renderVoteBars(document.querySelectorAll('.lp-card[data-lp]'), 'data-lp', data.counts, data.total);
+}
+
+function lockGainPoll() {
+  const pollBox = document.querySelector('#poll .poll-box');
+  if (!pollBox || pollBox.classList.contains('poll-locked')) return;
+  pollBox.classList.add('poll-locked');
+  document.querySelectorAll('.poll-card[data-poll]').forEach(card => {
+    card.disabled = true;
+  });
+}
+
+function lockLearningPoll() {
+  const pollBox = document.querySelector('#learning-poll .poll-box');
+  if (!pollBox || pollBox.classList.contains('poll-locked')) return;
+  pollBox.classList.add('poll-locked');
+  document.querySelectorAll('.lp-card[data-lp]').forEach(card => {
+    card.disabled = true;
+  });
+}
+
+/* Debug: run __resetPolls() in browser console to clear all votes and reload */
+window.__resetPolls = function() {
+  localStorage.removeItem('poll-voted-gain');
+  localStorage.removeItem('poll-voted-learning');
+  localStorage.removeItem('poll-choice');
+  localStorage.removeItem('lp-choice');
+  location.reload();
+};
+
 document.addEventListener('DOMContentLoaded', () => {
   initTabs();
   initComparisonSliders();
@@ -203,7 +301,7 @@ function buildDynamicToc() {
   entries.push({ id: 'method',    text: 'Position Impedance Controllers & Gains' });
   entries.push({ id: 'poll',      text: 'Gain Tuning Practices & Pitfalls' });
 
-  /* Sub-items for first poll — always shown, blurred until user picks */
+  /* Sub-items for first poll — always shown, collapsed until user picks */
   var pollChoice = localStorage.getItem('poll-choice');
   var choiceAll = ['a', 'b', 'c'];
   var choiceLabels = { a: 'Not Tuning', b: 'Tune based on Task', c: 'Tune for Teleop' };
@@ -220,9 +318,9 @@ function buildDynamicToc() {
       }
     });
   } else {
-    /* No content yet — show placeholders blurred */
+    /* No content yet — show placeholders collapsed */
     choiceAll.forEach(function(key) {
-      entries.push({ id: 'poll', text: choiceLabels[key], sub: true, blurred: true });
+      entries.push({ id: 'poll', text: choiceLabels[key], sub: true, collapsed: true });
     });
   }
 
@@ -232,7 +330,7 @@ function buildDynamicToc() {
                  : 'poll';
   entries.push({ id: lpAnchorId, text: 'How Gains Affect Learning Algorithms' });
 
-  /* Learning sub-items — always shown, blurred until user picks */
+  /* Learning sub-items — always shown, collapsed until user picks */
   var lpContainer = document.querySelector('#lp-dynamic-content');
   var lpHasContent = lpContainer && lpContainer.innerHTML.trim();
 
@@ -254,10 +352,10 @@ function buildDynamicToc() {
       }
     });
   } else {
-    /* No content yet — show placeholders blurred */
+    /* No content yet — show placeholders collapsed */
     var allLpKeys = ['bc', 'rl', 'sim2real'];
     allLpKeys.forEach(function(key) {
-      entries.push({ id: lpAnchorId, text: _tocLpLabels[key], sub: true, blurred: true });
+      entries.push({ id: lpAnchorId, text: _tocLpLabels[key], sub: true, collapsed: true });
     });
   }
 
@@ -271,7 +369,7 @@ function buildDynamicToc() {
   entries.forEach(function(e) {
     var classes = [];
     if (e.sub) classes.push('toc-sub');
-    if (e.blurred) classes.push('toc-blurred');
+    if (e.collapsed) classes.push('toc-collapsed');
     var cls = classes.length ? ' class="' + classes.join(' ') + '"' : '';
     html += '<li' + cls + '><a href="#' + e.id + '">' + e.text + '</a></li>';
   });
@@ -292,9 +390,9 @@ function buildDynamicToc() {
   });
 
   var tocLinks = nav.querySelectorAll('a');
-  /* Only track non-blurred entries for scroll spy */
+  /* Only track non-collapsed entries for scroll spy */
   var spyLinks = Array.from(tocLinks).filter(function(a) {
-    return !a.closest('.toc-blurred');
+    return !a.closest('.toc-collapsed');
   });
   var spyIds = spyLinks.map(function(a) { return a.getAttribute('href').slice(1); });
   var spySecs = spyIds.map(function(id) { return document.getElementById(id); }).filter(Boolean);
@@ -307,8 +405,8 @@ function buildDynamicToc() {
       if (top <= scrollY) currentId = sec.id;
     });
     tocLinks.forEach(function(link) {
-      var isBlurred = !!link.closest('.toc-blurred');
-      link.classList.toggle('active', !isBlurred && link.getAttribute('href') === '#' + currentId);
+      var isCollapsed = !!link.closest('.toc-collapsed');
+      link.classList.toggle('active', !isCollapsed && link.getAttribute('href') === '#' + currentId);
     });
   }
 
@@ -488,11 +586,22 @@ function initPoll() {
     applyChoice(savedChoice, false);
   }
 
+  // Show live vote results and lock poll if user has already voted
+  if (localStorage.getItem('poll-voted-gain')) {
+    showGainPollResults();
+    lockGainPoll();
+  }
+
   cards.forEach(card => {
     card.addEventListener('click', () => {
+      if (localStorage.getItem('poll-voted-gain')) return;
       const choice = card.getAttribute('data-poll');
       localStorage.setItem('poll-choice', choice);
       applyChoice(choice, true);
+      supabaseSubmitVote('gain', choice).then(() => {
+        showGainPollResults();
+        lockGainPoll();
+      });
     });
   });
 
@@ -618,6 +727,12 @@ async function loadLearningPollIntoPlaceholders() {
   } else {
     // Rebuild TOC now that #learning-poll exists in the DOM
     buildDynamicToc();
+  }
+
+  // Show live vote results and lock poll if user has already voted
+  if (localStorage.getItem('poll-voted-learning')) {
+    showLearningPollResults();
+    lockLearningPoll();
   }
 }
 
@@ -1047,9 +1162,14 @@ function rerenderMath() {
 document.addEventListener('click', (e) => {
   const card = e.target.closest('.lp-card');
   if (card) {
+    if (localStorage.getItem('poll-voted-learning')) return;
     const choice = card.dataset.lp;
     localStorage.setItem('lp-choice', choice);
     applyLpChoice(choice, true);
+    supabaseSubmitVote('learning', choice).then(() => {
+      showLearningPollResults();
+      lockLearningPoll();
+    });
     return;
   }
 

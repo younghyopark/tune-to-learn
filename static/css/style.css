@@ -1284,6 +1284,64 @@ pre code { background: none; padding: 0; border: none; }
   color: var(--text);
 }
 
+/* ── Poll Vote Bars (live Supabase results) ────────────────── */
+.poll-vote-bar {
+  display: none;
+  margin-top: 0.5rem;
+  position: relative;
+  height: 22px;
+  background: #f0f0f0;
+  border-radius: 11px;
+  overflow: hidden;
+}
+.poll-vote-bar.visible {
+  display: block;
+}
+.poll-vote-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  border-radius: 11px;
+  width: 0;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  background: rgba(0, 0, 0, 0.06);
+}
+.poll-vote-label {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+/* Per-option fill colors (gain poll) */
+.poll-card[data-poll="a"] .poll-vote-fill { background: rgba(123, 63, 141, 0.15); }
+.poll-card[data-poll="b"] .poll-vote-fill { background: rgba(74, 127, 181, 0.15); }
+.poll-card[data-poll="c"] .poll-vote-fill { background: rgba(74, 122, 62, 0.15); }
+/* Per-option fill colors (learning poll) */
+.lp-card[data-lp="bc"]       .poll-vote-fill { background: rgba(217, 119, 6, 0.15); }
+.lp-card[data-lp="rl"]       .poll-vote-fill { background: rgba(13, 148, 136, 0.15); }
+.lp-card[data-lp="sim2real"]  .poll-vote-fill { background: rgba(99, 102, 241, 0.15); }
+
+/* ── Poll Locked Mode (after voting — unclickable) ─────────── */
+.poll-locked .poll-card {
+  pointer-events: none;
+  cursor: default;
+  opacity: 0.45;
+  animation: none !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+.poll-locked .poll-card.selected {
+  opacity: 1;
+  border-width: 2.5px;
+}
+
 @media (max-width: 640px) {
   .poll-options { grid-template-columns: 1fr; }
   .poll-card { padding: 0.85rem 1rem; }
@@ -1510,10 +1568,13 @@ pre code { background: none; padding: 0; border: none; }
   font-weight: 600;
   background: rgba(99, 102, 241, 0.08);
 }
-/* Blurred placeholder sub-items (before user makes a choice) */
-.dynamic-toc .toc-blurred a {
-  filter: blur(4px);
-  opacity: 0.5;
+/* Collapsed placeholder sub-items (hidden until user makes a choice) */
+.dynamic-toc .toc-collapsed {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  margin: 0;
+  padding: 0;
   pointer-events: none;
   user-select: none;
   transition: filter 0.4s ease, opacity 0.4s ease;
