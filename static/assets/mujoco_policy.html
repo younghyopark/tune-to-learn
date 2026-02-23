@@ -534,10 +534,17 @@ async function swapPolicy(newPolicyPath, newConfigPath, autorun = false) {
   }
 }
 
-// Listen for policy swap requests from parent
+// Listen for messages from parent (policy swap + hibernation)
 window.addEventListener('message', (e) => {
   if (e.data && e.data.type === 'load-policy') {
     swapPolicy(e.data.policy, e.data.config, e.data.autorun);
+  }
+  if (e.data?.type === 'sim-pause') {
+    if (running) stopPolicy();
+    if (viewer) viewer.freeze();
+  }
+  if (e.data?.type === 'sim-resume') {
+    if (viewer) viewer.unfreeze();
   }
 });
 

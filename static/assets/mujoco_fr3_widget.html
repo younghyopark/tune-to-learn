@@ -231,6 +231,75 @@
     border-color: transparent;
     color: #fff;
   }
+
+  /* ── Onboarding Tour ─────────────────────────────── */
+  #tour-spotlight {
+    position: fixed;
+    z-index: 180;
+    border-radius: 8px;
+    /* no dark tint — only the ::after glow border is visible */
+    pointer-events: none;
+    transition: top 0.3s ease, left 0.3s ease, width 0.3s ease, height 0.3s ease, opacity 0.3s ease;
+  }
+  #tour-spotlight.hidden { opacity: 0; pointer-events: none; }
+  #tour-spotlight::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border: 3px solid rgba(108, 123, 240, 0.8);
+    border-radius: 10px;
+    box-shadow: 0 0 12px 4px rgba(108, 123, 240, 0.4);
+    pointer-events: none;
+  }
+  .tour-target-elevated { z-index: 185 !important; }
+
+  #tour-tooltip {
+    position: fixed;
+    z-index: 200;
+    background: #fff;
+    border-radius: 10px;
+    padding: 16px 18px 14px;
+    width: 280px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.25);
+    transition: opacity 0.25s, transform 0.25s, top 0.3s ease, left 0.3s ease;
+    font-family: var(--font);
+  }
+  #tour-tooltip.hidden { opacity: 0; pointer-events: none; transform: translateY(8px); }
+  #tour-tooltip::before {
+    content: '';
+    position: absolute;
+    width: 12px; height: 12px;
+    background: #fff;
+    transform: rotate(45deg);
+  }
+  #tour-tooltip[data-arrow="bottom"]::before { bottom: -6px; left: 24px; }
+  #tour-tooltip[data-arrow="top"]::before    { top: -6px; left: 24px; }
+  #tour-tooltip[data-arrow="left"]::before   { left: -6px; top: 20px; }
+  #tour-tooltip[data-arrow="right"]::before  { right: -6px; top: 20px; }
+
+  .tour-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .tour-step-num {
+    width: 24px; height: 24px;
+    background: #6c7bf0; color: #fff;
+    border-radius: 50%; font-size: 12px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .tour-title { font-size: 14px; font-weight: 600; color: #222; }
+  .tour-desc { font-size: 12px; line-height: 1.55; color: #555; margin-bottom: 14px; }
+  .tour-footer { display: flex; align-items: center; justify-content: space-between; }
+  .tour-progress { font-size: 11px; color: #999; }
+  .tour-btns { display: flex; gap: 8px; }
+  .tour-btn {
+    padding: 6px 14px; border-radius: 6px;
+    font-size: 12px; font-weight: 500; cursor: pointer;
+    transition: background 0.12s, transform 0.08s; border: none;
+  }
+  .tour-btn:active { transform: scale(0.96); }
+  .tour-btn-skip { background: transparent; color: #888; }
+  .tour-btn-skip:hover { background: rgba(0,0,0,0.05); color: #666; }
+  .tour-btn-next { background: #6c7bf0; color: #fff; }
+  .tour-btn-next:hover { background: #8290ff; }
+  .tour-btn-next:disabled { background: #b0b8f8; cursor: not-allowed; opacity: 0.6; }
 </style>
 </head>
 <body>
@@ -274,6 +343,23 @@
       <button data-mode="hold">Hold</button>
       <button class="active" data-mode="sine">Sine</button>
       <button data-mode="step">Step</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Tour spotlight & tooltip (outside container for full coverage) ── -->
+<div id="tour-spotlight" class="hidden"></div>
+<div id="tour-tooltip" class="hidden" data-arrow="left">
+  <div class="tour-header">
+    <span class="tour-step-num" id="tour-step-num">1</span>
+    <span class="tour-title" id="tour-title">Title</span>
+  </div>
+  <div class="tour-desc" id="tour-desc">Description</div>
+  <div class="tour-footer">
+    <span class="tour-progress" id="tour-progress">1 of 4</span>
+    <div class="tour-btns">
+      <button class="tour-btn tour-btn-skip" id="tour-skip">Skip</button>
+      <button class="tour-btn tour-btn-next" id="tour-next">Next</button>
     </div>
   </div>
 </div>
@@ -759,6 +845,7 @@ function applyPDControl() {
 // ═══════════════════════════════════════════════════════════
 function onPointerDown(e) {
   if (e.button !== 0) return;
+  if (demoDragActive) demoDragActive = false;  // user takes over from demo
 
   const rect = renderer.domElement.getBoundingClientRect();
   pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -799,7 +886,7 @@ function onPointerDown(e) {
 }
 
 function onPointerMove(e) {
-  if (!dragging) return;
+  if (!dragging || demoDragActive) return;  // demo owns dragCursorWorld during tour
 
   const rect = renderer.domElement.getBoundingClientRect();
   pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -884,6 +971,7 @@ function applyDragForce() {
 }
 
 function onPointerUp(e) {
+  if (demoDragActive) return;  // demo owns the drag state during tour
   if (dragging) {
     dragging = false;
     dragBodyId = -1;
@@ -897,11 +985,22 @@ function onPointerUp(e) {
     }
     // Re-enable OrbitControls after a short delay to avoid stale state
     setTimeout(() => { controls.enabled = true; }, 0);
+
+    // During "Feel the Physics" step: record that the user has interacted,
+    // unlock the Next button, and resume demo drag after a short pause.
+    if (tourDemoPhysicsActive) {
+      if (!userHasDraggedInTour) {
+        userHasDraggedInTour = true;
+        document.getElementById('tour-next').disabled = false;
+      }
+      setTimeout(startDemoPhysics, 800);
+    }
   }
 }
 
 // Cleanup drag state without event (for blur/visibility handlers)
 function cancelDrag() {
+  if (demoDragActive) return;  // demo owns the drag state during tour
   if (dragging) {
     dragging = false;
     dragBodyId = -1;
@@ -953,6 +1052,7 @@ document.querySelectorAll('#joint-selector button').forEach(btn => {
 // Mode selector buttons
 document.querySelectorAll('.mode-row button').forEach(btn => {
   btn.addEventListener('click', () => {
+    if (tourDemoPhysicsActive) return;  // locked during "Feel the Physics" step
     excitationMode = btn.dataset.mode;
     document.querySelectorAll('.mode-row button').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
@@ -1080,9 +1180,27 @@ function drawJointPlot() {
 // ═══════════════════════════════════════════════════════════
 //  SIMULATION + RENDER LOOP
 // ═══════════════════════════════════════════════════════════
-let lastTime = 0;
+let lastTime        = 0;
+let animLoopRunning = false;
+let tabVisible      = !document.hidden;
+let widgetVisible   = true;   // updated via postMessage from parent IntersectionObserver
+
+function startAnimLoop() {
+  if (animLoopRunning || !tabVisible || !widgetVisible) return;
+  animLoopRunning = true;
+  lastTime = performance.now();
+  requestAnimationFrame(animate);
+}
+function stopAnimLoop() {
+  animLoopRunning = false;  // animate() returns early on next tick, ending the RAF chain
+}
+document.addEventListener('visibilitychange', () => {
+  tabVisible = !document.hidden;
+  if (tabVisible && widgetVisible) startAnimLoop(); else stopAnimLoop();
+});
 
 function animate(time) {
+  if (!animLoopRunning) return;
   requestAnimationFrame(animate);
 
   const dt = Math.min(time - lastTime, 50);
@@ -1162,7 +1280,9 @@ const KDS = [1, 2, 4, 8, 12, 16, 24];
 // Normalized position on the grid [0,1] — log-interpolated
 let gainNormX = 0.729;  // → Kp≈200
 let gainNormY = 0.725;  // → Kd≈10
-let gainDragging = false;
+let gainDragging        = false;
+let gainGridPulseActive = false;
+let gainGridPulsePhase  = 0;
 
 // Corner colors matching the PD response widget
 const GC_A = [140,140,140], GC_B = [76,114,176], GC_C = [196,78,82], GC_D = [129,114,178];
@@ -1260,6 +1380,51 @@ function drawGainGrid() {
   ctx.strokeStyle = 'rgba(0,0,0,0.3)';
   ctx.lineWidth = 2;
   ctx.stroke();
+
+  // Pulse hint (shown during gain-grid tour step, stops on first interaction)
+  if (gainGridPulseActive) {
+    const pulseR     = 9 + 4 + 6 * Math.sin(gainGridPulsePhase);
+    const pulseAlpha = 0.35 + 0.2 * Math.sin(gainGridPulsePhase);
+    ctx.beginPath();
+    ctx.arc(cx, cy, pulseR, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(108, 123, 240, ${pulseAlpha})`;
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    // Animated cursor icon (bobbing)
+    const bobY = 3 * Math.sin(gainGridPulsePhase * 0.8);
+    const curX = cx + 14;
+    const curY = cy + 10 + bobY;
+    ctx.save();
+    ctx.translate(curX, curY);
+    ctx.scale(1.4, 1.4);
+    ctx.beginPath();
+    ctx.moveTo(0, 0); ctx.lineTo(0, 16);
+    ctx.lineTo(4, 13); ctx.lineTo(7, 19);
+    ctx.lineTo(10, 18); ctx.lineTo(7, 12);
+    ctx.lineTo(12, 12); ctx.closePath();
+    ctx.fillStyle = 'rgba(50,50,50,0.75)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+    ctx.lineWidth = 1;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+    ctx.restore();
+
+    // "Click & drag" label below the ring
+    const labelText = 'Click & drag';
+    const font = getComputedStyle(document.body).fontFamily;
+    ctx.font = `bold 10px ${font}`;
+    const labelW = ctx.measureText(labelText).width;
+    const labelY = Math.min(cy + pulseR + 14, S - 4);
+    ctx.fillStyle = 'rgba(235,235,235,0.88)';
+    ctx.beginPath();
+    ctx.roundRect(cx - labelW / 2 - 4, labelY - 11, labelW + 8, 15, 3);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(60,60,60,0.9)';
+    ctx.textAlign = 'center';
+    ctx.fillText(labelText, cx, labelY);
+  }
 }
 
 // Grid interaction
@@ -1279,6 +1444,12 @@ function drawGainGrid() {
     gc.setPointerCapture(e.pointerId);
     const { nx, ny } = gridNormFromEvent(e);
     applyGains(nx, ny, true);
+    // Unlock tour Next button on first gain-grid interaction
+    if (tourGainGridActive) {
+      tourGainGridActive = false;
+      stopGainGridPulse();
+      document.getElementById('tour-next').disabled = false;
+    }
   });
   gc.addEventListener('pointermove', (e) => {
     if (!gainDragging) return;
@@ -1289,19 +1460,40 @@ function drawGainGrid() {
   gc.addEventListener('pointerleave', () => { gainDragging = false; });
 }
 
-// Listen for gains from PD response widget (via parent relay)
+function startGainGridPulse() {
+  gainGridPulseActive = true;
+  gainGridPulsePhase  = 0;
+  function tick() {
+    if (!gainGridPulseActive) return;
+    gainGridPulsePhase += 0.07;
+    drawGainGrid();
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+function stopGainGridPulse() {
+  if (!gainGridPulseActive) return;
+  gainGridPulseActive = false;
+  drawGainGrid();  // redraw once without pulse
+}
+
+// Listen for gains, joint changes, and visibility from parent
 window.addEventListener('message', (e) => {
-  if (e.data && e.data.type === 'pd-gains-changed') {
+  if (!e.data) return;
+  if (e.data.type === 'pd-gains-changed') {
     const kp = e.data.kp, kd = e.data.kd;
     const n = normFromGains(kp, kd);
     applyGains(n.nx, n.ny, false);  // false = don't re-broadcast
   }
-  // Listen for joint changes from PD response widget (via parent relay)
-  if (e.data && e.data.type === 'pd-joint-changed') {
+  if (e.data.type === 'pd-joint-changed') {
     const j = e.data.joint;
-    if (j >= 0 && j < NUM_JOINTS) {
-      selectJoint(j, false);  // false = don't re-broadcast
-    }
+    if (j >= 0 && j < NUM_JOINTS) selectJoint(j, false);
+  }
+  // Visibility control from parent IntersectionObserver
+  if (e.data.type === 'widget-visibility') {
+    widgetVisible = e.data.visible;
+    if (tabVisible && widgetVisible) startAnimLoop(); else stopAnimLoop();
   }
 });
 
@@ -1309,6 +1501,303 @@ window.addEventListener('message', (e) => {
 applyGains(gainNormX, gainNormY, false);
 // Set up initial active button for joint 3
 selectJoint(selectedJoint, false);
+
+// ═══════════════════════════════════════════════════════════
+//  ONBOARDING TOUR
+// ═══════════════════════════════════════════════════════════
+const TOUR_KEY = 'mujoco-fr3-toured';
+
+const TOUR_STEPS = [
+  {
+    target: null,          // no spotlight — robot runs freely in the background
+    noSpotlight: true,
+    title: 'Live Demo',
+    desc: 'Interact with a live simulated robot to see how different gains change how the robot feels.',
+  },
+  {
+    target: 'live-badge',
+    title: 'Feel the Physics!',
+    desc: 'Click and drag directly on the robot arm to push it! You can take over from the demo at any time — just click the arm.',
+    noSpotlight: true,  // full live viewport — no dark tint
+    demoPhysics: true,  // auto-simulate drag; user click hands off control
+    setMode: 'hold'     // robot holds still so drag forces are felt cleanly
+  },
+  {
+    target: 'gain-grid-panel',
+    title: 'PD Gain Grid',
+    desc: 'Click or drag on this grid to set stiffness (x-axis) and damping (y-axis). The robot\'s feel changes dramatically — try all four corners to compare soft vs. stiff.',
+    arrow: 'left',
+    requireGainGrid: true   // Next unlocked after first grid interaction
+  },
+  {
+    target: 'joint-plot',
+    title: 'Joint Response',
+    desc: 'Actual position (solid line) vs. desired position (dashed). High Kp → tight tracking. Low Kp → lag and overshoot. Select a joint below to zoom in.',
+    arrow: 'right',
+    setJoint: 0
+  },
+  {
+    target: 'mode-panel',
+    title: 'Sine Mode',
+    desc: 'The robot oscillates continuously. High Kp keeps the arm tracking tightly; low Kp causes it to lag behind the command.',
+    arrow: 'right',
+    setMode: 'sine'
+  },
+  {
+    target: 'mode-panel',
+    title: 'Step Mode',
+    desc: 'The robot jumps between two positions. High Kd damps the overshoot; low Kd lets the arm ring and oscillate around the target.',
+    arrow: 'right',
+    setMode: 'step'
+  },
+  {
+    target: 'mode-panel',
+    title: 'Hold Mode',
+    desc: 'The robot holds perfectly still — great for pushing the arm yourself to feel how stiffness and damping affect compliance.',
+    arrow: 'right',
+    setMode: 'hold'
+  },
+];
+
+// ── Demo drag (used by the last tour step) ────────────────
+let demoDragActive        = false;
+let demoDragStartTime     = 0;
+let tourDemoPhysicsActive = false;  // true while "Feel the Physics" step is showing
+let userHasDraggedInTour  = false;  // unlocks Next once user drags at least once
+let tourGainGridActive    = false;  // true while gain-grid step is showing; unlocked by first interaction
+
+function startDemoPhysics() {
+  if (!mjModel || !mjData || !dragArrow) return;
+
+  // Pick a mid-arm body (skip world=0 and base=1)
+  const demoBodyId = Math.min(9, mjModel.nbody - 2);
+  if (demoBodyId < 2) return;
+
+  // Replicate exactly what onPointerDown does:
+  dragBodyId = demoBodyId;
+  dragPointLocal.set(0, 0, 0);  // body-local origin
+
+  // Get initial world-space anchor
+  syncBodies();
+  updateDragAnchor();
+  dragCursorWorld.copy(dragPointWorld);
+
+  controls.enabled = false;
+  dragging = true;
+  demoDragActive = true;
+  demoDragStartTime = performance.now();
+
+  tickDemoDrag();
+}
+
+function tickDemoDrag() {
+  if (!demoDragActive) return;
+
+  const t = (performance.now() - demoDragStartTime) / 1000;
+
+  // tanh "squares" a slow sine so the force saturates at its peak and holds
+  // there for ~4–5 s before snapping briefly to the opposite direction.
+  //   freq = 0.10 Hz  →  10 s full period  →  ~5 s per push direction
+  //   squeeze = 6     →  flat tops, sharp zero-crossings
+  const amp     = 0.25;
+  const freq    = 0.20;
+  const squeeze = 6;
+  const phase   = 2 * Math.PI * freq * t;
+
+  updateDragAnchor();
+
+  dragCursorWorld.copy(dragPointWorld);
+  dragCursorWorld.z += amp        * Math.tanh(squeeze * Math.sin(phase));
+  dragCursorWorld.x += amp * 0.35 * Math.sin(2 * Math.PI * 0.07 * t); // slow independent X drift
+
+  requestAnimationFrame(tickDemoDrag);
+}
+
+function stopDemoPhysics() {
+  demoDragActive = false;
+  dragging       = false;
+  dragBodyId     = -1;
+  if (dragArrow) dragArrow.visible = false;
+  if (mjData) {
+    for (let i = 0; i < mjData.qfrc_applied.length; i++) mjData.qfrc_applied[i] = 0;
+  }
+  setTimeout(() => { controls.enabled = true; }, 0);
+}
+
+// ── Excitation mode helper (used by tour steps with setMode) ─────────────
+function setExcitationModeUI(mode) {
+  excitationMode = mode;
+  simTime = 0;
+  jointHistory.length = 0;
+  document.querySelectorAll('.mode-row button').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === mode);
+  });
+}
+
+// ── Tour state ────────────────────────────────────────────
+let tourStep = 0;
+let tourActive = false;
+let tourHiddenElements = [];
+let tourCurrentTarget = null;
+
+function showOnboardingIfNeeded() {
+  if (localStorage.getItem(TOUR_KEY)) return;
+  setTimeout(startTour, 2500);  // let the robot animate freely first
+}
+
+function startTour() {
+  tourStep = 0;
+  tourActive = true;
+  tourHiddenElements = [];
+  tourCurrentTarget = null;
+  showTourStep(tourStep);
+}
+
+function showTourStep(idx) {
+  const spotlight = document.getElementById('tour-spotlight');
+  const tooltip   = document.getElementById('tour-tooltip');
+  const stepNumEl = document.getElementById('tour-step-num');
+  const titleEl   = document.getElementById('tour-title');
+  const descEl    = document.getElementById('tour-desc');
+  const progressEl= document.getElementById('tour-progress');
+  const nextBtn   = document.getElementById('tour-next');
+
+  // Always stop any running demos before processing the new step
+  if (tourDemoPhysicsActive) setExcitationModeUI('sine');  // restore default on exit
+  stopDemoPhysics();
+  stopGainGridPulse();
+  tourDemoPhysicsActive = false;
+  tourGainGridActive    = false;
+
+  // Remove elevation from previous target
+  if (tourCurrentTarget) {
+    tourCurrentTarget.classList.remove('tour-target-elevated');
+  }
+
+  if (idx >= TOUR_STEPS.length) {
+    endTour();
+    return;
+  }
+
+  const step     = TOUR_STEPS[idx];
+  const targetEl = step.target ? document.getElementById(step.target) : null;
+
+  if (!targetEl) {
+    // Floating step: no target, no backdrop — just a tooltip
+    spotlight.classList.add('hidden');
+    tourCurrentTarget = null;
+
+    requestAnimationFrame(() => {
+      stepNumEl.textContent  = idx + 1;
+      titleEl.textContent    = step.title;
+      descEl.textContent     = step.desc;
+      progressEl.textContent = `${idx + 1} of ${TOUR_STEPS.length}`;
+      nextBtn.textContent    = 'Start Tour';
+
+      tooltip.style.left    = '12px';
+      tooltip.style.top     = Math.max(10, window.innerHeight - 230) + 'px';
+      tooltip.dataset.arrow = 'none';
+      tooltip.classList.remove('hidden');
+    });
+    return;
+  }
+
+  // Temporarily reveal if hidden
+  if (targetEl.classList.contains('hidden')) {
+    targetEl.classList.remove('hidden');
+    tourHiddenElements.push(targetEl);
+  }
+
+  // Show glow-border highlight for targeted steps (no dark tint — CSS removed it)
+  if (!step.noSpotlight) {
+    targetEl.classList.add('tour-target-elevated');
+    tourCurrentTarget = targetEl;
+  } else {
+    spotlight.classList.add('hidden');
+    tourCurrentTarget = null;
+  }
+
+  requestAnimationFrame(() => {
+    const rect    = targetEl.getBoundingClientRect();
+    const padding = 8;
+
+    if (!step.noSpotlight) {
+      spotlight.style.top    = (rect.top    - padding) + 'px';
+      spotlight.style.left   = (rect.left   - padding) + 'px';
+      spotlight.style.width  = (rect.width  + padding * 2) + 'px';
+      spotlight.style.height = (rect.height + padding * 2) + 'px';
+      spotlight.classList.remove('hidden');
+    }
+
+    stepNumEl.textContent  = idx + 1;
+    titleEl.textContent    = step.title;
+    descEl.textContent     = step.desc;
+    progressEl.textContent = `${idx + 1} of ${TOUR_STEPS.length}`;
+    nextBtn.textContent    = idx === TOUR_STEPS.length - 1 ? 'Done' : 'Next';
+
+    // Fixed position — same location every step so the Next button never moves
+    tooltip.style.left    = '12px';
+    tooltip.style.top     = Math.max(10, window.innerHeight - 230) + 'px';
+    tooltip.dataset.arrow = 'none';
+    tooltip.classList.remove('hidden');
+
+    // Apply per-step side-effects
+    if (step.setJoint !== undefined) selectJoint(step.setJoint, false);
+    if (step.setMode)                setExcitationModeUI(step.setMode);
+    if (step.demoPhysics) {
+      tourDemoPhysicsActive = true;
+      userHasDraggedInTour  = false;
+      nextBtn.disabled      = true;   // unlocked once user drags at least once
+      startDemoPhysics();
+    }
+    if (step.requireGainGrid) {
+      tourGainGridActive = true;
+      nextBtn.disabled   = true;      // unlocked on first gain-grid interaction
+      startGainGridPulse();
+    }
+  });
+}
+
+function endTour() {
+  const spotlight = document.getElementById('tour-spotlight');
+  const tooltip   = document.getElementById('tour-tooltip');
+
+  stopDemoPhysics();
+  stopGainGridPulse();
+  tourDemoPhysicsActive = false;
+  tourGainGridActive    = false;
+  document.getElementById('tour-next').disabled = false;  // reset for next run
+  spotlight.classList.add('hidden');
+  tooltip.classList.add('hidden');
+
+  if (tourCurrentTarget) {
+    tourCurrentTarget.classList.remove('tour-target-elevated');
+    tourCurrentTarget = null;
+  }
+
+  tourHiddenElements.forEach(el => el.classList.add('hidden'));
+  tourHiddenElements = [];
+  tourActive = false;
+  localStorage.setItem(TOUR_KEY, '1');
+
+  // Restore defaults
+  setExcitationModeUI('sine');
+  selectJoint(3, false);
+}
+
+// Tour navigation
+document.getElementById('tour-next')?.addEventListener('click', () => {
+  tourStep++;
+  showTourStep(tourStep);
+});
+document.getElementById('tour-skip')?.addEventListener('click', () => {
+  endTour();
+});
+
+// Escape key exits (same as Skip)
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && tourActive) endTour();
+});
 
 // ═══════════════════════════════════════════════════════════
 //  MAIN
@@ -1347,8 +1836,11 @@ async function main() {
 
     updateGainDisplay();
     overlayEl.classList.add('hidden');
-    lastTime = performance.now();
-    requestAnimationFrame(animate);
+
+    // Show onboarding tour for first-time visitors
+    showOnboardingIfNeeded();
+
+    startAnimLoop();
   } catch (err) {
     console.error('MuJoCo init failed:', err);
     statusEl.textContent = 'Failed to load: ' + err.message;

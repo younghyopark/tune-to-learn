@@ -2,6 +2,104 @@
    Academic Project Page — Interactivity
    ═══════════════════════════════════════════════════════════════ */
 
+/* ── Supabase Poll Backend ─────────────────────────────────── */
+const SUPABASE_URL = 'https://ocbkyjrmshepindrbqxk.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9jYmt5anJtc2hlcGluZHJicXhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2MTg0NzIsImV4cCI6MjA4NzE5NDQ3Mn0.jk0tqHyErUrU4QdVXhAr832UmWcNnf7LDFEGMKef4fI';
+
+async function supabaseSubmitVote(pollId, option) {
+  if (localStorage.getItem('poll-voted-' + pollId)) return;
+  try {
+    const res = await fetch(SUPABASE_URL + '/rest/v1/poll_votes', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ poll_id: pollId, option: option })
+    });
+    if (res.ok) localStorage.setItem('poll-voted-' + pollId, option);
+  } catch (e) { console.warn('Vote submit failed:', e); }
+}
+
+async function supabaseFetchCounts(pollId) {
+  try {
+    const res = await fetch(
+      SUPABASE_URL + '/rest/v1/poll_votes?poll_id=eq.' + pollId + '&select=option',
+      { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY } }
+    );
+    if (!res.ok) return null;
+    const rows = await res.json();
+    const counts = {};
+    rows.forEach(r => { counts[r.option] = (counts[r.option] || 0) + 1; });
+    return { counts, total: rows.length };
+  } catch (e) { console.warn('Fetch counts failed:', e); return null; }
+}
+
+function renderVoteBars(cards, dataAttr, counts, total) {
+  if (!counts || total === 0) return;
+  cards.forEach(card => {
+    const opt = card.getAttribute(dataAttr);
+    const count = counts[opt] || 0;
+    const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+    let bar = card.querySelector('.poll-vote-bar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.className = 'poll-vote-bar';
+      bar.innerHTML = '<div class="poll-vote-fill"></div><span class="poll-vote-label"></span>';
+      const textEl = card.querySelector('.poll-card-text') || card;
+      textEl.appendChild(bar);
+    }
+    bar.querySelector('.poll-vote-label').textContent = pct + '%  \u00b7  ' + count + (count === 1 ? ' vote' : ' votes');
+    bar.classList.add('visible');
+    requestAnimationFrame(() => {
+      bar.querySelector('.poll-vote-fill').style.width = pct + '%';
+    });
+  });
+}
+
+async function showGainPollResults() {
+  const data = await supabaseFetchCounts('gain');
+  if (!data || data.total === 0) return;
+  renderVoteBars(document.querySelectorAll('.poll-card[data-poll]'), 'data-poll', data.counts, data.total);
+  const sub = document.querySelector('#poll .poll-subtitle');
+  if (sub) sub.textContent = data.total + ' reader' + (data.total !== 1 ? 's have' : ' has') + ' responded so far.';
+}
+
+async function showLearningPollResults() {
+  const data = await supabaseFetchCounts('learning');
+  if (!data || data.total === 0) return;
+  renderVoteBars(document.querySelectorAll('.lp-card[data-lp]'), 'data-lp', data.counts, data.total);
+}
+
+function lockGainPoll() {
+  const pollBox = document.querySelector('#poll .poll-box');
+  if (!pollBox || pollBox.classList.contains('poll-locked')) return;
+  pollBox.classList.add('poll-locked');
+  document.querySelectorAll('.poll-card[data-poll]').forEach(card => {
+    card.disabled = true;
+  });
+}
+
+function lockLearningPoll() {
+  const pollBox = document.querySelector('#learning-poll .poll-box');
+  if (!pollBox || pollBox.classList.contains('poll-locked')) return;
+  pollBox.classList.add('poll-locked');
+  document.querySelectorAll('.lp-card[data-lp]').forEach(card => {
+    card.disabled = true;
+  });
+}
+
+/* Debug: run __resetPolls() in browser console to clear all votes and reload */
+window.__resetPolls = function() {
+  localStorage.removeItem('poll-voted-gain');
+  localStorage.removeItem('poll-voted-learning');
+  localStorage.removeItem('poll-choice');
+  localStorage.removeItem('lp-choice');
+  location.reload();
+};
+
 document.addEventListener('DOMContentLoaded', () => {
   initTabs();
   initComparisonSliders();
@@ -9,10 +107,12 @@ document.addEventListener('DOMContentLoaded', () => {
   initCopyButtons();
   initLazyVideos();
   initLazyIframes();
+  initSimIframeHibernation();
   initStickyHeader();
   initPoll();
   initInfoModals();
   initPolicyGrid();
+  initRlPolicyGrid();
   buildDynamicToc();
 });
 
@@ -182,6 +282,50 @@ function initLazyIframes() {
   iframes.forEach(iframe => observer.observe(iframe));
 }
 
+/* ── Iframe hibernation — pause off-screen simulations ────────── */
+function initSimIframeHibernation() {
+  const visibleSet = new WeakSet();
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      const iframe = entry.target;
+      if (entry.isIntersecting) {
+        visibleSet.add(iframe);
+        trySend(iframe, 'sim-resume');
+      } else {
+        visibleSet.delete(iframe);
+        trySend(iframe, 'sim-pause');
+      }
+    });
+  }, { rootMargin: '50px' });
+
+  function trySend(iframe, type) {
+    try {
+      if (iframe.contentWindow && iframe.src && iframe.src !== '' && iframe.src !== 'about:blank') {
+        iframe.contentWindow.postMessage({ type }, '*');
+      }
+    } catch (_) { /* cross-origin or unloaded — ignore */ }
+  }
+
+  function observeNew() {
+    document.querySelectorAll('iframe').forEach(iframe => {
+      if (iframe._simHibernate) return;
+      iframe._simHibernate = true;
+      observer.observe(iframe);
+      // When iframe finishes loading while off-screen, pause immediately.
+      iframe.addEventListener('load', () => {
+        if (!visibleSet.has(iframe)) trySend(iframe, 'sim-pause');
+      });
+    });
+  }
+
+  observeNew();
+  // Pick up dynamically created iframes (e.g. sim-tabs, policy grids).
+  new MutationObserver(observeNew).observe(document.body, {
+    childList: true, subtree: true
+  });
+}
+
 /* ── Dynamic TOC — right sidebar, rebuilt when content changes ── */
 var _tocScrollHandler = null;
 
@@ -203,7 +347,7 @@ function buildDynamicToc() {
   entries.push({ id: 'method',    text: 'Position Impedance Controllers & Gains' });
   entries.push({ id: 'poll',      text: 'Gain Tuning Practices & Pitfalls' });
 
-  /* Sub-items for first poll — always shown, blurred until user picks */
+  /* Sub-items for first poll — always shown, collapsed until user picks */
   var pollChoice = localStorage.getItem('poll-choice');
   var choiceAll = ['a', 'b', 'c'];
   var choiceLabels = { a: 'Not Tuning', b: 'Tune based on Task', c: 'Tune for Teleop' };
@@ -220,9 +364,9 @@ function buildDynamicToc() {
       }
     });
   } else {
-    /* No content yet — show placeholders blurred */
+    /* No content yet — show placeholders collapsed */
     choiceAll.forEach(function(key) {
-      entries.push({ id: 'poll', text: choiceLabels[key], sub: true, blurred: true });
+      entries.push({ id: 'poll', text: choiceLabels[key], sub: true, collapsed: true });
     });
   }
 
@@ -232,7 +376,7 @@ function buildDynamicToc() {
                  : 'poll';
   entries.push({ id: lpAnchorId, text: 'How Gains Affect Learning Algorithms' });
 
-  /* Learning sub-items — always shown, blurred until user picks */
+  /* Learning sub-items — always shown, collapsed until user picks */
   var lpContainer = document.querySelector('#lp-dynamic-content');
   var lpHasContent = lpContainer && lpContainer.innerHTML.trim();
 
@@ -254,10 +398,10 @@ function buildDynamicToc() {
       }
     });
   } else {
-    /* No content yet — show placeholders blurred */
+    /* No content yet — show placeholders collapsed */
     var allLpKeys = ['bc', 'rl', 'sim2real'];
     allLpKeys.forEach(function(key) {
-      entries.push({ id: lpAnchorId, text: _tocLpLabels[key], sub: true, blurred: true });
+      entries.push({ id: lpAnchorId, text: _tocLpLabels[key], sub: true, collapsed: true });
     });
   }
 
@@ -271,7 +415,7 @@ function buildDynamicToc() {
   entries.forEach(function(e) {
     var classes = [];
     if (e.sub) classes.push('toc-sub');
-    if (e.blurred) classes.push('toc-blurred');
+    if (e.collapsed) classes.push('toc-collapsed');
     var cls = classes.length ? ' class="' + classes.join(' ') + '"' : '';
     html += '<li' + cls + '><a href="#' + e.id + '">' + e.text + '</a></li>';
   });
@@ -292,9 +436,9 @@ function buildDynamicToc() {
   });
 
   var tocLinks = nav.querySelectorAll('a');
-  /* Only track non-blurred entries for scroll spy */
+  /* Only track non-collapsed entries for scroll spy */
   var spyLinks = Array.from(tocLinks).filter(function(a) {
-    return !a.closest('.toc-blurred');
+    return !a.closest('.toc-collapsed');
   });
   var spyIds = spyLinks.map(function(a) { return a.getAttribute('href').slice(1); });
   var spySecs = spyIds.map(function(id) { return document.getElementById(id); }).filter(Boolean);
@@ -307,8 +451,8 @@ function buildDynamicToc() {
       if (top <= scrollY) currentId = sec.id;
     });
     tocLinks.forEach(function(link) {
-      var isBlurred = !!link.closest('.toc-blurred');
-      link.classList.toggle('active', !isBlurred && link.getAttribute('href') === '#' + currentId);
+      var isCollapsed = !!link.closest('.toc-collapsed');
+      link.classList.toggle('active', !isCollapsed && link.getAttribute('href') === '#' + currentId);
     });
   }
 
@@ -488,11 +632,22 @@ function initPoll() {
     applyChoice(savedChoice, false);
   }
 
+  // Show live vote results and lock poll if user has already voted
+  if (localStorage.getItem('poll-voted-gain')) {
+    showGainPollResults();
+    lockGainPoll();
+  }
+
   cards.forEach(card => {
     card.addEventListener('click', () => {
+      if (localStorage.getItem('poll-voted-gain')) return;
       const choice = card.getAttribute('data-poll');
       localStorage.setItem('poll-choice', choice);
       applyChoice(choice, true);
+      supabaseSubmitVote('gain', choice).then(() => {
+        showGainPollResults();
+        lockGainPoll();
+      });
     });
   });
 
@@ -619,6 +774,12 @@ async function loadLearningPollIntoPlaceholders() {
     // Rebuild TOC now that #learning-poll exists in the DOM
     buildDynamicToc();
   }
+
+  // Show live vote results and lock poll if user has already voted
+  if (localStorage.getItem('poll-voted-learning')) {
+    showLearningPollResults();
+    lockLearningPoll();
+  }
 }
 
 function applyLpChoice(choice, animate) {
@@ -710,6 +871,7 @@ async function loadLpContent(choice, savedScrollY) {
     initSimTabs();
     initViewerModeToggle();
     initPolicyGrid();
+    initRlPolicyGrid();
     initLazyIframes();
     buildDynamicToc();
     restoreScroll();
@@ -1021,6 +1183,178 @@ function initPolicyGrid() {
   selectDot(TASKS[currentTask].defaultDot);
 }
 
+/* ── RL Policy Grid Widget (G1 velocity, gain variants) ────── */
+function initRlPolicyGrid() {
+  const widget = document.getElementById('rl-policy-grid');
+  if (!widget || widget._rlPgwInit) return;
+  widget._rlPgwInit = true;
+
+  const canvas      = document.getElementById('rl-pgw-canvas');
+  const iframe      = document.getElementById('rl-pgw-iframe');
+  const placeholder = document.getElementById('rl-pgw-placeholder');
+  const kpValEl     = document.getElementById('rl-pgw-kp-val');
+  const kdValEl     = document.getElementById('rl-pgw-kd-val');
+  if (!canvas || !iframe) return;
+
+  const BASE = 'models/g1_velocity';
+
+  // Gain variants: {label, folder, stiffness mult, damping mult, grid pos}
+  const DOTS = [
+    { kp: '0.5\u00d7', kd: '0.5\u00d7', folder: 'LL', nx: 0, ny: 0 },
+    { kp: '0.5\u00d7', kd: '2\u00d7',   folder: 'LH', nx: 0, ny: 1 },
+    { kp: '2\u00d7',   kd: '0.5\u00d7', folder: 'HL', nx: 1, ny: 0 },
+    { kp: '2\u00d7',   kd: '2\u00d7',   folder: 'HH', nx: 1, ny: 1 },
+  ];
+  const DEFAULT_DOT = 3; // HH
+
+  // Corner colors (same palette as BC grid)
+  const GC_A = [140,140,140]; // low Kp, low Kd
+  const GC_B = [76,114,176];  // high Kp, low Kd
+  const GC_C = [196,78,82];   // low Kp, high Kd
+  const GC_D = [129,114,178]; // high Kp, high Kd
+
+  function lerpC(a, b, t) {
+    return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t];
+  }
+  function dotColor(nx, ny) {
+    const c = lerpC(lerpC(GC_A, GC_B, nx), lerpC(GC_C, GC_D, nx), ny);
+    return `rgb(${c.map(Math.round).join(',')})`;
+  }
+
+  let activeIdx = -1;
+
+  const PAD_BOT = 18, PAD_LEFT = 18, PAD_TOP = 22, PAD_RIGHT = 18;
+
+  function gridMetrics(S) {
+    const gs = Math.min(S - PAD_LEFT - PAD_RIGHT, S - PAD_TOP - PAD_BOT);
+    return { gs, ox: PAD_LEFT, oy: PAD_TOP };
+  }
+
+  function dotXY(d, S) {
+    const { gs, ox, oy } = gridMetrics(S);
+    const cellNx = (1 + d.nx * 4) / 6;
+    const cellNy = (1 + d.ny * 4) / 6;
+    return {
+      cx: ox + cellNx * gs,
+      cy: oy + (1 - cellNy) * gs
+    };
+  }
+
+  function draw() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const S = canvas.clientWidth;
+    if (S === 0) return;
+    canvas.width  = S * dpr;
+    canvas.height = S * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+
+    const { gs, ox, oy } = gridMetrics(S);
+    ctx.clearRect(0, 0, S, S);
+
+    // 6x6 grid lines
+    ctx.strokeStyle = 'rgba(0,0,0,0.10)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 6; i++) {
+      const f = i / 6;
+      ctx.beginPath(); ctx.moveTo(ox + f * gs, oy);
+      ctx.lineTo(ox + f * gs, oy + gs); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(ox, oy + f * gs);
+      ctx.lineTo(ox + gs, oy + f * gs); ctx.stroke();
+    }
+
+    // Axes
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(ox, oy + gs);
+    ctx.lineTo(ox + gs + 4, oy + gs); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(ox, oy + gs);
+    ctx.lineTo(ox, oy - 4); ctx.stroke();
+
+    // Axis labels
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.font = 'bold 14px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('kp \u2192', ox + gs / 2, S - 2);
+    ctx.save();
+    ctx.translate(ox / 2, oy + gs / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textBaseline = 'middle';
+    ctx.fillText('kd \u2192', 0, 0);
+    ctx.restore();
+
+    // Dots
+    const R_IDLE = 9, R_ACTIVE = 11;
+    DOTS.forEach((d, i) => {
+      const { cx, cy } = dotXY(d, S);
+      const r = i === activeIdx ? R_ACTIVE : R_IDLE;
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fillStyle = dotColor(d.nx, d.ny);
+      ctx.fill();
+      if (i === activeIdx) {
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+      } else {
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+      }
+      ctx.stroke();
+    });
+  }
+
+  canvas._redraw = draw;
+
+  function selectDot(idx) {
+    if (idx === activeIdx) return;
+    activeIdx = idx;
+    const d = DOTS[idx];
+    kpValEl.textContent = d.kp;
+    kdValEl.textContent = d.kd;
+    placeholder.classList.add('hidden');
+
+    // Each variant has its own scene XML (gains baked in).
+    const prefix = BASE + '/' + d.folder;
+    iframe.src = 'static/assets/mujoco_velocity_policy.html'
+      + '?scene=' + prefix + '/g1_scene.xml'
+      + '&policy=' + prefix + '/policy.onnx'
+      + '&config=' + prefix + '/policy_config.json'
+      + '&autorun=1';
+    draw();
+  }
+
+  // Hit test
+  canvas.addEventListener('click', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const S = canvas.clientWidth;
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    let best = -1, bestDist = Infinity;
+    DOTS.forEach((d, i) => {
+      const { cx, cy } = dotXY(d, S);
+      const dist = Math.hypot(mx - cx, my - cy);
+      if (dist < 22 && dist < bestDist) { best = i; bestDist = dist; }
+    });
+    if (best >= 0) selectDot(best);
+  });
+
+  // Cursor feedback
+  canvas.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const S = canvas.clientWidth;
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    let hover = false;
+    DOTS.forEach((d) => {
+      const { cx, cy } = dotXY(d, S);
+      if (Math.hypot(mx - cx, my - cy) < 22) hover = true;
+    });
+    canvas.style.cursor = hover ? 'pointer' : 'default';
+  });
+
+  draw();
+  selectDot(DEFAULT_DOT);
+}
+
 function clearLpChoice() {
   localStorage.removeItem('lp-choice');
   var hs = parsePollHash();
@@ -1047,9 +1381,14 @@ function rerenderMath() {
 document.addEventListener('click', (e) => {
   const card = e.target.closest('.lp-card');
   if (card) {
+    if (localStorage.getItem('poll-voted-learning')) return;
     const choice = card.dataset.lp;
     localStorage.setItem('lp-choice', choice);
     applyLpChoice(choice, true);
+    supabaseSubmitVote('learning', choice).then(() => {
+      showLearningPollResults();
+      lockLearningPoll();
+    });
     return;
   }
 

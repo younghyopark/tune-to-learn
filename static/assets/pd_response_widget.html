@@ -173,9 +173,12 @@
   let cachedYmin = null, cachedYmax = null;
   let currentJoint = 3;
   let availableJoints = [];
-  let hasInteracted = false;
-  let pulseAnimId = null;
-  let pulsePhase = 0;
+  let hasInteracted    = false;
+  let pulseAnimId      = null;
+  let pulsePhase       = 0;
+  let pulseLoopRunning = false;
+  let tabVisible       = !document.hidden;
+  let widgetVisible    = true;   // updated via postMessage from parent IntersectionObserver
   
   // ======== ELEMENTS ========
   const chartCanvas = document.getElementById('pdChart');
@@ -668,8 +671,13 @@
   
   // ======== PULSE ANIMATION ========
   function startPulse() {
+    if (pulseLoopRunning || hasInteracted) return;
+    pulseLoopRunning = true;
     function tick() {
-      if (hasInteracted) return;
+      if (hasInteracted || !tabVisible || !widgetVisible) {
+        pulseLoopRunning = false;
+        return;
+      }
       pulsePhase += 0.07;
       drawGrid();
       pulseAnimId = requestAnimationFrame(tick);
@@ -684,6 +692,18 @@
       drawGrid();  // redraw without pulse
     }
   }
+
+  // ======== VISIBILITY (tab switch + scroll off-screen) ========
+  document.addEventListener('visibilitychange', function() {
+    tabVisible = !document.hidden;
+    if (tabVisible && widgetVisible && !hasInteracted) startPulse();
+  });
+  window.addEventListener('message', function(e) {
+    if (e.data && e.data.type === 'widget-visibility') {
+      widgetVisible = e.data.visible;
+      if (tabVisible && widgetVisible && !hasInteracted) startPulse();
+    }
+  });
 
   // ======== INTERACTION ========
   function getGridNorm(e) {
