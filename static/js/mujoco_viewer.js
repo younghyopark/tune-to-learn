@@ -126,6 +126,7 @@ export class MuJoCoViewer {
     this.onReady   = opts.onReady   || (() => {});
     this.enableDrag = opts.enableDrag !== false;
     this.paused    = opts.paused || false;
+    this._frozen   = false;
 
     this.initialCameraPos    = opts.cameraPos    || null;
     this.initialCameraTarget = opts.cameraTarget || null;
@@ -202,6 +203,20 @@ export class MuJoCoViewer {
     this._lastTime = performance.now();
     this._animate = this._animate.bind(this);
     requestAnimationFrame(this._animate);
+  }
+
+  /** Completely stop the render loop (no rAF scheduling). */
+  freeze() {
+    this._frozen = true;
+  }
+
+  /** Resume the render loop after a freeze. */
+  unfreeze() {
+    if (this._frozen) {
+      this._frozen = false;
+      this._lastTime = performance.now();
+      requestAnimationFrame(this._animate);
+    }
   }
 
   dispose() {
@@ -1263,7 +1278,7 @@ export class MuJoCoViewer {
   }
 
   _animate(time) {
-    if (this._disposed) return;
+    if (this._disposed || this._frozen) return;
     requestAnimationFrame(this._animate);
 
     if (this.paused) {

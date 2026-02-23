@@ -107,10 +107,12 @@ document.addEventListener('DOMContentLoaded', () => {
   initCopyButtons();
   initLazyVideos();
   initLazyIframes();
+  initSimIframeHibernation();
   initStickyHeader();
   initPoll();
   initInfoModals();
   initPolicyGrid();
+  initRlPolicyGrid();
   buildDynamicToc();
 });
 
@@ -278,6 +280,50 @@ function initLazyIframes() {
   }, { rootMargin: '300px' }); // Load slightly before coming into view
 
   iframes.forEach(iframe => observer.observe(iframe));
+}
+
+/* ── Iframe hibernation — pause off-screen simulations ────────── */
+function initSimIframeHibernation() {
+  const visibleSet = new WeakSet();
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      const iframe = entry.target;
+      if (entry.isIntersecting) {
+        visibleSet.add(iframe);
+        trySend(iframe, 'sim-resume');
+      } else {
+        visibleSet.delete(iframe);
+        trySend(iframe, 'sim-pause');
+      }
+    });
+  }, { rootMargin: '50px' });
+
+  function trySend(iframe, type) {
+    try {
+      if (iframe.contentWindow && iframe.src && iframe.src !== '' && iframe.src !== 'about:blank') {
+        iframe.contentWindow.postMessage({ type }, '*');
+      }
+    } catch (_) { /* cross-origin or unloaded — ignore */ }
+  }
+
+  function observeNew() {
+    document.querySelectorAll('iframe').forEach(iframe => {
+      if (iframe._simHibernate) return;
+      iframe._simHibernate = true;
+      observer.observe(iframe);
+      // When iframe finishes loading while off-screen, pause immediately.
+      iframe.addEventListener('load', () => {
+        if (!visibleSet.has(iframe)) trySend(iframe, 'sim-pause');
+      });
+    });
+  }
+
+  observeNew();
+  // Pick up dynamically created iframes (e.g. sim-tabs, policy grids).
+  new MutationObserver(observeNew).observe(document.body, {
+    childList: true, subtree: true
+  });
 }
 
 /* ── Dynamic TOC — right sidebar, rebuilt when content changes ── */
@@ -825,6 +871,7 @@ async function loadLpContent(choice, savedScrollY) {
     initSimTabs();
     initViewerModeToggle();
     initPolicyGrid();
+    initRlPolicyGrid();
     initLazyIframes();
     buildDynamicToc();
     restoreScroll();
@@ -1134,6 +1181,178 @@ function initPolicyGrid() {
   // Auto-select the best-performing gain for initial task
   draw();
   selectDot(TASKS[currentTask].defaultDot);
+}
+
+/* ── RL Policy Grid Widget (G1 velocity, gain variants) ────── */
+function initRlPolicyGrid() {
+  const widget = document.getElementById('rl-policy-grid');
+  if (!widget || widget._rlPgwInit) return;
+  widget._rlPgwInit = true;
+
+  const canvas      = document.getElementById('rl-pgw-canvas');
+  const iframe      = document.getElementById('rl-pgw-iframe');
+  const placeholder = document.getElementById('rl-pgw-placeholder');
+  const kpValEl     = document.getElementById('rl-pgw-kp-val');
+  const kdValEl     = document.getElementById('rl-pgw-kd-val');
+  if (!canvas || !iframe) return;
+
+  const BASE = 'models/g1_velocity';
+
+  // Gain variants: {label, folder, stiffness mult, damping mult, grid pos}
+  const DOTS = [
+    { kp: '0.5\u00d7', kd: '0.5\u00d7', folder: 'LL', nx: 0, ny: 0 },
+    { kp: '0.5\u00d7', kd: '2\u00d7',   folder: 'LH', nx: 0, ny: 1 },
+    { kp: '2\u00d7',   kd: '0.5\u00d7', folder: 'HL', nx: 1, ny: 0 },
+    { kp: '2\u00d7',   kd: '2\u00d7',   folder: 'HH', nx: 1, ny: 1 },
+  ];
+  const DEFAULT_DOT = 3; // HH
+
+  // Corner colors (same palette as BC grid)
+  const GC_A = [140,140,140]; // low Kp, low Kd
+  const GC_B = [76,114,176];  // high Kp, low Kd
+  const GC_C = [196,78,82];   // low Kp, high Kd
+  const GC_D = [129,114,178]; // high Kp, high Kd
+
+  function lerpC(a, b, t) {
+    return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t];
+  }
+  function dotColor(nx, ny) {
+    const c = lerpC(lerpC(GC_A, GC_B, nx), lerpC(GC_C, GC_D, nx), ny);
+    return `rgb(${c.map(Math.round).join(',')})`;
+  }
+
+  let activeIdx = -1;
+
+  const PAD_BOT = 18, PAD_LEFT = 18, PAD_TOP = 22, PAD_RIGHT = 18;
+
+  function gridMetrics(S) {
+    const gs = Math.min(S - PAD_LEFT - PAD_RIGHT, S - PAD_TOP - PAD_BOT);
+    return { gs, ox: PAD_LEFT, oy: PAD_TOP };
+  }
+
+  function dotXY(d, S) {
+    const { gs, ox, oy } = gridMetrics(S);
+    const cellNx = (1 + d.nx * 4) / 6;
+    const cellNy = (1 + d.ny * 4) / 6;
+    return {
+      cx: ox + cellNx * gs,
+      cy: oy + (1 - cellNy) * gs
+    };
+  }
+
+  function draw() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const S = canvas.clientWidth;
+    if (S === 0) return;
+    canvas.width  = S * dpr;
+    canvas.height = S * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+
+    const { gs, ox, oy } = gridMetrics(S);
+    ctx.clearRect(0, 0, S, S);
+
+    // 6x6 grid lines
+    ctx.strokeStyle = 'rgba(0,0,0,0.10)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 6; i++) {
+      const f = i / 6;
+      ctx.beginPath(); ctx.moveTo(ox + f * gs, oy);
+      ctx.lineTo(ox + f * gs, oy + gs); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(ox, oy + f * gs);
+      ctx.lineTo(ox + gs, oy + f * gs); ctx.stroke();
+    }
+
+    // Axes
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(ox, oy + gs);
+    ctx.lineTo(ox + gs + 4, oy + gs); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(ox, oy + gs);
+    ctx.lineTo(ox, oy - 4); ctx.stroke();
+
+    // Axis labels
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.font = 'bold 14px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('kp \u2192', ox + gs / 2, S - 2);
+    ctx.save();
+    ctx.translate(ox / 2, oy + gs / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textBaseline = 'middle';
+    ctx.fillText('kd \u2192', 0, 0);
+    ctx.restore();
+
+    // Dots
+    const R_IDLE = 9, R_ACTIVE = 11;
+    DOTS.forEach((d, i) => {
+      const { cx, cy } = dotXY(d, S);
+      const r = i === activeIdx ? R_ACTIVE : R_IDLE;
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fillStyle = dotColor(d.nx, d.ny);
+      ctx.fill();
+      if (i === activeIdx) {
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+      } else {
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+      }
+      ctx.stroke();
+    });
+  }
+
+  canvas._redraw = draw;
+
+  function selectDot(idx) {
+    if (idx === activeIdx) return;
+    activeIdx = idx;
+    const d = DOTS[idx];
+    kpValEl.textContent = d.kp;
+    kdValEl.textContent = d.kd;
+    placeholder.classList.add('hidden');
+
+    // Each variant has its own scene XML (gains baked in).
+    const prefix = BASE + '/' + d.folder;
+    iframe.src = 'static/assets/mujoco_velocity_policy.html'
+      + '?scene=' + prefix + '/g1_scene.xml'
+      + '&policy=' + prefix + '/policy.onnx'
+      + '&config=' + prefix + '/policy_config.json'
+      + '&autorun=1';
+    draw();
+  }
+
+  // Hit test
+  canvas.addEventListener('click', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const S = canvas.clientWidth;
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    let best = -1, bestDist = Infinity;
+    DOTS.forEach((d, i) => {
+      const { cx, cy } = dotXY(d, S);
+      const dist = Math.hypot(mx - cx, my - cy);
+      if (dist < 22 && dist < bestDist) { best = i; bestDist = dist; }
+    });
+    if (best >= 0) selectDot(best);
+  });
+
+  // Cursor feedback
+  canvas.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const S = canvas.clientWidth;
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    let hover = false;
+    DOTS.forEach((d) => {
+      const { cx, cy } = dotXY(d, S);
+      if (Math.hypot(mx - cx, my - cy) < 22) hover = true;
+    });
+    canvas.style.cursor = hover ? 'pointer' : 'default';
+  });
+
+  draw();
+  selectDot(DEFAULT_DOT);
 }
 
 function clearLpChoice() {

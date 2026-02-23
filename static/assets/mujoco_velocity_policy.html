@@ -1,0 +1,697 @@
+<!--
+  MuJoCo Policy Playback Viewer
+
+  Runs a trained ONNX policy in the browser via MuJoCo WASM + onnxruntime-web.
+
+  Parameters:
+    scene  – path to MuJoCo XML (required)
+    policy – path to ONNX policy file (required)
+    config – path to policy_config.json (required)
+    bg     – background hex color without # (default: f0f2f5)
+
+  Keyboard controls:
+    W/S    – forward/backward velocity
+    A/D    – left/right velocity
+    Q/E    – turn left/right
+    Space  – stop (zero command)
+    R      – reset simulation
+
+  When idle (no keys pressed), a random velocity command is sampled
+  automatically so the robot walks on its own.
+
+  Example:
+    mujoco_policy.html?scene=g1_scene.xml&policy=policy.onnx&config=policy_config.json
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MuJoCo Policy Viewer</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #f0f2f5; }
+  #container { width: 100%; height: 100%; position: relative; }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  #loading-overlay {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: #f0f2f5; color: #555;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    z-index: 100; transition: opacity 0.5s;
+  }
+  #loading-overlay.hidden { opacity: 0; pointer-events: none; }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid rgba(0,0,0,0.08);
+    border-top-color: #7c8cf8;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: 14px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loading-status { font-size: 13px; opacity: 0.6; }
+
+  #controls {
+    position: absolute; bottom: 10px; right: 10px;
+    display: flex; gap: 6px; z-index: 10;
+  }
+  .ctrl-btn {
+    background: rgba(255,255,255,0.88);
+    backdrop-filter: blur(8px);
+    color: #555; border: 1px solid rgba(0,0,0,0.08);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    font-size: 12px; padding: 6px 12px; border-radius: 6px;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .ctrl-btn:hover { background: rgba(255,255,255,1); }
+
+  /* Command joystick widget */
+  #cmd-widget {
+    position: absolute; bottom: 50px; left: 10px;
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(8px);
+    border-radius: 10px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.1);
+    z-index: 10; padding: 10px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    user-select: none; width: 220px;
+  }
+  .cmd-top { display: flex; gap: 10px; align-items: center; }
+  #xy-pad { width: 80px; height: 80px; flex-shrink: 0; }
+  .cmd-vals {
+    font-size: 11px; color: #888;
+    font-family: 'SF Mono', 'Fira Code', monospace; line-height: 2.0;
+  }
+  .cmd-vals .v { color: #333; font-weight: 600; }
+  #wz-bar { width: 100%; height: 20px; display: block; margin-top: 6px; }
+  .cmd-keys {
+    display: flex; gap: 8px; align-items: center;
+    margin-top: 8px; padding-top: 8px;
+    border-top: 1px solid rgba(0,0,0,0.06);
+  }
+  .keys-grid { display: flex; flex-direction: column; gap: 2px; }
+  .key-row { display: flex; gap: 2px; }
+  .key-row.indent { margin-left: 11px; }
+  .kc {
+    width: 20px; height: 20px;
+    border: 1px solid rgba(0,0,0,0.12); border-radius: 3px;
+    background: rgba(0,0,0,0.03);
+    font-size: 9px; font-weight: 600; color: #aaa;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.08s;
+  }
+  .kc.on { background: #4a7aec; color: #fff; border-color: #4a7aec; }
+  .mode-badge {
+    font-size: 9px; font-weight: 600; letter-spacing: 0.5px;
+    padding: 2px 6px; border-radius: 3px; margin-left: auto;
+  }
+  .mode-badge.auto { background: rgba(124,168,248,0.15); color: #5a8df8; }
+  .mode-badge.manual { background: rgba(248,200,124,0.15); color: #d4a030; }
+
+  #hint-overlay {
+    position: absolute; bottom: 10px; left: 10px;
+    color: rgba(100,100,120,0.5);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    font-size: 11px; z-index: 10; pointer-events: none;
+    transition: opacity 0.5s;
+  }
+
+  #legend {
+    position: absolute; bottom: 50px; right: 10px;
+    background: rgba(0,0,0,0.5); color: #fff;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 10px; padding: 8px 12px; border-radius: 8px;
+    z-index: 10; line-height: 1.8;
+  }
+  .legend-dot {
+    display: inline-block; width: 8px; height: 8px;
+    border-radius: 50%; margin-right: 5px; vertical-align: middle;
+  }
+
+  /* Joint response plot */
+  #response-float {
+    position: absolute; top: 10px; right: 10px;
+    z-index: 20; width: 220px;
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(8px);
+    border-radius: 8px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.1);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    font-size: 11px; color: #444;
+    padding: 8px; user-select: none;
+  }
+  #response-float .rf-title {
+    font-weight: 600; font-size: 10px; letter-spacing: 0.3px;
+    text-transform: uppercase; color: #888; margin-bottom: 4px;
+  }
+  #response-canvas {
+    width: 100%; height: 150px; display: block; border-radius: 4px;
+    background: #fff;
+  }
+  .joint-sel-row {
+    display: flex; gap: 2px; justify-content: center; margin-top: 4px;
+  }
+  .joint-btn {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    font-size: 9px; padding: 2px 4px; min-width: 20px; height: 18px;
+    border: 1px solid rgba(0,0,0,0.12); border-radius: 3px;
+    cursor: pointer; background: transparent; color: #888;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .joint-btn:hover { border-color: rgba(0,0,0,0.2); }
+  .joint-btn.active { border-color: transparent; color: #fff; }
+</style>
+</head>
+<body>
+
+<div id="container">
+  <div id="loading-overlay">
+    <div class="spinner"></div>
+    <div id="loading-status">Loading…</div>
+  </div>
+
+  <div id="cmd-widget" style="display:none">
+    <div class="cmd-top">
+      <canvas id="xy-pad"></canvas>
+      <div class="cmd-vals">
+        <div>vx <span class="v" id="cmd-vx">0.00</span> m/s</div>
+        <div>vy <span class="v" id="cmd-vy">0.00</span> m/s</div>
+        <div>wz <span class="v" id="cmd-wz">0.00</span> rad/s</div>
+      </div>
+    </div>
+    <canvas id="wz-bar"></canvas>
+    <div class="cmd-keys">
+      <div class="keys-grid">
+        <div class="key-row">
+          <div class="kc" data-k="KeyQ">Q</div>
+          <div class="kc" data-k="KeyW">W</div>
+          <div class="kc" data-k="KeyE">E</div>
+        </div>
+        <div class="key-row indent">
+          <div class="kc" data-k="KeyA">A</div>
+          <div class="kc" data-k="KeyS">S</div>
+          <div class="kc" data-k="KeyD">D</div>
+        </div>
+      </div>
+      <span class="mode-badge auto" id="mode-text">AUTO</span>
+    </div>
+  </div>
+
+  <!-- Joint response plot (top-right) -->
+  <div id="response-float" style="display:none">
+    <div class="rf-title">Joint Response</div>
+    <canvas id="response-canvas"></canvas>
+    <div class="joint-sel-row" id="joint-selector"></div>
+  </div>
+
+  <div id="legend" style="display:none">
+    <div><span class="legend-dot" style="background:#3344aa"></span>Cmd vel</div>
+    <div><span class="legend-dot" style="background:#00aaff"></span>Actual vel</div>
+    <div><span class="legend-dot" style="background:#33aa33"></span>Cmd yaw</div>
+    <div><span class="legend-dot" style="background:#00ff66"></span>Actual yaw</div>
+  </div>
+
+  <div id="controls">
+    <button class="ctrl-btn" id="play-btn">▶ Play</button>
+    <button class="ctrl-btn" id="reset-btn">↻ Reset</button>
+  </div>
+
+  <div id="hint-overlay">Right-click: orbit · Scroll: zoom</div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/",
+    "onnxruntime-web": "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/ort.min.mjs"
+  }
+}
+</script>
+
+<script type="module">
+import { MuJoCoViewer } from './js_velocity/mujoco_viewer.js';
+import { PolicyRunner } from './js_velocity/policy_runner.js';
+
+// ── Parse URL params ──────────────────────────────────
+const params = new URLSearchParams(window.location.search);
+const scenePath = params.get('scene');
+const policyPath = params.get('policy');
+const configPath = params.get('config');
+
+const statusEl = document.getElementById('loading-status');
+
+if (!scenePath || !policyPath || !configPath) {
+  statusEl.textContent =
+    'Missing parameters. Usage: ?scene=g1_scene.xml&policy=policy.onnx&config=policy_config.json';
+  throw new Error('Missing required URL parameters');
+}
+
+const bgColor = '#' + (params.get('bg') || 'f0f2f5');
+
+// ── Load config ───────────────────────────────────────
+statusEl.textContent = 'Loading config...';
+const configResponse = await fetch(configPath);
+const config = await configResponse.json();
+
+// ── Create viewer ─────────────────────────────────────
+const overlayEl = document.getElementById('loading-overlay');
+
+const viewer = new MuJoCoViewer(document.getElementById('container'), {
+  sceneXML: scenePath,
+  wasmURL: params.get('wasm') || '../dist/mujoco_wasm.js',
+  background: bgColor,
+  cameraPos: [2.5, -1.5, 1.0],
+  cameraTarget: [0, 0, 0.5],
+  onStatus: (msg) => { statusEl.textContent = msg; },
+  onReady: () => {},
+});
+
+try {
+  await viewer.init();
+} catch (err) {
+  console.error('Viewer init failed:', err);
+  statusEl.textContent = 'Failed to load viewer: ' + err.message;
+  throw err;
+}
+
+// Enable camera tracking.
+viewer.enableCameraTracking();
+
+// ── Create policy runner ──────────────────────────────
+statusEl.textContent = 'Loading ONNX policy...';
+const runner = new PolicyRunner(viewer, config);
+
+try {
+  await runner.init(policyPath);
+} catch (err) {
+  console.error('Policy init failed:', err);
+  statusEl.textContent = 'Failed to load policy: ' + err.message;
+  throw err;
+}
+
+// Initialize velocity arrow visualizations.
+runner.initArrows();
+
+overlayEl.classList.add('hidden');
+document.getElementById('cmd-widget').style.display = 'block';
+document.getElementById('legend').style.display = 'block';
+document.getElementById('response-float').style.display = 'block';
+
+// ── Joint response plot ──────────────────────────────
+const RESP_HISTORY = 60;
+const responseHistory = [];
+const respCanvas = document.getElementById('response-canvas');
+const jointSelRow = document.getElementById('joint-selector');
+
+// Show a curated subset of joints for legibility.
+const JOINT_SUBSET = [
+  { idx: 0, label: 'LHip' },
+  { idx: 3, label: 'LKnee' },
+  { idx: 4, label: 'LAnk' },
+  { idx: 6, label: 'RHip' },
+  { idx: 9, label: 'RKnee' },
+  { idx: 10, label: 'RAnk' },
+  { idx: 12, label: 'Waist' },
+];
+const JOINT_COLORS = [
+  '#e6194b','#3cb44b','#4363d8','#f58231','#911eb4','#42d4f4','#f032e6'
+];
+let selectedSubIdx = 0; // index into JOINT_SUBSET
+
+// Build joint selector buttons dynamically.
+JOINT_SUBSET.forEach((j, si) => {
+  const btn = document.createElement('button');
+  btn.className = 'joint-btn' + (si === 0 ? ' active' : '');
+  btn.textContent = j.label;
+  btn.dataset.si = si;
+  if (si === 0) btn.style.background = JOINT_COLORS[0];
+  btn.addEventListener('click', () => {
+    selectedSubIdx = si;
+    jointSelRow.querySelectorAll('.joint-btn').forEach(b => {
+      b.classList.remove('active'); b.style.background = '';
+    });
+    btn.classList.add('active');
+    btn.style.background = JOINT_COLORS[si];
+  });
+  jointSelRow.appendChild(btn);
+});
+
+let respSkip = 0;
+
+runner.onStep = (data, actionData) => {
+  respSkip++;
+  if (respSkip < 3) return;
+  respSkip = 0;
+  const cfg = config;
+  const qOff = cfg.qpos_joint_offset;
+  const actual = [], target = [];
+  for (const j of JOINT_SUBSET) {
+    actual.push(data.qpos[qOff + j.idx]);
+    target.push(
+      actionData[j.idx] * cfg.action_scale[j.idx] + cfg.default_joint_pos[j.idx]
+    );
+  }
+  responseHistory.push({ actual, target });
+  if (responseHistory.length > RESP_HISTORY) responseHistory.shift();
+};
+
+function drawResponsePlot() {
+  if (!respCanvas) return;
+  const dpr = Math.min(window.devicePixelRatio, 2);
+  const W = respCanvas.clientWidth;
+  const H = respCanvas.clientHeight;
+  if (W === 0 || H === 0) return;
+  respCanvas.width = W * dpr;
+  respCanvas.height = H * dpr;
+  const ctx = respCanvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const si = selectedSubIdx;
+  const color = JOINT_COLORS[si];
+  const n = responseHistory.length;
+  const padL = 38, padR = 6, padT = 20, padB = 8;
+  const pW = W - padL - padR;
+  const pH = H - padT - padB;
+
+  ctx.clearRect(0, 0, W, H);
+
+  if (n < 2) {
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.font = '13px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Waiting for data…', W / 2, H / 2);
+    return;
+  }
+
+  // Y range
+  let yMin = Infinity, yMax = -Infinity;
+  for (const s of responseHistory) {
+    yMin = Math.min(yMin, s.actual[si], s.target[si]);
+    yMax = Math.max(yMax, s.actual[si], s.target[si]);
+  }
+  if (yMax - yMin < 0.3) {
+    const mid = (yMin + yMax) / 2;
+    yMin = mid - 0.15; yMax = mid + 0.15;
+  }
+  const yPad = (yMax - yMin) * 0.08;
+  yMin -= yPad; yMax += yPad;
+
+  function xOf(i) { return padL + (i / (RESP_HISTORY - 1)) * pW; }
+  function yOf(v) { return padT + (1 - (v - yMin) / (yMax - yMin)) * pH; }
+  const startIdx = RESP_HISTORY - n;
+
+  // Y-axis ticks
+  ctx.textAlign = 'right';
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.font = '11px -apple-system, BlinkMacSystemFont, sans-serif';
+  for (let t = 0; t <= 3; t++) {
+    const v = yMin + (t / 3) * (yMax - yMin);
+    const y = padT + (1 - t / 3) * pH;
+    ctx.fillText(v.toFixed(2), padL - 4, y + 4);
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+    ctx.lineWidth = 0.5;
+    ctx.moveTo(padL, y); ctx.lineTo(padL + pW, y);
+    ctx.stroke();
+  }
+
+  // Target — dashed
+  ctx.beginPath();
+  ctx.setLineDash([4, 3]);
+  ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+  ctx.lineWidth = 1.5;
+  for (let i = 0; i < n; i++) {
+    const x = xOf(startIdx + i), y = yOf(responseHistory[i].target[si]);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Actual — solid
+  ctx.beginPath();
+  ctx.setLineDash([]);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  for (let i = 0; i < n; i++) {
+    const x = xOf(startIdx + i), y = yOf(responseHistory[i].actual[si]);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Legend
+  ctx.font = '12px -apple-system, BlinkMacSystemFont, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillStyle = color;
+  ctx.fillText('— actual', W - padR - 70, 15);
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  ctx.fillText('- - target', W - padR, 15);
+}
+
+// Redraw at display refresh rate (stoppable for hibernation).
+let _respRunning = true;
+function respLoop() {
+  if (!_respRunning) return;
+  drawResponsePlot();
+  requestAnimationFrame(respLoop);
+}
+respLoop();
+
+// ── Auto-command state ───────────────────────────────
+let autoCommandMode = true;
+const AUTO_TARGET = [1.0, 0, 0.7]; // 1 m/s forward + 0.7 rad/s turn
+let lastUserInputTime = 0;
+const AUTO_IDLE_MS = 2000;
+
+const CMD_STEP = { vx: 0.3, vy: 0.2, wz: 0.15 };
+const CMD_MAX = { vx: 2.0, vy: 1.0, wz: 0.7 };
+const keysDown = new Set();
+const modeTextEl = document.getElementById('mode-text');
+
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+// ── Joystick canvas drawing ─────────────────────────
+function drawXYPad() {
+  const canvas = document.getElementById('xy-pad');
+  const dpr = Math.min(window.devicePixelRatio, 2);
+  const W = canvas.clientWidth;
+  if (W === 0) return;
+  canvas.width = canvas.height = W * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const cx = W / 2, cy = W / 2, r = W / 2 - 2;
+
+  // Background circle
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0,0,0,0.03)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Crosshairs
+  ctx.beginPath();
+  ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+  ctx.lineWidth = 0.5;
+  ctx.moveTo(cx - r, cy); ctx.lineTo(cx + r, cy);
+  ctx.moveTo(cx, cy - r); ctx.lineTo(cx, cy + r);
+  ctx.stroke();
+
+  // 50% range ring
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.5, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(0,0,0,0.04)';
+  ctx.stroke();
+
+  // Command dot: vx → up, vy → right
+  const cmd = runner.command;
+  const dotX = cx + (cmd[1] / CMD_MAX.vx) * r;
+  const dotY = cy - (cmd[0] / CMD_MAX.vx) * r;
+
+  // Glow
+  ctx.beginPath();
+  ctx.arc(dotX, dotY, 6, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(74,122,236,0.2)';
+  ctx.fill();
+  // Dot
+  ctx.beginPath();
+  ctx.arc(dotX, dotY, 4, 0, Math.PI * 2);
+  ctx.fillStyle = '#4a7aec';
+  ctx.fill();
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+}
+
+function drawWZBar() {
+  const canvas = document.getElementById('wz-bar');
+  const dpr = Math.min(window.devicePixelRatio, 2);
+  const W = canvas.clientWidth;
+  const H = canvas.clientHeight;
+  if (W === 0) return;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const padX = 6, trackW = W - padX * 2;
+  const trackY = H / 2, trackH = 3;
+  const centerX = padX + trackW / 2;
+
+  // Track
+  ctx.fillStyle = 'rgba(0,0,0,0.06)';
+  ctx.fillRect(padX, trackY - trackH / 2, trackW, trackH);
+
+  // Center tick
+  ctx.fillStyle = 'rgba(0,0,0,0.12)';
+  ctx.fillRect(centerX - 0.5, trackY - 5, 1, 10);
+
+  // Dot: positive wz = turn left → dot left
+  const frac = clamp(runner.command[2] / CMD_MAX.wz, -1, 1);
+  const dotX = centerX - frac * (trackW / 2);
+
+  ctx.beginPath();
+  ctx.arc(dotX, trackY, 4, 0, Math.PI * 2);
+  ctx.fillStyle = '#33aa33';
+  ctx.fill();
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+}
+
+// ── Command update loop (30 Hz) ─────────────────────
+function updateCommand() {
+  const now = Date.now();
+  const cmd = runner.command;
+
+  // Switch to auto after idle.
+  if (!autoCommandMode && keysDown.size === 0 && now - lastUserInputTime > AUTO_IDLE_MS) {
+    autoCommandMode = true;
+    modeTextEl.textContent = 'AUTO';
+    modeTextEl.className = 'mode-badge auto';
+  }
+
+  if (autoCommandMode) {
+    const alpha = 0.03;
+    cmd[0] += (AUTO_TARGET[0] - cmd[0]) * alpha;
+    cmd[1] += (AUTO_TARGET[1] - cmd[1]) * alpha;
+    cmd[2] += (AUTO_TARGET[2] - cmd[2]) * alpha;
+  } else {
+    let vx = 0, vy = 0, wz = 0;
+    if (keysDown.has('KeyW') || keysDown.has('ArrowUp'))    vx += CMD_STEP.vx;
+    if (keysDown.has('KeyS') || keysDown.has('ArrowDown'))  vx -= CMD_STEP.vx;
+    if (keysDown.has('KeyA') || keysDown.has('ArrowLeft'))  vy += CMD_STEP.vy;
+    if (keysDown.has('KeyD') || keysDown.has('ArrowRight')) vy -= CMD_STEP.vy;
+    if (keysDown.has('KeyQ')) wz += CMD_STEP.wz;
+    if (keysDown.has('KeyE')) wz -= CMD_STEP.wz;
+    const decay = 0.92;
+    cmd[0] = clamp(cmd[0] * decay + vx, -CMD_MAX.vx, CMD_MAX.vx);
+    cmd[1] = clamp(cmd[1] * decay + vy, -CMD_MAX.vy, CMD_MAX.vy);
+    cmd[2] = clamp(cmd[2] * decay + wz, -CMD_MAX.wz, CMD_MAX.wz);
+  }
+
+  // Numeric display
+  document.getElementById('cmd-vx').textContent = cmd[0].toFixed(2);
+  document.getElementById('cmd-vy').textContent = cmd[1].toFixed(2);
+  document.getElementById('cmd-wz').textContent = cmd[2].toFixed(2);
+
+  // Key highlights
+  document.querySelectorAll('.kc').forEach(el => {
+    el.classList.toggle('on', keysDown.has(el.dataset.k));
+  });
+
+  // Redraw joystick canvases
+  drawXYPad();
+  drawWZBar();
+}
+
+let _cmdIntervalId = setInterval(updateCommand, 33);
+
+// ── Keyboard controls ────────────────────────────────
+function setManualMode() {
+  autoCommandMode = false;
+  lastUserInputTime = Date.now();
+  modeTextEl.textContent = 'MANUAL';
+  modeTextEl.className = 'mode-badge manual';
+}
+function setAutoMode() {
+  autoCommandMode = true;
+  modeTextEl.textContent = 'AUTO';
+  modeTextEl.className = 'mode-badge auto';
+}
+
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    runner.command.fill(0);
+    setManualMode();
+    return;
+  }
+  if (e.code === 'KeyR') {
+    runner.reset();
+    setAutoMode();
+    return;
+  }
+  keysDown.add(e.code);
+  setManualMode();
+});
+
+window.addEventListener('keyup', (e) => {
+  keysDown.delete(e.code);
+});
+
+// ── Button controls ──────────────────────────────────
+const playBtn = document.getElementById('play-btn');
+let isPlaying = false;
+
+playBtn.addEventListener('click', () => {
+  if (isPlaying) {
+    runner.stop();
+    playBtn.textContent = '▶ Play';
+  } else {
+    runner.start();
+    playBtn.textContent = '⏸ Pause';
+  }
+  isPlaying = !isPlaying;
+});
+
+document.getElementById('reset-btn').addEventListener('click', () => {
+  runner.reset();
+  setAutoMode();
+});
+
+// ── Pause/resume from parent (iframe hibernation) ────
+let _simPaused = false;
+window.addEventListener('message', (e) => {
+  if (e.data?.type === 'sim-pause' && !_simPaused) {
+    _simPaused = true;
+    if (isPlaying) runner.stop();
+    viewer.stopRenderLoop();
+    _respRunning = false;
+    clearInterval(_cmdIntervalId);
+    _cmdIntervalId = null;
+  }
+  if (e.data?.type === 'sim-resume' && _simPaused) {
+    _simPaused = false;
+    if (isPlaying) runner.start();
+    else viewer.startRenderLoop();
+    _respRunning = true;
+    respLoop();
+    _cmdIntervalId = setInterval(updateCommand, 33);
+  }
+});
+
+// Set initial command to default and auto-start.
+runner.command[0] = AUTO_TARGET[0];
+runner.command[1] = AUTO_TARGET[1];
+runner.command[2] = AUTO_TARGET[2];
+runner.start();
+isPlaying = true;
+playBtn.textContent = '⏸ Pause';
+</script>
+</body>
+</html>

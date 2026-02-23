@@ -35,7 +35,8 @@ def _get_xmls(pattern: str) -> List[pathlib.Path]:
       test_name = str(f).removeprefix(str(f.parent.parent))
       yield (test_name, f)
 
-_MODEL_XMLS = list(_get_xmls('scene*.xml'))
+
+_MODEL_XMLS = list(_get_xmls("scene*.xml"))
 
 # Total simulation duration, in seconds.
 _MAX_SIM_TIME = 0.1
@@ -44,10 +45,10 @@ _NOISE_SCALE = 1.0
 
 
 def _pseudorandom_ctrlnoise(
-    model: mujoco.MjModel,
-    data: mujoco.MjData,
-    i: int,
-    noise: float,
+  model: mujoco.MjModel,
+  data: mujoco.MjData,
+  i: int,
+  noise: float,
 ) -> None:
   for j in range(model.nu):
     ctrlrange = model.actuator_ctrlrange[j]
@@ -57,7 +58,7 @@ def _pseudorandom_ctrlnoise(
     else:
       center = 0.0
       radius = 1.0
-    data.ctrl[j] = center + radius * noise * (2*mujoco.mju_Halton(i, j+2) - 1)
+    data.ctrl[j] = center + radius * noise * (2 * mujoco.mju_Halton(i, j + 2) - 1)
 
 
 class ModelsTest(parameterized.TestCase):
@@ -74,12 +75,15 @@ class ModelsTest(parameterized.TestCase):
       i += 1
     # Check no warnings were triggered during the simulation.
     if not all(data.warning.number == 0):
-      warning_info = '\n'.join([
-          f'{mujoco.mjtWarning(enum_value).name}: count={count}'
-          for enum_value, count in enumerate(data.warning.number) if count
-      ])
-      self.fail(f'MuJoCo warning(s) encountered:\n{warning_info}')
+      warning_info = "\n".join(
+        [
+          f"{mujoco.mjtWarning(enum_value).name}: count={count}"
+          for enum_value, count in enumerate(data.warning.number)
+          if count
+        ]
+      )
+      self.fail(f"MuJoCo warning(s) encountered:\n{warning_info}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
   absltest.main()

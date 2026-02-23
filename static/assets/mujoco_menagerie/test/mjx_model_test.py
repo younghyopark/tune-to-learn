@@ -38,7 +38,8 @@ def _get_xmls(pattern: str) -> List[pathlib.Path]:
       test_name = str(f).removeprefix(str(f.parent.parent))
       yield (test_name, f)
 
-_MJX_MODEL_XMLS = list(_get_xmls('scene*mjx.xml'))
+
+_MJX_MODEL_XMLS = list(_get_xmls("scene*mjx.xml"))
 
 # Total simulation duration, in seconds.
 _MAX_SIM_TIME = 0.1
@@ -53,32 +54,32 @@ class MjxModelsTest(parameterized.TestCase):
     model = mjx.put_model(model)
     data = mjx.make_data(model)
     ctrlrange = jp.where(
-        model.actuator_ctrllimited[:, None],
-        model.actuator_ctrlrange,
-        jp.array([-10.0, 10.0]),
+      model.actuator_ctrllimited[:, None],
+      model.actuator_ctrlrange,
+      jp.array([-10.0, 10.0]),
     )
 
     def step(x, _):
       data, rng = x
       rng, key = jax.random.split(rng)
       ctrl = jax.random.uniform(
-          key,
-          shape=(model.nu,),
-          minval=ctrlrange[:, 0],
-          maxval=ctrlrange[:, 1],
+        key,
+        shape=(model.nu,),
+        minval=ctrlrange[:, 0],
+        maxval=ctrlrange[:, 1],
       )
       data = mjx.step(model, data.replace(ctrl=ctrl))
       return (data, rng), ()
 
     (data, _), _ = jax.lax.scan(
-        step,
-        (data, jax.random.PRNGKey(0)),
-        (),
-        length=min(_MAX_SIM_TIME // model.opt.timestep, 100),
+      step,
+      (data, jax.random.PRNGKey(0)),
+      (),
+      length=min(_MAX_SIM_TIME // model.opt.timestep, 100),
     )
 
     self.assertFalse(jp.isnan(data.qpos).any())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
   absltest.main()

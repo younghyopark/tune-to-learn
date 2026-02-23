@@ -1092,6 +1092,17 @@ viewer.init().catch(err => {
   statusEl.textContent = 'Failed: ' + err.message;
 });
 
+// ── Pause/resume from parent (iframe hibernation) ────
+window.addEventListener('message', (e) => {
+  if (e.data?.type === 'sim-pause') {
+    viewer.trajPause();
+    viewer.freeze();
+  }
+  if (e.data?.type === 'sim-resume') {
+    viewer.unfreeze();
+  }
+});
+
 // ── Transport controls ────────────────────────────────
 
 function syncPlayIcon(playing) {

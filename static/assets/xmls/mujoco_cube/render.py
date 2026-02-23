@@ -17,15 +17,15 @@ frames = []
 rot = 360.0
 delta = 10.0
 for i in range(int(rot / delta)):
-    camera._render_camera.azimuth = i * delta
-    frames.append(Image.fromarray(camera.render()))
+  camera._render_camera.azimuth = i * delta
+  frames.append(Image.fromarray(camera.render()))
 
 # Save the frames as a gif.
 frames[0].save(
-    "cube3x3x3.gif",
-    format="GIF",
-    append_images=frames[1:],
-    save_all=True,
-    loop=0,
-    duration=100,
+  "cube3x3x3.gif",
+  format="GIF",
+  append_images=frames[1:],
+  save_all=True,
+  loop=0,
+  duration=100,
 )
