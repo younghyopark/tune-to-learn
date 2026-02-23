@@ -400,13 +400,12 @@
     50%      { opacity: 0.7; box-shadow: 0 0 10px 4px rgba(255,59,48,0.3); }
   }
 
-  /* ── Onboarding tour (spotlight cutout) ───────────── */
+  /* ── Onboarding tour (spotlight — no dark tint, glow border only) ── */
   #tour-spotlight {
     position: fixed;
     z-index: 180;
     border-radius: 8px;
-    /* The magic: transparent center with huge dark box-shadow */
-    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
+    /* no dark tint — only the ::after glow border is visible */
     pointer-events: none;
     transition: top 0.3s ease, left 0.3s ease, width 0.3s ease, height 0.3s ease, opacity 0.3s ease;
   }
@@ -476,6 +475,9 @@
     top: -6px;
     left: 50%;
     transform: translateX(-50%) rotate(45deg);
+  }
+  #tour-tooltip[data-arrow="none"]::before {
+    display: none;
   }
 
   .tour-header {
@@ -818,94 +820,51 @@ function showTourStep(idx) {
   const step = TOUR_STEPS[idx];
   const targetEl = step.target ? document.getElementById(step.target) : null;
   
-  // Special case: no target means "point outside iframe" (e.g., to parent tabs)
-  if (!step.target) {
+  // If the step has a target element, spotlight it
+  if (step.target && targetEl) {
+    // Make sure target is visible (remove hidden class temporarily)
+    const wasHidden = targetEl.classList.contains('hidden');
+    if (wasHidden) {
+      targetEl.classList.remove('hidden');
+      tourHiddenElements.push(targetEl);
+    }
+
+    // Elevate target so it's clickable above the spotlight
+    targetEl.classList.add('tour-target-elevated');
+    tourCurrentTarget = targetEl;
+  } else if (!step.target) {
     tourCurrentTarget = null;
-    
-    requestAnimationFrame(() => {
-      // Position spotlight as a bar at the very top edge
-      spotlight.style.top = '-10px';
-      spotlight.style.left = '0px';
-      spotlight.style.width = '100%';
-      spotlight.style.height = '20px';
-      spotlight.classList.remove('hidden');
-      
-      // Update tooltip content
-      stepNumEl.textContent = idx + 1;
-      titleEl.textContent = step.title;
-      descEl.textContent = step.desc;
-      progressEl.textContent = `${idx + 1} of ${TOUR_STEPS.length}`;
-      nextBtn.textContent = idx === TOUR_STEPS.length - 1 ? 'Done' : 'Next';
-      
-      // Position tooltip at top center
-      tooltip.style.left = (window.innerWidth / 2 - 140) + 'px';
-      tooltip.style.top = '30px';
-      tooltip.dataset.arrow = 'top-banner';
-      tooltip.classList.remove('hidden');
-    });
-    return;
-  }
-  
-  if (!targetEl) {
-    // Skip this step if element not found
+  } else {
+    // Target element not found — skip step
     showTourStep(idx + 1);
     return;
   }
-  
-  // Make sure target is visible (remove hidden class temporarily)
-  const wasHidden = targetEl.classList.contains('hidden');
-  if (wasHidden) {
-    targetEl.classList.remove('hidden');
-    tourHiddenElements.push(targetEl);
-  }
-  
-  // Elevate target so it's clickable above the spotlight shadow
-  targetEl.classList.add('tour-target-elevated');
-  tourCurrentTarget = targetEl;
-  
-  // Get target position (use a small delay to ensure layout is updated)
+
   requestAnimationFrame(() => {
-    const rect = targetEl.getBoundingClientRect();
-    const padding = 8;
-    
-    // Position and size the spotlight to cut out the target
-    spotlight.style.top = (rect.top - padding) + 'px';
-    spotlight.style.left = (rect.left - padding) + 'px';
-    spotlight.style.width = (rect.width + padding * 2) + 'px';
-    spotlight.style.height = (rect.height + padding * 2) + 'px';
-    spotlight.classList.remove('hidden');
-    
+    // Position spotlight around target (or hide if no target)
+    if (targetEl) {
+      const rect = targetEl.getBoundingClientRect();
+      const padding = 8;
+      spotlight.style.top = (rect.top - padding) + 'px';
+      spotlight.style.left = (rect.left - padding) + 'px';
+      spotlight.style.width = (rect.width + padding * 2) + 'px';
+      spotlight.style.height = (rect.height + padding * 2) + 'px';
+      spotlight.classList.remove('hidden');
+    } else {
+      spotlight.classList.add('hidden');
+    }
+
     // Update tooltip content
     stepNumEl.textContent = idx + 1;
     titleEl.textContent = step.title;
     descEl.textContent = step.desc;
     progressEl.textContent = `${idx + 1} of ${TOUR_STEPS.length}`;
     nextBtn.textContent = idx === TOUR_STEPS.length - 1 ? 'Done' : 'Next';
-    
-    // Position tooltip relative to target (using viewport coordinates)
-    let left, top;
-    
-    if (step.arrow === 'left') {
-      left = rect.right + 20;
-      top = rect.top + (rect.height / 2) - 50;
-    } else if (step.arrow === 'right') {
-      left = rect.left - 310;
-      top = rect.top - 40;
-    } else if (step.arrow === 'top') {
-      left = rect.left + (rect.width / 2) - 140;
-      top = rect.bottom + 20;
-    } else if (step.arrow === 'bottom') {
-      left = rect.left + (rect.width / 2) - 140;
-      top = rect.top - 200;
-    }
-    
-    // Clamp to viewport bounds
-    left = Math.max(10, Math.min(left, window.innerWidth - 290));
-    top = Math.max(10, Math.min(top, window.innerHeight - 180));
-    
-    tooltip.style.left = left + 'px';
-    tooltip.style.top = top + 'px';
-    tooltip.dataset.arrow = step.arrow;
+
+    // Fixed position: bottom-left for all steps
+    tooltip.style.left = '12px';
+    tooltip.style.top = Math.max(10, window.innerHeight - 230) + 'px';
+    tooltip.dataset.arrow = 'none';
     tooltip.classList.remove('hidden');
   });
 }
@@ -938,23 +897,6 @@ document.getElementById('tour-next')?.addEventListener('click', () => {
 });
 
 document.getElementById('tour-skip')?.addEventListener('click', () => {
-  endTour();
-});
-
-// Dismiss tour when clicking dark backdrop (but not the highlighted element or tooltip)
-document.addEventListener('click', (e) => {
-  if (!tourActive) return;
-  
-  const tooltip = document.getElementById('tour-tooltip');
-  const target = tourCurrentTarget;
-  
-  // If click is inside the tooltip, don't dismiss
-  if (tooltip && tooltip.contains(e.target)) return;
-  
-  // If click is inside the highlighted element, let them interact
-  if (target && target.contains(e.target)) return;
-  
-  // Otherwise, they clicked the dark backdrop - dismiss the tour
   endTour();
 });
 
@@ -1140,8 +1082,10 @@ function setMode(mode) {
 }
 
 // ── Joint selector ────────────────────────────────────
-const JOINT_COLORS = ['#e6194b','#3cb44b','#4363d8','#f58231','#911eb4','#42d4f4','#f032e6'];
 let selectedJoint = 0;
+
+// Will be reassigned once gainNormX/Y and gainColor() are defined below
+let currentCurveColor = () => '#c44e52'; // default fallback (mid-range gain color)
 
 jointSelRow.querySelectorAll('.joint-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -1151,12 +1095,12 @@ jointSelRow.querySelectorAll('.joint-btn').forEach(btn => {
       b.style.background = '';
     });
     btn.classList.add('active');
-    btn.style.background = JOINT_COLORS[selectedJoint];
+    btn.style.background = currentCurveColor();
     drawResponsePlot();
   });
   // Init first button color
   if (btn.classList.contains('active')) {
-    btn.style.background = JOINT_COLORS[0];
+    btn.style.background = currentCurveColor();
   }
 });
 
@@ -1190,7 +1134,7 @@ function drawResponsePlot() {
   ctx.scale(dpr, dpr);
 
   const j = selectedJoint;
-  const color = JOINT_COLORS[j];
+  const color = currentCurveColor();
   const n = responseHistory.length;
 
   const padL = 38, padR = 6, padT = 20, padB = 8;
@@ -1297,6 +1241,8 @@ function gainColor(nx, ny) {
   const c = lerpC(lerpC(GC_A, GC_B, nx), lerpC(GC_C, GC_D, nx), ny);
   return `rgb(${c.map(Math.round).join(',')})`;
 }
+// Now that gainColor and gainNormX/Y are available, wire up the real curve color
+currentCurveColor = () => gainColor(gainNormX, gainNormY);
 function gainsFromNorm(nx, ny) {
   return {
     kp: Math.exp((1 - nx) * Math.log(KPS[0]) + nx * Math.log(KPS[KPS.length - 1])),
@@ -1313,6 +1259,9 @@ function applyGains(nx, ny) {
   kpValEl.textContent = Math.round(g.kp);
   kdValEl.textContent = (Math.round(g.kd * 10) / 10).toString();
   drawGainGrid();
+  // Update active joint button color to match new gain color
+  const activeBtn = jointSelRow.querySelector('.joint-btn.active');
+  if (activeBtn) activeBtn.style.background = currentCurveColor();
 }
 
 function drawGainGrid() {

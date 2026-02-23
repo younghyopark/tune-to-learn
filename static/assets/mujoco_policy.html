@@ -446,7 +446,7 @@ let qvelHistory   = [];
 let mocapHistory  = [];
 
 // ── Response plot state ────────────────────────────────
-const JOINT_COLORS = ['#e6194b','#3cb44b','#4363d8','#f58231','#911eb4','#42d4f4','#f032e6'];
+let curveColor = params.get('gainColor') || '#e6194b';
 let selectedJoint = 0;
 const RESP_HISTORY = 50;
 const responseHistory = [];  // { qpos: [7], qdes: [7] }
@@ -537,6 +537,12 @@ async function swapPolicy(newPolicyPath, newConfigPath, autorun = false) {
 // Listen for messages from parent (policy swap + hibernation)
 window.addEventListener('message', (e) => {
   if (e.data && e.data.type === 'load-policy') {
+    if (e.data.gainColor) {
+      curveColor = e.data.gainColor;
+      // Update active joint button color
+      const activeBtn = jointSelRow.querySelector('.joint-btn.active');
+      if (activeBtn) activeBtn.style.background = curveColor;
+    }
     swapPolicy(e.data.policy, e.data.config, e.data.autorun);
   }
   if (e.data?.type === 'sim-pause') {
@@ -585,7 +591,7 @@ function drawResponsePlot() {
   ctx.scale(dpr, dpr);
 
   const j = selectedJoint;
-  const color = JOINT_COLORS[j];
+  const color = curveColor;
   const n = responseHistory.length;
 
   const padL = 38, padR = 6, padT = 20, padB = 8;
@@ -677,12 +683,12 @@ jointSelRow.querySelectorAll('.joint-btn').forEach(btn => {
       b.style.background = '';
     });
     btn.classList.add('active');
-    btn.style.background = JOINT_COLORS[selectedJoint];
+    btn.style.background = curveColor;
     drawResponsePlot();
   });
   // Init first button color
   if (btn.classList.contains('active')) {
-    btn.style.background = JOINT_COLORS[0];
+    btn.style.background = curveColor;
   }
 });
 

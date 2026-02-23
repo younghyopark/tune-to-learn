@@ -993,7 +993,7 @@ function initPolicyGrid() {
     }
   };
 
-  let currentTask = 'dishwasher';
+  let currentTask = 'handover';
   let DOTS = TASKS[currentTask].dots;
 
   // Corner colors matching the trajectory viewer palette
@@ -1108,11 +1108,13 @@ function initPolicyGrid() {
 
     const policyUrl = task.base + '/' + d.folder + '/policy.onnx';
     const configUrl = task.base + '/' + d.folder + '/policy_config.json';
+    const color = dotColor(d.nx, d.ny);
 
     if (!iframeLoaded || currentScene !== task.scene) {
       // First time or task changed: load the full iframe (scene + policy)
       iframe.src = 'static/assets/mujoco_policy.html?scene=' + task.scene
-        + '&policy=' + policyUrl + '&config=' + configUrl + '&autorun=1';
+        + '&policy=' + policyUrl + '&config=' + configUrl + '&autorun=1'
+        + '&gainColor=' + encodeURIComponent(color);
       iframeLoaded = true;
       currentScene = task.scene;
     } else {
@@ -1121,7 +1123,8 @@ function initPolicyGrid() {
         type: 'load-policy',
         policy: policyUrl,
         config: configUrl,
-        autorun: true
+        autorun: true,
+        gainColor: color
       }, '*');
     }
     draw();
@@ -1314,11 +1317,13 @@ function initRlPolicyGrid() {
 
     // Each variant has its own scene XML (gains baked in).
     const prefix = BASE + '/' + d.folder;
+    const color = dotColor(d.nx, d.ny);
     iframe.src = 'static/assets/mujoco_velocity_policy.html'
       + '?scene=' + prefix + '/g1_scene.xml'
       + '&policy=' + prefix + '/policy.onnx'
       + '&config=' + prefix + '/policy_config.json'
-      + '&autorun=1';
+      + '&autorun=1'
+      + '&gainColor=' + encodeURIComponent(color);
     draw();
   }
 
