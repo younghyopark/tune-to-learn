@@ -178,6 +178,29 @@
     50%      { opacity: 0.7; box-shadow: 0 0 10px 4px rgba(255,59,48,0.3); }
   }
 
+  #help-btn {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 50;
+    border: 1px solid rgba(0,0,0,0.12);
+    background: rgba(255,255,255,0.82);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border-radius: 14px;
+    cursor: pointer;
+    font-family: var(--font);
+    font-size: 11px;
+    font-weight: 600;
+    color: #555;
+    padding: 5px 14px;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  }
+  #help-btn:hover { background: rgba(255,255,255,0.95); color: #222; }
+
   /* ── Joint response plot (top-right, transparent) ─────────── */
   #joint-plot {
     position: absolute; top: 10px; right: 10px;
@@ -265,6 +288,11 @@
     font-family: var(--font);
   }
   #tour-tooltip.hidden { opacity: 0; pointer-events: none; transform: translateY(8px); }
+  #tour-tooltip.tour-intro {
+    background: rgba(255,255,255,0.72);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
   #tour-tooltip::before {
     content: '';
     position: absolute;
@@ -336,6 +364,7 @@
     <span>Live Physics</span>
     <span class="live-hint">— click &amp; drag robot to apply forces</span>
   </div>
+  <button id="help-btn" title="Replay tutorial">? Tour</button>
   <div id="mode-panel">
     <div class="mp-title">Excitation Mode</div>
     <div class="mp-desc">See how the controller tracks different commanded trajectories.</div>
@@ -1202,6 +1231,7 @@ document.addEventListener('visibilitychange', () => {
 function animate(time) {
   if (!animLoopRunning) return;
   requestAnimationFrame(animate);
+  if (!mjModel) return; // not yet initialised
 
   const dt = Math.min(time - lastTime, 50);
   lastTime = time;
@@ -1226,6 +1256,8 @@ function animate(time) {
     mujoco.mj_step1(mjModel, mjData);
     applyPDControl();
     mujoco.mj_step2(mjModel, mjData);
+    if (typeof _dbgStepCount === 'undefined') window._dbgStepCount = 0;
+    if (++window._dbgStepCount % 10 === 0) console.log('fr3_widget | mujoco physics stepping', window._dbgStepCount);
   }
 
   // Record & plot joint state (throttled to ~20 Hz)
@@ -1495,6 +1527,15 @@ window.addEventListener('message', (e) => {
     widgetVisible = e.data.visible;
     if (tabVisible && widgetVisible) startAnimLoop(); else stopAnimLoop();
   }
+  // Hibernation from parent (iframe off-screen pause/resume)
+  if (e.data.type === 'sim-pause') {
+    widgetVisible = false;
+    stopAnimLoop();
+  }
+  if (e.data.type === 'sim-resume') {
+    widgetVisible = true;
+    if (tabVisible) startAnimLoop();
+  }
 });
 
 // Initial draw
@@ -1697,6 +1738,7 @@ function showTourStep(idx) {
       tooltip.style.left    = '12px';
       tooltip.style.top     = Math.max(10, window.innerHeight - 230) + 'px';
       tooltip.dataset.arrow = 'none';
+      tooltip.classList.add('tour-intro');
       tooltip.classList.remove('hidden');
     });
     return;
@@ -1739,6 +1781,7 @@ function showTourStep(idx) {
     tooltip.style.left    = '12px';
     tooltip.style.top     = Math.max(10, window.innerHeight - 230) + 'px';
     tooltip.dataset.arrow = 'none';
+    tooltip.classList.remove('tour-intro');
     tooltip.classList.remove('hidden');
 
     // Apply per-step side-effects
@@ -1797,6 +1840,12 @@ document.getElementById('tour-skip')?.addEventListener('click', () => {
 // Escape key exits (same as Skip)
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && tourActive) endTour();
+});
+
+// Help button: replay tutorial
+document.getElementById('help-btn')?.addEventListener('click', () => {
+  localStorage.removeItem(TOUR_KEY);
+  startTour();
 });
 
 // ═══════════════════════════════════════════════════════════

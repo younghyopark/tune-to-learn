@@ -400,6 +400,29 @@
     50%      { opacity: 0.7; box-shadow: 0 0 10px 4px rgba(255,59,48,0.3); }
   }
 
+  #help-btn {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 50;
+    border: 1px solid rgba(0,0,0,0.12);
+    background: rgba(255,255,255,0.82);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border-radius: 14px;
+    cursor: pointer;
+    font-family: var(--font);
+    font-size: 11px;
+    font-weight: 600;
+    color: #555;
+    padding: 5px 14px;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  }
+  #help-btn:hover { background: rgba(255,255,255,0.95); color: #222; }
+
   /* ── Onboarding tour (spotlight — no dark tint, glow border only) ── */
   #tour-spotlight {
     position: fixed;
@@ -439,6 +462,11 @@
     opacity: 1;
     transition: opacity 0.25s, transform 0.25s, top 0.3s ease, left 0.3s ease;
     font-family: var(--font);
+  }
+  #tour-tooltip.tour-intro {
+    background: rgba(255,255,255,0.72);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
   }
   #tour-tooltip.hidden {
     opacity: 0;
@@ -567,6 +595,7 @@
       <span>Live Physics</span>
       <span class="live-hint">— click &amp; drag robot to apply forces</span>
     </div>
+    <button id="help-btn" title="Replay tutorial">? Tour</button>
 
     <!-- ── Noise panel (bottom-right, physics mode) ──── -->
     <div id="noise-float" class="hidden">
@@ -748,6 +777,12 @@ const TOUR_KEY = 'mujoco-traj-toured';
 
 const TOUR_STEPS = [
   {
+    target: null,
+    noSpotlight: true,
+    title: 'Live Demo',
+    desc: 'Watch a recorded demonstration replayed with live physics. Explore how different gains change how the robot executes the same task.',
+  },
+  {
     target: 'gain-float',
     title: 'PD Gain Grid',
     desc: 'Click anywhere on this grid to change the stiffness (Kp) and damping (Kd) gains. Watch how the commanded actions change while the robot follows the same trajectory.',
@@ -786,7 +821,7 @@ let tourCurrentTarget = null;
 
 function showOnboardingIfNeeded() {
   if (localStorage.getItem(TOUR_KEY)) return;
-  startTour();
+  setTimeout(startTour, 1500);  // let the viewer settle first
 }
 
 function startTour() {
@@ -859,12 +894,13 @@ function showTourStep(idx) {
     titleEl.textContent = step.title;
     descEl.textContent = step.desc;
     progressEl.textContent = `${idx + 1} of ${TOUR_STEPS.length}`;
-    nextBtn.textContent = idx === TOUR_STEPS.length - 1 ? 'Done' : 'Next';
+    nextBtn.textContent = idx === 0 ? 'Start Tour' : idx === TOUR_STEPS.length - 1 ? 'Done' : 'Next';
 
     // Fixed position: bottom-left for all steps
     tooltip.style.left = '12px';
     tooltip.style.top = Math.max(10, window.innerHeight - 230) + 'px';
     tooltip.dataset.arrow = 'none';
+    tooltip.classList.toggle('tour-intro', step.noSpotlight === true);
     tooltip.classList.remove('hidden');
   });
 }
@@ -906,6 +942,13 @@ document.addEventListener('keydown', (e) => {
     endTour();
   }
 });
+
+// Help button: replay tutorial
+document.getElementById('help-btn')?.addEventListener('click', () => {
+  localStorage.removeItem(TOUR_KEY);
+  startTour();
+});
+
 const panelHeader= document.getElementById('panel-header');
 
 // Gain controls
@@ -923,6 +966,8 @@ const jointSelRow  = document.getElementById('joint-selector');
 // ── Episode state ─────────────────────────────────────
 let currentEpIdx = 0;
 let loadingEp    = false;
+let _simPaused   = false;   // true when parent sent sim-pause (even before WASM ready)
+let _viewerReady = false;   // true after onReady fires
 
 function updateEpUI() {
   epLabel.textContent = `${currentEpIdx + 1} / ${trajPaths.length}`;
@@ -981,7 +1026,9 @@ const viewer = new MuJoCoViewer(document.getElementById('container'), {
       applyGains(gainNormX, gainNormY);
 
       // Physics step callback → record response
+      let _dbgStepCount = 0;
       viewer.onPhysicsStep((qpos, qdes, nArm) => {
+        if (++_dbgStepCount % 10 === 0) console.log('trajectory_widget | mujoco physics stepping', _dbgStepCount);
         recordResponse(qpos, qdes, nArm);
       });
 
@@ -1012,13 +1059,20 @@ const viewer = new MuJoCoViewer(document.getElementById('container'), {
         updateEpUI();
       }
 
-      // Load first episode
+      // Always autoplay — initSimTabs defers creation until user is nearby
       await loadEpisode(0, autoPlay);
 
       // Default to physics mode
       setMode('step');
 
+      _viewerReady = true;
+
       overlayEl.classList.add('hidden');
+
+      // Tell parent we're ready so it re-sends correct visibility state.
+      // This avoids the race where sim-pause arrived before WASM finished
+      // but sim-resume was lost (viewer wasn't ready yet).
+      window.parent.postMessage({ type: 'sim-widget-ready' }, '*');
 
       // ── Show onboarding for first-time visitors ──
       showOnboardingIfNeeded();
@@ -1037,11 +1091,21 @@ viewer.init().catch(err => {
 // ── Pause/resume from parent (iframe hibernation) ────
 window.addEventListener('message', (e) => {
   if (e.data?.type === 'sim-pause') {
-    viewer.trajPause();
-    viewer.freeze();
+    _simPaused = true;
+    if (_viewerReady) {
+      viewer.trajPause();
+      viewer.freeze();
+      syncPlayIcon(false);
+    }
   }
   if (e.data?.type === 'sim-resume') {
-    viewer.unfreeze();
+    _simPaused = false;
+    if (_viewerReady) {
+      viewer.unfreeze();
+      // Resume trajectory playback
+      viewer.trajPlay();
+      syncPlayIcon(true);
+    }
   }
 });
 

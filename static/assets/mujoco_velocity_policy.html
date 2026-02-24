@@ -38,7 +38,9 @@
     position: absolute; inset: 0;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
-    background: #f0f2f5; color: #555;
+    background: rgba(240,242,245,0.8);
+    backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    color: #555;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
     z-index: 100; transition: opacity 0.5s;
   }
@@ -97,6 +99,54 @@
   .mode-badge.auto { background: rgba(124,168,248,0.15); color: #5a8df8; }
   .mode-badge.manual { background: rgba(248,200,124,0.15); color: #d4a030; }
 
+  /* Mode toggle (top-center) */
+  #mode-toggle {
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    z-index: 30;
+    background: rgba(255,255,255,0.65);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    border-radius: 8px; overflow: hidden;
+    border: 1px solid rgba(0,0,0,0.08);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    font-size: 12px; user-select: none;
+  }
+  #mode-toggle button {
+    background: none; border: none; padding: 6px 16px;
+    cursor: pointer; font-size: 12px; font-weight: 500;
+    color: #888; transition: all 0.15s;
+  }
+  #mode-toggle button.active { background: #4a7aec; color: #fff; }
+  #mode-toggle button:not(.active):hover { background: rgba(0,0,0,0.04); }
+
+  /* Gain test info panel */
+  #gain-info {
+    position: absolute; bottom: 50px; right: 12px;
+    background: rgba(255,255,255,0.65);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    border-radius: 10px; z-index: 10;
+    padding: 12px 16px; width: 220px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    font-size: 12px; color: #555;
+  }
+  #gain-info h5 {
+    margin: 0 0 6px; font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.5px; color: #888; font-weight: 600;
+  }
+  #gain-info p { margin: 0 0 4px; line-height: 1.4; }
+  #gain-info .exc-label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px;
+    color: #888; font-weight: 600; margin: 8px 0 4px;
+  }
+  .exc-row { display: flex; gap: 4px; }
+  .exc-row button {
+    flex: 1; padding: 5px 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    font-size: 10px; border: 1px solid rgba(0,0,0,0.1); border-radius: 4px;
+    background: transparent; color: #888; cursor: pointer; transition: all 0.12s;
+  }
+  .exc-row button:hover { border-color: rgba(0,0,0,0.2); }
+  .exc-row button.active { background: #4a7aec; color: #fff; border-color: transparent; }
+
   #hint-overlay { display: none; }
   #legend { display: none; }
 
@@ -149,6 +199,56 @@
     50%      { opacity: 0.7; box-shadow: 0 0 10px 4px rgba(255,59,48,0.3); }
   }
 
+  #help-btn {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 50;
+    border: 1px solid rgba(0,0,0,0.12);
+    background: rgba(255,255,255,0.82);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border-radius: 14px;
+    cursor: pointer;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    color: #555;
+    padding: 5px 14px;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  }
+  #help-btn:hover { background: rgba(255,255,255,0.95); color: #222; }
+
+  #help-popup {
+    display: none;
+    position: absolute;
+    bottom: 44px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 200;
+    background: #fff;
+    border-radius: 10px;
+    padding: 14px 18px;
+    width: 260px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.2);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #333;
+  }
+  #help-popup.show { display: block; }
+  #help-popup h4 { margin: 0 0 6px; font-size: 13px; font-weight: 600; }
+  #help-popup ul { margin: 0; padding-left: 16px; }
+  #help-popup li { margin-bottom: 2px; }
+  #help-popup .help-close {
+    position: absolute; top: 6px; right: 10px;
+    background: none; border: none; font-size: 16px;
+    cursor: pointer; color: #999; line-height: 1;
+  }
+
   /* Joint response plot (transparent, like trajectory viewer) */
   #response-float {
     position: absolute; top: 10px; right: 10px;
@@ -177,6 +277,76 @@
   }
   .joint-btn:hover { border-color: rgba(0,0,0,0.2); }
   .joint-btn.active { border-color: transparent; color: #fff; }
+
+  /* ── Onboarding Tour ─────────────────────────────── */
+  #tour-spotlight {
+    position: fixed;
+    z-index: 180;
+    border-radius: 8px;
+    pointer-events: none;
+    transition: top 0.3s ease, left 0.3s ease, width 0.3s ease, height 0.3s ease, opacity 0.3s ease;
+  }
+  #tour-spotlight.hidden { opacity: 0; pointer-events: none; }
+  #tour-spotlight::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border: 3px solid rgba(108, 123, 240, 0.8);
+    border-radius: 10px;
+    box-shadow: 0 0 12px 4px rgba(108, 123, 240, 0.4);
+    pointer-events: none;
+  }
+  .tour-target-elevated { z-index: 185 !important; }
+
+  #tour-tooltip {
+    position: fixed;
+    z-index: 200;
+    background: #fff;
+    border-radius: 10px;
+    padding: 16px 18px 14px;
+    width: 280px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.25);
+    transition: opacity 0.25s, transform 0.25s, top 0.3s ease, left 0.3s ease;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  }
+  #tour-tooltip.hidden { opacity: 0; pointer-events: none; transform: translateY(8px); }
+  #tour-tooltip.tour-intro {
+    background: rgba(255,255,255,0.72);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  #tour-tooltip::before {
+    content: '';
+    position: absolute;
+    width: 12px; height: 12px;
+    background: #fff;
+    transform: rotate(45deg);
+  }
+  #tour-tooltip[data-arrow="none"]::before { display: none; }
+
+  .tour-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .tour-step-num {
+    width: 24px; height: 24px;
+    background: #6c7bf0; color: #fff;
+    border-radius: 50%; font-size: 12px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .tour-title { font-size: 14px; font-weight: 600; color: #222; }
+  .tour-desc { font-size: 12px; line-height: 1.55; color: #555; margin-bottom: 14px; }
+  .tour-footer { display: flex; align-items: center; justify-content: space-between; }
+  .tour-progress { font-size: 11px; color: #999; }
+  .tour-btns { display: flex; gap: 8px; }
+  .tour-btn {
+    padding: 6px 14px; border-radius: 6px;
+    font-size: 12px; font-weight: 500; cursor: pointer;
+    transition: background 0.12s, transform 0.08s; border: none;
+  }
+  .tour-btn:active { transform: scale(0.96); }
+  .tour-btn-skip { background: transparent; color: #888; }
+  .tour-btn-skip:hover { background: rgba(0,0,0,0.05); color: #666; }
+  .tour-btn-next { background: #6c7bf0; color: #fff; }
+  .tour-btn-next:hover { background: #8290ff; }
+  .tour-btn-next:disabled { background: #b0b8f8; cursor: not-allowed; opacity: 0.6; }
 </style>
 </head>
 <body>
@@ -192,6 +362,26 @@
     <span class="live-dot"></span>
     <span>Live Physics</span>
     <span class="live-hint">— WASD·QE to steer</span>
+  </div>
+  <button id="help-btn" title="Replay tutorial" style="display:none">? Tour</button>
+
+  <!-- Mode toggle (top-center) -->
+  <div id="mode-toggle" style="display:none">
+    <button id="mode-walk" class="active">Walk</button>
+    <button id="mode-gain">Gain Test</button>
+  </div>
+
+  <!-- Gain test info panel (replaces cmd-widget) -->
+  <div id="gain-info" style="display:none">
+    <h5>Gain Test</h5>
+    <p>Torso fixed. Drag the robot to feel stiffness.</p>
+    <div class="exc-label">Excitation</div>
+    <div class="exc-row">
+      <button class="active" data-exc="hold">Hold</button>
+      <button data-exc="sine">Sine</button>
+      <button data-exc="step">Step</button>
+    </div>
+    <p style="color:#888;font-size:10px;margin-top:6px">Press <b>R</b> to reset.</p>
   </div>
 
   <!-- Command widget (bottom-right) -->
@@ -244,6 +434,23 @@
   <div id="hint-overlay">Right-click: orbit · Scroll: zoom</div>
 </div>
 
+<!-- ── Tour spotlight & tooltip (outside container for full coverage) ── -->
+<div id="tour-spotlight" class="hidden"></div>
+<div id="tour-tooltip" class="hidden" data-arrow="none">
+  <div class="tour-header">
+    <span class="tour-step-num" id="tour-step-num">1</span>
+    <span class="tour-title" id="tour-title">Title</span>
+  </div>
+  <div class="tour-desc" id="tour-desc">Description</div>
+  <div class="tour-footer">
+    <span class="tour-progress" id="tour-progress">1 of 5</span>
+    <div class="tour-btns">
+      <button class="tour-btn tour-btn-skip" id="tour-skip">Skip</button>
+      <button class="tour-btn tour-btn-next" id="tour-next">Next</button>
+    </div>
+  </div>
+</div>
+
 <script type="importmap">
 {
   "imports": {
@@ -273,12 +480,12 @@ if (!scenePath || !policyPath || !configPath) {
 }
 
 const bgColor = '#' + (params.get('bg') || 'f0f2f5');
-const curveColor = params.get('gainColor') || '#e6194b';
+let curveColor = params.get('gainColor') || '#e6194b';
 
 // ── Load config ───────────────────────────────────────
 statusEl.textContent = 'Loading config...';
 const configResponse = await fetch(configPath);
-const config = await configResponse.json();
+let config = await configResponse.json();
 
 // ── Create viewer ─────────────────────────────────────
 const overlayEl = document.getElementById('loading-overlay');
@@ -319,11 +526,64 @@ try {
 // Initialize velocity arrow visualizations.
 runner.initArrows();
 
+// Create a fixed-base model for gain test mode (no freejoint → no coupling).
+let fixedModel = null, fixedData = null;
+let originalModel = null, originalData = null;
+try {
+  const mj = viewer.getMujoco();
+  const xmlText = new TextDecoder().decode(mj.FS.readFile('/working/scene.xml'));
+  const doc = new DOMParser().parseFromString(xmlText, 'text/xml');
+
+  // Remove floor plane so feet hang freely.
+  doc.querySelectorAll('worldbody > geom[type="plane"]').forEach(g => g.remove());
+
+  // Remove the freejoint and raise the root body.
+  const fj = doc.querySelector('joint[type="free"]');
+  if (fj) {
+    const body = fj.parentElement;
+    const pos = body.getAttribute('pos');
+    if (pos) {
+      const p = pos.split(/\s+/);
+      p[2] = String(parseFloat(p[2]) + 0.3);
+      body.setAttribute('pos', p.join(' '));
+    }
+    fj.remove();
+  }
+
+  // Fix keyframe: strip 7 base DOFs from qpos.
+  const keyEl = doc.querySelector('key');
+  if (keyEl && keyEl.getAttribute('qpos')) {
+    const v = keyEl.getAttribute('qpos').trim().split(/\s+/);
+    v.splice(0, 7);
+    keyEl.setAttribute('qpos', v.join(' '));
+  }
+
+  const fixedXml = new XMLSerializer().serializeToString(doc);
+  mj.FS.writeFile('/working/fixed_scene.xml', fixedXml);
+  fixedModel = mj.MjModel.loadFromXML('/working/fixed_scene.xml');
+  fixedData = new mj.MjData(fixedModel);
+  mj.mj_resetDataKeyframe(fixedModel, fixedData, 0);
+  mj.mj_forward(fixedModel, fixedData);
+} catch (err) {
+  console.warn('Fixed model creation failed (gain test disabled):', err);
+}
+
 overlayEl.classList.add('hidden');
 document.getElementById('cmd-widget').style.display = 'block';
 document.getElementById('live-badge').style.display = 'flex';
+document.getElementById('help-btn').style.display = 'block';
 document.getElementById('response-float').style.display = 'block';
 document.getElementById('controls').style.display = 'flex';
+document.getElementById('mode-toggle').style.display = 'flex';
+
+// Signal parent that we're ready for hot-swap messages.
+window.parent.postMessage({ type: 'sim-ready' }, '*');
+
+// Help button → replay tour
+document.getElementById('help-btn').addEventListener('click', () => {
+  localStorage.removeItem(TOUR_KEY);
+  startTour();
+});
 
 // ── Joint response plot ──────────────────────────────
 const RESP_HISTORY = 60;
@@ -341,15 +601,15 @@ const JOINT_SUBSET = [
   { idx: 10, label: 'RAnk' },
   { idx: 12, label: 'Waist' },
 ];
-let selectedSubIdx = 0; // index into JOINT_SUBSET
+let selectedSubIdx = 4; // index into JOINT_SUBSET (default: RKnee)
 
 // Build joint selector buttons dynamically.
 JOINT_SUBSET.forEach((j, si) => {
   const btn = document.createElement('button');
-  btn.className = 'joint-btn' + (si === 0 ? ' active' : '');
+  btn.className = 'joint-btn' + (si === selectedSubIdx ? ' active' : '');
   btn.textContent = j.label;
   btn.dataset.si = si;
-  if (si === 0) btn.style.background = curveColor;
+  if (si === selectedSubIdx) btn.style.background = curveColor;
   btn.addEventListener('click', () => {
     selectedSubIdx = si;
     jointSelRow.querySelectorAll('.joint-btn').forEach(b => {
@@ -479,6 +739,17 @@ function respLoop() {
   requestAnimationFrame(respLoop);
 }
 respLoop();
+
+// ── Gain test mode state ─────────────────────────────
+let gainTestActive = false;
+let _gainTestAnimId = null;
+let _savedCamPos = null;
+let _savedCamTarget = null;
+let gainExcMode = 'hold';        // 'hold' | 'sine' | 'step'
+let gainTestSimTime = 0;
+const GAIN_EXC_AMP = 0.15;      // radians
+const GAIN_EXC_SINE_HZ = 0.5;
+const GAIN_EXC_STEP_PERIOD = 2.0; // seconds per half-cycle
 
 // ── Auto-command state ───────────────────────────────
 let autoCommandMode = true;
@@ -645,6 +916,10 @@ function setAutoMode() {
 }
 
 window.addEventListener('keydown', (e) => {
+  if (gainTestActive) {
+    if (e.code === 'KeyR') resetGainTest();
+    return;
+  }
   if (e.code === 'Space') {
     e.preventDefault();
     runner.command.fill(0);
@@ -662,6 +937,8 @@ window.addEventListener('keydown', (e) => {
 
 window.addEventListener('keyup', (e) => {
   keysDown.delete(e.code);
+  // Reset idle timer so auto-mode waits another full interval after key release
+  if (!autoCommandMode) lastUserInputTime = Date.now();
 });
 
 // ── Button controls (hidden but kept for compatibility) ──
@@ -684,6 +961,7 @@ if (playBtn) {
 const resetBtn = document.getElementById('reset-btn');
 if (resetBtn) {
   resetBtn.addEventListener('click', () => {
+    if (gainTestActive) { resetGainTest(); return; }
     runner.reset();
     setAutoMode();
   });
@@ -694,7 +972,14 @@ let _simPaused = false;
 window.addEventListener('message', (e) => {
   if (e.data?.type === 'sim-pause' && !_simPaused) {
     _simPaused = true;
-    if (isPlaying) runner.stop();
+    if (gainTestActive) {
+      if (_gainTestAnimId !== null) {
+        cancelAnimationFrame(_gainTestAnimId);
+        _gainTestAnimId = null;
+      }
+    } else {
+      if (isPlaying) runner.stop();
+    }
     viewer.stopRenderLoop();
     _respRunning = false;
     clearInterval(_cmdIntervalId);
@@ -702,12 +987,327 @@ window.addEventListener('message', (e) => {
   }
   if (e.data?.type === 'sim-resume' && _simPaused) {
     _simPaused = false;
-    if (isPlaying) runner.start();
-    else viewer.startRenderLoop();
+    if (gainTestActive) {
+      _gainTestAnimId = requestAnimationFrame(gainTestStep);
+    } else {
+      if (isPlaying) runner.start();
+      else viewer.startRenderLoop();
+    }
     _respRunning = true;
     respLoop();
     _cmdIntervalId = setInterval(updateCommand, 33);
   }
+  if (e.data?.type === 'swap-config') {
+    console.log('[velocity-viewer] received swap-config', e.data);
+    swapConfig(e.data.scene, e.data.policy, e.data.config, e.data.gainColor);
+  }
+});
+
+// ── Gain test mode functions ─────────────────────────
+
+function enterGainTestMode() {
+  if (gainTestActive || !fixedModel) return;
+  gainTestActive = true;
+
+  // Stop policy runner.
+  if (isPlaying) {
+    runner.stop();
+    viewer.stopRenderLoop();
+  }
+
+  // Hide velocity arrows.
+  if (runner._arrows) {
+    for (const a of Object.values(runner._arrows)) a.visible = false;
+  }
+
+  // Swap to fixed-base model (no freejoint → no leg coupling).
+  originalModel = viewer.model;
+  originalData = viewer.data;
+  viewer.model = fixedModel;
+  viewer.data = fixedData;
+
+  // Save current camera pose and set gain-test view.
+  viewer.disableCameraTracking();
+  _savedCamPos = viewer.camera.position.clone();
+  _savedCamTarget = viewer.controls.target.clone();
+  viewer.camera.position.set(1.9505, 1.3010, 1.1637);
+  viewer.controls.target.set(0.0977, 0.9305, 0.0520);
+
+  // Switch UI.
+  document.getElementById('cmd-widget').style.display = 'none';
+  document.getElementById('gain-info').style.display = 'block';
+  document.querySelector('#live-badge span:nth-child(2)').textContent = 'Gain Test';
+  document.querySelector('#live-badge .live-hint').textContent = '— drag to perturb';
+
+  responseHistory.length = 0;
+  gainExcMode = 'hold';
+  gainTestSimTime = 0;
+  document.querySelectorAll('.exc-row button').forEach(b => {
+    b.classList.toggle('active', b.dataset.exc === 'hold');
+  });
+  resetGainTest();
+  _gainTestAnimId = requestAnimationFrame(gainTestStep);
+}
+
+function exitGainTestMode() {
+  if (!gainTestActive) return;
+  gainTestActive = false;
+
+  if (_gainTestAnimId !== null) {
+    cancelAnimationFrame(_gainTestAnimId);
+    _gainTestAnimId = null;
+  }
+
+  if (runner._arrows) {
+    for (const a of Object.values(runner._arrows)) a.visible = true;
+  }
+
+  // Swap back to original free-joint model.
+  viewer.model = originalModel;
+  viewer.data = originalData;
+  originalModel = null;
+  originalData = null;
+
+  // Restore saved camera pose and re-enable tracking.
+  if (_savedCamPos) viewer.camera.position.copy(_savedCamPos);
+  if (_savedCamTarget) viewer.controls.target.copy(_savedCamTarget);
+  _savedCamPos = null;
+  _savedCamTarget = null;
+  viewer.enableCameraTracking();
+
+  // Switch UI.
+  document.getElementById('cmd-widget').style.display = 'block';
+  document.getElementById('gain-info').style.display = 'none';
+  document.querySelector('#live-badge span:nth-child(2)').textContent = 'Live Physics';
+  document.querySelector('#live-badge .live-hint').textContent = '— WASD·QE to steer';
+
+  responseHistory.length = 0;
+
+  // Restart policy.
+  runner.reset();
+  runner.command[0] = AUTO_TARGET[0];
+  runner.command[1] = AUTO_TARGET[1];
+  runner.command[2] = AUTO_TARGET[2];
+  runner.start();
+  isPlaying = true;
+  setAutoMode();
+}
+
+function resetGainTest() {
+  const mujoco = viewer.getMujoco();
+  const model = viewer.getModel();
+  const data = viewer.getData();
+
+  mujoco.mj_resetData(model, data);
+  mujoco.mj_resetDataKeyframe(model, data, 0);
+  gainTestSimTime = 0;
+  responseHistory.length = 0;
+
+  const cfg = config;
+  const ctrlMap = cfg.action_to_ctrl_map;
+  for (let i = 0; i < cfg.num_joints; i++) {
+    const ctrlIdx = ctrlMap ? ctrlMap[i] : i;
+    data.ctrl[ctrlIdx] = cfg.default_joint_pos[i];
+  }
+
+  mujoco.mj_forward(model, data);
+}
+
+let _gainTestSkip = 0;
+
+function gainTestStep() {
+  if (!gainTestActive) return;
+  _gainTestAnimId = requestAnimationFrame(gainTestStep);
+
+  const mujoco = viewer.getMujoco();
+  const model = viewer.getModel();
+  const data = viewer.getData();
+  const cfg = config;
+  const ctrlMap = cfg.action_to_ctrl_map;
+  const decimation = cfg.decimation || 4;
+
+  // Compute excitation offset.
+  let excOffset = 0;
+  if (gainExcMode === 'sine') {
+    excOffset = GAIN_EXC_AMP * Math.sin(2 * Math.PI * GAIN_EXC_SINE_HZ * gainTestSimTime);
+  } else if (gainExcMode === 'step') {
+    excOffset = (Math.floor(gainTestSimTime / GAIN_EXC_STEP_PERIOD) % 2 === 0)
+      ? GAIN_EXC_AMP : -GAIN_EXC_AMP;
+  }
+
+  // Set joint targets = default + excitation.
+  for (let i = 0; i < cfg.num_joints; i++) {
+    const ctrlIdx = ctrlMap ? ctrlMap[i] : i;
+    data.ctrl[ctrlIdx] = cfg.default_joint_pos[i] + excOffset;
+  }
+
+  viewer.updateDragForces();
+
+  // Step physics — base is truly fixed (no freejoint in this model).
+  for (let s = 0; s < decimation; s++) {
+    mujoco.mj_step(model, data);
+    if (typeof window._dbgStepCount === 'undefined') window._dbgStepCount = 0;
+    if (++window._dbgStepCount % 10 === 0) console.log('velocity_widget | mujoco physics stepping', window._dbgStepCount);
+  }
+  gainTestSimTime += cfg.timestep * decimation;
+
+  // Feed joint response data (offset 0 — no base DOFs in fixed model).
+  _gainTestSkip++;
+  if (_gainTestSkip >= 3) {
+    _gainTestSkip = 0;
+    const actual = [], target = [];
+    for (const j of JOINT_SUBSET) {
+      actual.push(data.qpos[j.idx]);
+      target.push(cfg.default_joint_pos[j.idx] + excOffset);
+    }
+    responseHistory.push({ actual, target });
+    if (responseHistory.length > RESP_HISTORY) responseHistory.shift();
+  }
+
+  viewer.controls.update();
+  viewer.render();
+}
+
+// ── Hot-swap config (no iframe reload) ───────────────
+// All gain variants share the same robot/meshes and differ only in actuator
+// gainprm / biasprm.  We patch those arrays in-place on the existing MjModel
+// so we never call loadFromXML again (which would re-allocate meshes and
+// eventually OOM the WASM linear heap).
+let _swapping = false;
+
+function patchActuatorGains(xmlText, model) {
+  // Parse the new XML and extract per-actuator gainprm / biasprm.
+  const doc = new DOMParser().parseFromString(xmlText, 'text/xml');
+  const actuators = doc.querySelectorAll('actuator > general');
+  const MJ_NGAIN = 10; // mjNGAIN — gainprm array width per actuator
+  const MJ_NBIAS = 10; // mjNBIAS — biasprm array width per actuator
+  actuators.forEach((el, i) => {
+    if (i >= model.nu) return;
+    // gainprm — single value maps to index 0
+    const gp = el.getAttribute('gainprm');
+    if (gp) {
+      const vals = gp.trim().split(/\s+/).map(Number);
+      for (let k = 0; k < vals.length && k < MJ_NGAIN; k++) {
+        model.actuator_gainprm[i * MJ_NGAIN + k] = vals[k];
+      }
+    }
+    // biasprm — "0 -kp -kd" maps to indices 0,1,2
+    const bp = el.getAttribute('biasprm');
+    if (bp) {
+      const vals = bp.trim().split(/\s+/).map(Number);
+      for (let k = 0; k < vals.length && k < MJ_NBIAS; k++) {
+        model.actuator_biasprm[i * MJ_NBIAS + k] = vals[k];
+      }
+    }
+  });
+}
+
+async function swapConfig(newScene, newPolicy, newConfig, newColor) {
+  if (_swapping) return;
+  _swapping = true;
+
+  overlayEl.classList.remove('hidden');
+  const wasGainTest = gainTestActive;
+
+  // Pause current mode but keep rendering the frozen robot.
+  if (gainTestActive) {
+    if (_gainTestAnimId !== null) {
+      cancelAnimationFrame(_gainTestAnimId);
+      _gainTestAnimId = null;
+    }
+    viewer.startRenderLoop();
+  } else {
+    runner.stop(); // stops sim, starts viewer render loop
+  }
+
+  try {
+    // 1. Load new config + scene XML (for gain values only).
+    statusEl.textContent = 'Loading config…';
+    const [cfgResp, xmlResp] = await Promise.all([
+      fetch(newConfig), fetch(newScene),
+    ]);
+    const newCfg = await cfgResp.json();
+    const xmlText = await xmlResp.text();
+
+    // 2. Patch actuator gains in-place on existing models (no loadFromXML).
+    const walkModel = wasGainTest ? originalModel : viewer.model;
+    patchActuatorGains(xmlText, walkModel);
+    if (fixedModel) patchActuatorGains(xmlText, fixedModel);
+
+    // 3. Load new ONNX policy.
+    statusEl.textContent = 'Loading policy…';
+    const ort = await import('onnxruntime-web');
+    const newSession = await ort.InferenceSession.create(newPolicy, {
+      executionProviders: ['wasm'],
+    });
+
+    // 4. Update config + runner internals.
+    config = newCfg;
+    runner.config = config;
+    runner.session = newSession;
+    runner.obsDim = config.observation_dims.reduce((a, b) => a + b, 0);
+    runner.lastAction = new Float32Array(config.num_joints);
+
+    // Update curve color.
+    if (newColor) {
+      curveColor = newColor;
+      const activeBtn = jointSelRow.querySelector('.joint-btn.active');
+      if (activeBtn) activeBtn.style.background = curveColor;
+    }
+    responseHistory.length = 0;
+  } catch (err) {
+    console.error('Config swap failed:', err);
+    statusEl.textContent = 'Error: ' + err.message;
+  }
+
+  // Resume in the same mode.
+  viewer.stopRenderLoop();
+  if (wasGainTest) {
+    gainTestSimTime = 0;
+    resetGainTest();
+    _gainTestAnimId = requestAnimationFrame(gainTestStep);
+  } else {
+    const mj = viewer.getMujoco();
+    const model = viewer.getModel();
+    const data = viewer.getData();
+    mj.mj_resetDataKeyframe(model, data, 0);
+    mj.mj_forward(model, data);
+    runner.lastAction.fill(0);
+    runner.command[0] = AUTO_TARGET[0];
+    runner.command[1] = AUTO_TARGET[1];
+    runner.command[2] = AUTO_TARGET[2];
+    runner.start();
+    isPlaying = true;
+    setAutoMode();
+  }
+
+  overlayEl.classList.add('hidden');
+  _swapping = false;
+}
+
+// Toggle button handlers.
+document.getElementById('mode-walk').addEventListener('click', () => {
+  if (!gainTestActive) return;
+  document.getElementById('mode-walk').classList.add('active');
+  document.getElementById('mode-gain').classList.remove('active');
+  exitGainTestMode();
+});
+document.getElementById('mode-gain').addEventListener('click', () => {
+  if (gainTestActive) return;
+  document.getElementById('mode-gain').classList.add('active');
+  document.getElementById('mode-walk').classList.remove('active');
+  enterGainTestMode();
+});
+
+// Excitation mode button handlers.
+document.querySelectorAll('.exc-row button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    gainExcMode = btn.dataset.exc;
+    gainTestSimTime = 0;
+    responseHistory.length = 0;
+    document.querySelectorAll('.exc-row button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
 });
 
 // Set initial command to default and auto-start.
@@ -717,6 +1317,408 @@ runner.command[2] = AUTO_TARGET[2];
 runner.start();
 isPlaying = true;
 if (playBtn) playBtn.textContent = '⏸ Pause';
+
+// Auto-enter gain test mode if URL says so.
+if (params.get('mode') === 'gain' && fixedModel) {
+  document.getElementById('mode-gain').classList.add('active');
+  document.getElementById('mode-walk').classList.remove('active');
+  enterGainTestMode();
+}
+
+// ══════════════════════════════════════════════════════
+//  ONBOARDING TOUR
+// ══════════════════════════════════════════════════════
+const TOUR_KEY = 'mujoco-velocity-toured';
+
+const TOUR_STEPS = [
+  {
+    target: null,
+    noSpotlight: true,
+    title: 'Live Neural Network',
+    desc: 'A real RL policy is running in your browser right now. This humanoid robot walks using a neural network — no scripted motion.',
+  },
+  {
+    target: null,
+    noSpotlight: true,
+    title: 'Gain Grid',
+    desc: 'Each circle on the Kp/Kd grid represents a policy trained under different gain setpoints. Click different circles to see how the same robot behaves with soft vs. stiff control.',
+    highlightParentGrid: true,
+  },
+  {
+    target: 'response-float',
+    title: 'Joint Tracking',
+    desc: 'This plot shows how each joint tracks the policy\'s predicted targets. Different gain setpoints produce dramatically different tracking. Select joints below to compare.',
+  },
+  {
+    target: 'cmd-widget',
+    title: 'Take the Wheel',
+    desc: 'Use W/S to walk forward/back, A/D to strafe, Q/E to turn. The policy adapts to your velocity commands in real-time. Try pressing some keys!',
+    requireKeyPress: true,
+  },
+  {
+    target: 'mode-toggle',
+    title: 'Feel the Gains',
+    desc: 'Switching to Gain Test mode — the robot\'s base is now fixed. Watch the demo push the robot around, or click & drag it yourself to feel how different gain setpoints affect stiffness.',
+    enterGainTest: true,
+    demoPhysics: true,
+  },
+  {
+    target: null,
+    noSpotlight: true,
+    title: 'Explore!',
+    desc: 'Switching back to Walk mode. Try different gain circles, switch between Walk and Gain Test, and see how tuning changes everything!',
+    exitGainTest: true,
+  },
+];
+
+// ── Tour state ────────────────────────────────────────
+let tourStep = 0;
+let tourActive = false;
+let tourHiddenElements = [];
+let tourCurrentTarget = null;
+let tourKeyPressActive = false;      // true while waiting for user keypress
+let userHasPressedKey = false;
+let tourDemoPhysicsActive = false;   // true while gain test demo is running
+let userHasDraggedInTour = false;    // unlocks Next once user drags during demo
+
+// ── Demo drag state ──────────────────────────────────
+let demoDragActive = false;
+let demoDragStartTime = 0;
+let demoDragBodyIdx = 0;
+let lastBodySwitch = 0;
+// Candidate bodies to push (skip world=0 and base=1)
+const DEMO_BODIES = [4, 6, 8, 10, 12, 14, 3, 5, 9, 11];
+
+function pickDemoBody() {
+  const model = viewer.getModel();
+  if (!model) return 3;
+  demoDragBodyIdx = (demoDragBodyIdx + 1) % DEMO_BODIES.length;
+  let bid = DEMO_BODIES[demoDragBodyIdx];
+  if (bid >= model.nbody) bid = Math.min(3, model.nbody - 1);
+  return bid;
+}
+
+function startDemoPhysics() {
+  if (!fixedModel || !viewer._dragArrow) return;
+
+  const bid = pickDemoBody();
+  viewer._dragBodyId = bid;
+  viewer._dragPointLocal.set(0, 0, 0);
+  viewer._dragging = true;  // must be set before _updateDragAnchor
+
+  // Sync body transforms so we can compute anchor
+  viewer.render();
+  viewer._updateDragAnchor();
+  viewer._dragCursorWorld.copy(viewer._dragPointWorld);
+
+  viewer.controls.enabled = false;
+  demoDragActive = true;
+  demoDragStartTime = performance.now();
+  lastBodySwitch = 0;
+
+  tickDemoDrag();
+}
+
+function tickDemoDrag() {
+  if (!demoDragActive) return;
+  requestAnimationFrame(tickDemoDrag);
+
+  const t = (performance.now() - demoDragStartTime) / 1000;
+
+  // Switch body every 3.5 seconds
+  if (t - lastBodySwitch > 3.5) {
+    lastBodySwitch = t;
+    const bid = pickDemoBody();
+    viewer._dragBodyId = bid;
+    viewer._dragPointLocal.set(0, 0, 0);
+  }
+
+  viewer._updateDragAnchor();
+  viewer._dragCursorWorld.copy(viewer._dragPointWorld);
+
+  // Tanh-squared sine for smooth push-and-hold (matching fr3_widget)
+  const amp = 0.50;
+  const freq = 0.20;
+  const squeeze = 6;
+  const phase = 2 * Math.PI * freq * t;
+  const push = amp * Math.tanh(squeeze * Math.sin(phase));
+
+  // Rotate push direction slowly
+  const angle = t * 0.4;
+  viewer._dragCursorWorld.x += push * Math.cos(angle);
+  viewer._dragCursorWorld.z += push * 0.6 * Math.sin(angle);
+  viewer._dragCursorWorld.y += push * 0.3 * Math.sin(t * 0.25); // slight vertical
+}
+
+function stopDemoPhysics() {
+  demoDragActive = false;
+  viewer._dragging = false;
+  viewer._dragBodyId = -1;
+  if (viewer._dragArrow) viewer._dragArrow.visible = false;
+  if (viewer.data) {
+    for (let i = 0; i < viewer.data.qfrc_applied.length; i++) {
+      viewer.data.qfrc_applied[i] = 0;
+    }
+  }
+  setTimeout(() => { viewer.controls.enabled = true; }, 0);
+}
+
+// Monkey-patch viewer pointer handlers for demo drag support.
+// The viewer's event lambdas call this._onPointerDown(e) at invocation time,
+// so replacing the method on the instance shadows the prototype.
+const _origPointerDown = viewer._onPointerDown.bind(viewer);
+const _origPointerMove = viewer._onPointerMove.bind(viewer);
+const _origPointerUp   = viewer._onPointerUp.bind(viewer);
+
+viewer._onPointerDown = function(e) {
+  if (demoDragActive) {
+    // User clicks during demo → stop demo, let viewer start a fresh drag
+    demoDragActive = false;
+    viewer._dragging = false;
+    viewer._dragBodyId = -1;
+    if (viewer._dragArrow) viewer._dragArrow.visible = false;
+    if (viewer.data) {
+      for (let i = 0; i < viewer.data.qfrc_applied.length; i++) {
+        viewer.data.qfrc_applied[i] = 0;
+      }
+    }
+  }
+  _origPointerDown(e);
+};
+
+viewer._onPointerMove = function(e) {
+  if (demoDragActive) return;  // demo controls the cursor
+  _origPointerMove(e);
+};
+
+viewer._onPointerUp = function(e) {
+  const wasDragging = viewer._dragging;
+  _origPointerUp(e);
+  // Restart demo after user releases during tour
+  if (tourDemoPhysicsActive && wasDragging && !demoDragActive) {
+    if (!userHasDraggedInTour) {
+      userHasDraggedInTour = true;
+      document.getElementById('tour-next').disabled = false;
+    }
+    setTimeout(() => {
+      if (tourDemoPhysicsActive) startDemoPhysics();
+    }, 800);
+  }
+};
+
+// ── Tour navigation ──────────────────────────────────
+
+function showOnboardingIfNeeded() {
+  if (localStorage.getItem(TOUR_KEY)) return;
+  setTimeout(startTour, 2500);
+}
+
+function startTour() {
+  tourStep = 0;
+  tourActive = true;
+  tourHiddenElements = [];
+  tourCurrentTarget = null;
+  showTourStep(tourStep);
+}
+
+function showTourStep(idx) {
+  const spotlight = document.getElementById('tour-spotlight');
+  const tooltip   = document.getElementById('tour-tooltip');
+  const stepNumEl = document.getElementById('tour-step-num');
+  const titleEl   = document.getElementById('tour-title');
+  const descEl    = document.getElementById('tour-desc');
+  const progressEl= document.getElementById('tour-progress');
+  const nextBtn   = document.getElementById('tour-next');
+
+  // Clean up previous step state
+  stopDemoPhysics();
+  tourDemoPhysicsActive = false;
+  tourKeyPressActive = false;
+  nextBtn.disabled = false;
+  // Remove parent grid highlight from previous step
+  try { window.parent.postMessage({ type: 'tour-highlight-grid', active: false }, '*'); } catch(_) {}
+
+  // Remove elevation from previous target
+  if (tourCurrentTarget) {
+    tourCurrentTarget.classList.remove('tour-target-elevated');
+  }
+
+  if (idx >= TOUR_STEPS.length) {
+    endTour();
+    return;
+  }
+
+  const step     = TOUR_STEPS[idx];
+  const targetEl = step.target ? document.getElementById(step.target) : null;
+
+  // Auto-switch modes
+  if (step.enterGainTest && !gainTestActive && fixedModel) {
+    document.getElementById('mode-gain').classList.add('active');
+    document.getElementById('mode-walk').classList.remove('active');
+    enterGainTestMode();
+  }
+  if (step.exitGainTest && gainTestActive) {
+    document.getElementById('mode-walk').classList.add('active');
+    document.getElementById('mode-gain').classList.remove('active');
+    exitGainTestMode();
+  }
+
+  if (!targetEl) {
+    // Floating step — no spotlight
+    spotlight.classList.add('hidden');
+    tourCurrentTarget = null;
+
+    requestAnimationFrame(() => {
+      stepNumEl.textContent  = idx + 1;
+      titleEl.textContent    = step.title;
+      descEl.textContent     = step.desc;
+      progressEl.textContent = `${idx + 1} of ${TOUR_STEPS.length}`;
+      nextBtn.textContent    = idx === 0 ? 'Start Tour' : idx === TOUR_STEPS.length - 1 ? 'Done' : 'Next';
+
+      tooltip.style.left    = '12px';
+      tooltip.style.top     = Math.max(10, window.innerHeight - 230) + 'px';
+      tooltip.dataset.arrow = 'none';
+      tooltip.classList.toggle('tour-intro', !!step.noSpotlight);
+      tooltip.classList.remove('hidden');
+    });
+
+    // Highlight parent gain grid if requested
+    if (step.highlightParentGrid) {
+      try { window.parent.postMessage({ type: 'tour-highlight-grid', active: true }, '*'); } catch(_) {}
+    }
+
+    // Start demo physics if requested (after a short delay for mode switch)
+    if (step.demoPhysics) {
+      tourDemoPhysicsActive = true;
+      userHasDraggedInTour = false;
+      const nextBtn = document.getElementById('tour-next');
+      nextBtn.disabled = true;
+      setTimeout(() => {
+        if (tourDemoPhysicsActive) startDemoPhysics();
+      }, 500);
+    }
+
+    return;
+  }
+
+  // Temporarily reveal if hidden
+  if (targetEl.style.display === 'none') {
+    targetEl.style.display = '';
+    tourHiddenElements.push(targetEl);
+  }
+
+  // Spotlight
+  if (!step.noSpotlight) {
+    targetEl.classList.add('tour-target-elevated');
+    tourCurrentTarget = targetEl;
+  } else {
+    spotlight.classList.add('hidden');
+    tourCurrentTarget = null;
+  }
+
+  requestAnimationFrame(() => {
+    const rect    = targetEl.getBoundingClientRect();
+    const padding = 8;
+
+    if (!step.noSpotlight) {
+      spotlight.style.top    = (rect.top    - padding) + 'px';
+      spotlight.style.left   = (rect.left   - padding) + 'px';
+      spotlight.style.width  = (rect.width  + padding * 2) + 'px';
+      spotlight.style.height = (rect.height + padding * 2) + 'px';
+      spotlight.classList.remove('hidden');
+    }
+
+    stepNumEl.textContent  = idx + 1;
+    titleEl.textContent    = step.title;
+    descEl.textContent     = step.desc;
+    progressEl.textContent = `${idx + 1} of ${TOUR_STEPS.length}`;
+    nextBtn.textContent    = idx === TOUR_STEPS.length - 1 ? 'Done' : 'Next';
+
+    tooltip.style.left    = '12px';
+    tooltip.style.top     = Math.max(10, window.innerHeight - 230) + 'px';
+    tooltip.dataset.arrow = 'none';
+    tooltip.classList.remove('tour-intro');
+    tooltip.classList.remove('hidden');
+
+    // Per-step side-effects
+    if (step.requireKeyPress) {
+      tourKeyPressActive = true;
+      userHasPressedKey = false;
+      nextBtn.disabled = true;
+    }
+
+    if (step.demoPhysics) {
+      tourDemoPhysicsActive = true;
+      userHasDraggedInTour = false;
+      nextBtn.disabled = true;   // unlocked once user drags at least once
+      setTimeout(() => {
+        if (tourDemoPhysicsActive) startDemoPhysics();
+      }, 500);
+    }
+  });
+}
+
+function endTour() {
+  const spotlight = document.getElementById('tour-spotlight');
+  const tooltip   = document.getElementById('tour-tooltip');
+
+  stopDemoPhysics();
+  tourDemoPhysicsActive = false;
+  tourKeyPressActive = false;
+  userHasDraggedInTour = false;
+  document.getElementById('tour-next').disabled = false;
+
+  spotlight.classList.add('hidden');
+  tooltip.classList.add('hidden');
+
+  if (tourCurrentTarget) {
+    tourCurrentTarget.classList.remove('tour-target-elevated');
+    tourCurrentTarget = null;
+  }
+
+  tourHiddenElements.forEach(el => { el.style.display = 'none'; });
+  tourHiddenElements = [];
+  tourActive = false;
+  localStorage.setItem(TOUR_KEY, '1');
+
+  // Remove parent gain grid highlight
+  try { window.parent.postMessage({ type: 'tour-highlight-grid', active: false }, '*'); } catch(_) {}
+
+  // Ensure we're back in walk mode
+  if (gainTestActive) {
+    document.getElementById('mode-walk').classList.add('active');
+    document.getElementById('mode-gain').classList.remove('active');
+    exitGainTestMode();
+  }
+}
+
+// Tour button handlers
+document.getElementById('tour-next')?.addEventListener('click', () => {
+  tourStep++;
+  showTourStep(tourStep);
+});
+document.getElementById('tour-skip')?.addEventListener('click', () => {
+  endTour();
+});
+
+// Escape exits tour
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && tourActive) endTour();
+});
+
+// Detect key presses for the "Take the Wheel" step
+window.addEventListener('keydown', (e) => {
+  if (tourKeyPressActive && !userHasPressedKey) {
+    const movementKeys = ['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'];
+    if (movementKeys.includes(e.code)) {
+      userHasPressedKey = true;
+      document.getElementById('tour-next').disabled = false;
+    }
+  }
+});
+
+// Show onboarding for first-time visitors
+showOnboardingIfNeeded();
 </script>
 </body>
 </html>

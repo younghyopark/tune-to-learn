@@ -1395,7 +1395,7 @@ pre code { background: none; padding: 0; border: none; }
   max-width: var(--max-width-medium);
   margin: 2.5rem auto -2rem;
   padding: 0 1.5rem;
-  font-size: 0.85rem;
+  font-size: 1.05rem;
   font-weight: 500;
   color: var(--text-light);
   letter-spacing: 0.02em;

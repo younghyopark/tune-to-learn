@@ -703,6 +703,14 @@
       widgetVisible = e.data.visible;
       if (tabVisible && widgetVisible && !hasInteracted) startPulse();
     }
+    // Hibernation from parent (iframe off-screen pause/resume)
+    if (e.data && e.data.type === 'sim-pause') {
+      widgetVisible = false;
+    }
+    if (e.data && e.data.type === 'sim-resume') {
+      widgetVisible = true;
+      if (tabVisible && !hasInteracted) startPulse();
+    }
   });
 
   // ======== INTERACTION ========

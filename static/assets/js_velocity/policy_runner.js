@@ -181,6 +181,8 @@ export class PolicyRunner {
 
       for (let i = 0; i < this.config.decimation; i++) {
         mujoco.mj_step(model, data);
+        if (typeof window._dbgStepCount === 'undefined') window._dbgStepCount = 0;
+        if (++window._dbgStepCount % 10 === 0) console.log('velocity_widget | mujoco physics stepping', window._dbgStepCount);
       }
 
       this._updateArrows();

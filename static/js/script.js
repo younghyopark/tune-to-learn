@@ -277,7 +277,7 @@ function initLazyIframes() {
         observer.unobserve(iframe);
       }
     });
-  }, { rootMargin: '300px' }); // Load slightly before coming into view
+  }, { rootMargin: '100px' }); // Load slightly before coming into view
 
   iframes.forEach(iframe => observer.observe(iframe));
 }
@@ -312,9 +312,11 @@ function initSimIframeHibernation() {
       if (iframe._simHibernate) return;
       iframe._simHibernate = true;
       observer.observe(iframe);
-      // When iframe finishes loading while off-screen, pause immediately.
+      // After iframe loads, sync its visibility state.
+      // sim-resume sent by the observer before load is lost (no listener yet).
       iframe.addEventListener('load', () => {
-        if (!visibleSet.has(iframe)) trySend(iframe, 'sim-pause');
+        if (visibleSet.has(iframe)) trySend(iframe, 'sim-resume');
+        else trySend(iframe, 'sim-pause');
       });
     });
   }
@@ -323,6 +325,21 @@ function initSimIframeHibernation() {
   // Pick up dynamically created iframes (e.g. sim-tabs, policy grids).
   new MutationObserver(observeNew).observe(document.body, {
     childList: true, subtree: true
+  });
+
+  // Handle 'sim-widget-ready' from WASM widgets that finished async init.
+  // Re-send current visibility so the widget can correctly autoplay or pause.
+  window.addEventListener('message', (e) => {
+    if (e.data?.type === 'sim-widget-ready') {
+      document.querySelectorAll('iframe').forEach(iframe => {
+        try {
+          if (iframe.contentWindow === e.source) {
+            if (visibleSet.has(iframe)) trySend(iframe, 'sim-resume');
+            else trySend(iframe, 'sim-pause');
+          }
+        } catch (_) {}
+      });
+    }
   });
 }
 
@@ -541,7 +558,7 @@ function initPoll() {
       // Transition paragraph before learning-algorithm poll
       combined += '<section class="section" id="lp-transition">'
         + '<div class="container container-medium">'
-        + '<h2>Gains should be tuned for your learning algorithm.</h2>'
+        + '<h2>Instead: Gains should be tuned for your learning algorithm.</h2>'
         + '<p>'
         + 'So far we\'ve seen how the robotics community tunes controller gains — and the hidden costs of common defaults. '
         + 'But the story doesn\'t end with the controller. '
@@ -911,9 +928,15 @@ function initSimTabs() {
       });
     });
 
-    // Auto-load the first (active) tab
+    // Defer auto-load until the container is near-visible
     const first = root.querySelector('.sim-tab-btn.active') || btns[0];
-    loadScene(first);
+    const deferObs = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        deferObs.disconnect();
+        loadScene(first);
+      }
+    }, { rootMargin: '200px' });
+    deferObs.observe(root);
   });
 }
 
@@ -1181,9 +1204,15 @@ function initPolicyGrid() {
     });
   }
 
-  // Auto-select the best-performing gain for initial task
+  // Defer auto-select until widget is near-visible
   draw();
-  selectDot(TASKS[currentTask].defaultDot);
+  const deferObs = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting) {
+      deferObs.disconnect();
+      selectDot(TASKS[currentTask].defaultDot);
+    }
+  }, { rootMargin: '200px' });
+  deferObs.observe(widget);
 }
 
 /* ── RL Policy Grid Widget (G1 velocity, gain variants) ────── */
@@ -1201,14 +1230,41 @@ function initRlPolicyGrid() {
 
   const BASE = 'models/g1_velocity';
 
-  // Gain variants: {label, folder, stiffness mult, damping mult, grid pos}
+  // Gain variants: outer corners = max, inner half-size square = standard
   const DOTS = [
-    { kp: '0.5\u00d7', kd: '0.5\u00d7', folder: 'LL', nx: 0, ny: 0 },
-    { kp: '0.5\u00d7', kd: '2\u00d7',   folder: 'LH', nx: 0, ny: 1 },
-    { kp: '2\u00d7',   kd: '0.5\u00d7', folder: 'HL', nx: 1, ny: 0 },
-    { kp: '2\u00d7',   kd: '2\u00d7',   folder: 'HH', nx: 1, ny: 1 },
+    // Outer corners (max variants)
+    { kp: '0.25\u00d7', kd: '0.25\u00d7', folder: 'LLmax', fx: 1/6, fy: 1/6 },
+    { kp: '0.25\u00d7', kd: '4\u00d7',    folder: 'LHmax', fx: 1/6, fy: 5/6 },
+    { kp: '4\u00d7',    kd: '0.25\u00d7', folder: 'HLmax', fx: 5/6, fy: 1/6 },
+    { kp: '4\u00d7',    kd: '4\u00d7',    folder: 'HHmax', fx: 5/6, fy: 5/6 },
+    // Inner corners (standard variants)
+    { kp: '0.5\u00d7', kd: '0.5\u00d7', folder: 'LL', fx: 2/6, fy: 2/6 },
+    { kp: '0.5\u00d7', kd: '2\u00d7',   folder: 'LH', fx: 2/6, fy: 4/6 },
+    { kp: '2\u00d7',   kd: '0.5\u00d7', folder: 'HL', fx: 4/6, fy: 2/6 },
+    { kp: '2\u00d7',   kd: '2\u00d7',   folder: 'HH', fx: 4/6, fy: 4/6 },
   ];
-  const DEFAULT_DOT = 3; // HH
+  const DEFAULT_DOT = 3; // HHmax
+
+  // Track when iframe sim is ready for hot-swap messages.
+  let simReady = false;
+  window.addEventListener('message', (e) => {
+    if (e.data?.type === 'sim-ready' && e.source === iframe.contentWindow) {
+      simReady = true;
+    }
+    if (e.data?.type === 'tour-highlight-grid' && e.source === iframe.contentWindow) {
+      const panel = document.getElementById('rl-pgw-float');
+      if (!panel) return;
+      if (e.data.active) {
+        panel.style.border = '3px solid rgba(108, 123, 240, 0.8)';
+        panel.style.boxShadow = '0 0 20px rgba(108, 123, 240, 0.4)';
+        panel.style.borderRadius = '12px';
+      } else {
+        panel.style.border = '';
+        panel.style.boxShadow = '';
+        panel.style.borderRadius = '';
+      }
+    }
+  });
 
   // Corner colors (same palette as BC grid)
   const GC_A = [140,140,140]; // low Kp, low Kd
@@ -1219,8 +1275,8 @@ function initRlPolicyGrid() {
   function lerpC(a, b, t) {
     return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t];
   }
-  function dotColor(nx, ny) {
-    const c = lerpC(lerpC(GC_A, GC_B, nx), lerpC(GC_C, GC_D, nx), ny);
+  function dotColor(fx, fy) {
+    const c = lerpC(lerpC(GC_A, GC_B, fx), lerpC(GC_C, GC_D, fx), fy);
     return `rgb(${c.map(Math.round).join(',')})`;
   }
 
@@ -1235,11 +1291,9 @@ function initRlPolicyGrid() {
 
   function dotXY(d, S) {
     const { gs, ox, oy } = gridMetrics(S);
-    const cellNx = (1 + d.nx * 4) / 6;
-    const cellNy = (1 + d.ny * 4) / 6;
     return {
-      cx: ox + cellNx * gs,
-      cy: oy + (1 - cellNy) * gs
+      cx: ox + d.fx * gs,
+      cy: oy + (1 - d.fy) * gs
     };
   }
 
@@ -1292,7 +1346,7 @@ function initRlPolicyGrid() {
       const { cx, cy } = dotXY(d, S);
       const r = i === activeIdx ? R_ACTIVE : R_IDLE;
       ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
-      ctx.fillStyle = dotColor(d.nx, d.ny);
+      ctx.fillStyle = dotColor(d.fx, d.fy);
       ctx.fill();
       if (i === activeIdx) {
         ctx.lineWidth = 2.5;
@@ -1317,13 +1371,26 @@ function initRlPolicyGrid() {
 
     // Each variant has its own scene XML (gains baked in).
     const prefix = BASE + '/' + d.folder;
-    const color = dotColor(d.nx, d.ny);
-    iframe.src = 'static/assets/mujoco_velocity_policy.html'
-      + '?scene=' + prefix + '/g1_scene.xml'
-      + '&policy=' + prefix + '/policy.onnx'
-      + '&config=' + prefix + '/policy_config.json'
-      + '&autorun=1'
-      + '&gainColor=' + encodeURIComponent(color);
+    const color = dotColor(d.fx, d.fy);
+
+    if (simReady) {
+      // Hot-swap: patch actuator gains in-place + swap ONNX policy.
+      iframe.contentWindow.postMessage({
+        type: 'swap-config',
+        scene: prefix + '/g1_scene.xml',
+        policy: prefix + '/policy.onnx',
+        config: prefix + '/policy_config.json',
+        gainColor: color,
+      }, '*');
+    } else {
+      // Initial load (first dot selection).
+      iframe.src = 'static/assets/mujoco_velocity_policy.html'
+        + '?scene=' + prefix + '/g1_scene.xml'
+        + '&policy=' + prefix + '/policy.onnx'
+        + '&config=' + prefix + '/policy_config.json'
+        + '&autorun=1'
+        + '&gainColor=' + encodeURIComponent(color);
+    }
     draw();
   }
 

@@ -304,6 +304,56 @@
     0%, 100% { opacity: 1; box-shadow: 0 0 6px 2px rgba(255,59,48,0.6); }
     50%      { opacity: 0.7; box-shadow: 0 0 10px 4px rgba(255,59,48,0.3); }
   }
+
+  #help-btn {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 50;
+    border: 1px solid rgba(0,0,0,0.12);
+    background: rgba(255,255,255,0.82);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border-radius: 14px;
+    cursor: pointer;
+    font-family: var(--font);
+    font-size: 11px;
+    font-weight: 600;
+    color: #555;
+    padding: 5px 14px;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  }
+  #help-btn:hover { background: rgba(255,255,255,0.95); color: #222; }
+
+  #help-popup {
+    display: none;
+    position: absolute;
+    bottom: 44px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 200;
+    background: #fff;
+    border-radius: 10px;
+    padding: 14px 18px;
+    width: 260px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.2);
+    font-family: var(--font);
+    font-size: 12px;
+    line-height: 1.5;
+    color: #333;
+  }
+  #help-popup.show { display: block; }
+  #help-popup h4 { margin: 0 0 6px; font-size: 13px; font-weight: 600; }
+  #help-popup ul { margin: 0; padding-left: 16px; }
+  #help-popup li { margin-bottom: 2px; }
+  #help-popup .help-close {
+    position: absolute; top: 6px; right: 10px;
+    background: none; border: none; font-size: 16px;
+    cursor: pointer; color: #999; line-height: 1;
+  }
 </style>
 </head>
 <body>
@@ -320,6 +370,17 @@
       <span class="live-dot"></span>
       <span>Live Physics</span>
       <span class="live-hint">— click &amp; drag robot to apply forces</span>
+    </div>
+    <button id="help-btn" title="Controls help" style="display:none">? Help</button>
+    <div id="help-popup">
+      <button class="help-close">&times;</button>
+      <h4>Controls</h4>
+      <ul>
+        <li><b>Click &amp; drag</b> robot to apply forces</li>
+        <li><b>Right-click drag</b> to orbit camera</li>
+        <li><b>Scroll</b> to zoom</li>
+      </ul>
+      <p style="margin:6px 0 0;color:#888;font-size:11px;">Select a gain on the PD grid to load and run a BC policy live in your browser.</p>
     </div>
 
     <!-- ── Mode indicator badge ────────────────────────── -->
@@ -436,6 +497,7 @@ const jointSelRow   = document.getElementById('joint-selector');
 let policyConfig = null;
 let onnxSession  = null;
 let running      = false;
+let _simPaused   = false;   // true when parent sent sim-pause (even before WASM ready)
 let stepCount    = 0;
 let succeeded    = false;
 let viewer       = null;
@@ -457,13 +519,6 @@ async function loadPolicyAssets() {
   const resp = await fetch(configPath);
   if (!resp.ok) throw new Error(`Failed to load config: ${resp.status}`);
   policyConfig = await resp.json();
-
-  // Update info display
-  infoTask.textContent = policyConfig.task;
-  infoKp.textContent   = policyConfig.kp;
-  infoKd.textContent   = policyConfig.kd;
-  infoDec.textContent  = policyConfig.decimation;
-  infoFloat.classList.remove('hidden');
 
   // Set max steps input from config default
   document.getElementById('max-steps-input').value = policyConfig.max_steps || 400;
@@ -493,11 +548,6 @@ async function swapPolicy(newPolicyPath, newConfigPath, autorun = false) {
     if (!resp.ok) throw new Error(`Config fetch failed: ${resp.status}`);
     policyConfig = await resp.json();
 
-    // Update info display
-    infoTask.textContent = policyConfig.task;
-    infoKp.textContent   = policyConfig.kp;
-    infoKd.textContent   = policyConfig.kd;
-    infoDec.textContent  = policyConfig.decimation;
     document.getElementById('max-steps-input').value = policyConfig.max_steps || 400;
 
     // Load new ONNX model
@@ -546,11 +596,19 @@ window.addEventListener('message', (e) => {
     swapPolicy(e.data.policy, e.data.config, e.data.autorun);
   }
   if (e.data?.type === 'sim-pause') {
+    _simPaused = true;
     if (running) stopPolicy();
     if (viewer) viewer.freeze();
   }
   if (e.data?.type === 'sim-resume') {
-    if (viewer) viewer.unfreeze();
+    _simPaused = false;
+    if (viewer) {
+      viewer.unfreeze();
+      // Restart policy if it was auto-run and got paused
+      if (!running && autorunOnLoad) {
+        setTimeout(() => runPolicy(), 100);
+      }
+    }
   }
 });
 
@@ -855,6 +913,8 @@ function pdStep(sim, action, config) {
     }
 
     viewer.mujoco.mj_step(viewer.mjModel, viewer.mjData);
+    if (typeof window._dbgStepCount === 'undefined') window._dbgStepCount = 0;
+    if (++window._dbgStepCount % 10 === 0) console.log('policy_widget | mujoco physics stepping', window._dbgStepCount);
   }
 }
 
@@ -1344,7 +1404,19 @@ const viewer_instance = new MuJoCoViewer(document.getElementById('container'), {
     try {
       await loadPolicyAssets();
       overlayEl.classList.add('hidden');
+      document.getElementById('help-btn').style.display = 'block';
       viewer = viewer_instance;
+
+      // Help button toggle
+      (function() {
+        const helpBtn = document.getElementById('help-btn');
+        const helpPopup = document.getElementById('help-popup');
+        helpBtn.addEventListener('click', () => helpPopup.classList.toggle('show'));
+        helpPopup.querySelector('.help-close').addEventListener('click', () => helpPopup.classList.remove('show'));
+        document.addEventListener('click', (e) => {
+          if (!helpBtn.contains(e.target) && !helpPopup.contains(e.target)) helpPopup.classList.remove('show');
+        });
+      })();
 
       // CRITICAL: Pause the viewer's built-in physics loop.
       // We control physics exclusively via pdStep / mj_step.
@@ -1356,10 +1428,13 @@ const viewer_instance = new MuJoCoViewer(document.getElementById('container'), {
       resetScene(policyConfig);
       viewer.syncBodies();
 
-      // Auto-run if requested
+      // Always auto-run — initPolicyGrid defers creation until user is nearby
       if (autorunOnLoad) {
         setTimeout(() => runPolicy(), 100);
       }
+
+      // Tell parent we're ready so it re-sends correct visibility state
+      window.parent.postMessage({ type: 'sim-widget-ready' }, '*');
     } catch (err) {
       console.error('Init error:', err);
       statusEl.textContent = 'Error: ' + err.message;

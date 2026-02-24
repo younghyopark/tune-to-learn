@@ -1,0 +1,893 @@
+<!--
+  Interactive Sysid Response Curve Widget
+
+  Usage: Copy this file and the data/ directory to your website.
+  Embed with: <iframe src="sysid_widget.html" width="960" height="620"></iframe>
+
+  Dependencies: None (vanilla JS + Canvas)
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>System Identification Response Curves</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  .sysid-widget {
+    display: flex;
+    flex-direction: column;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: #fff;
+    max-width: 960px;
+    margin: 0 auto;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .sysid-main {
+    display: flex;
+    align-items: stretch;
+    min-height: 480px;
+    height: 500px;
+  }
+
+  .sysid-chart-container {
+    flex: 1;
+    min-width: 0;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sysid-chart-container canvas {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    display: block;
+  }
+
+  .sysid-grid-container {
+    width: 340px;
+    min-width: 340px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 15px 10px 0;
+    position: relative;
+  }
+
+  .sysid-grid-wrap {
+    position: relative;
+  }
+
+  .sysid-grid-canvas {
+    cursor: pointer;
+    display: block;
+  }
+
+  .sysid-axis-label {
+    font-size: 16px;
+    font-style: italic;
+    color: #333;
+    position: absolute;
+  }
+
+  .sysid-axis-label-kp {
+    bottom: -24px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .sysid-axis-label-kd {
+    top: 50%;
+    left: -30px;
+    transform: rotate(-90deg) translateX(-50%);
+    transform-origin: center center;
+  }
+
+  .sysid-sub-caption {
+    font-size: 12px;
+    color: #555;
+    text-align: left;
+    padding: 6px 16px 8px;
+    line-height: 1.5;
+  }
+
+  .sysid-sub-caption b {
+    color: #222;
+    font-weight: 600;
+  }
+
+  .sysid-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 16px 3px;
+    background: #f5f5f5;
+    border-radius: 6px;
+    margin: 2px 16px 0;
+  }
+
+  .sysid-joint-select {
+    flex-shrink: 0;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 8px;
+    border: 1.5px solid #ddd;
+    border-radius: 4px;
+    background: #fff;
+    color: #333;
+    cursor: pointer;
+    outline: none;
+  }
+
+  .sysid-joint-select:hover {
+    border-color: #999;
+  }
+
+  .sysid-joint-select:focus {
+    border-color: rgb(76, 114, 176);
+  }
+
+  .sysid-controls input[type="range"] {
+    flex: 1;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: #ccc;
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .sysid-controls input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #4c72b0;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+
+  .sysid-epoch-label {
+    font-size: 11px;
+    color: #666;
+    white-space: nowrap;
+    min-width: 60px;
+    text-align: right;
+  }
+
+  .sysid-epoch-label span {
+    font-weight: 600;
+    color: #333;
+  }
+
+  .sysid-play-btn {
+    font-size: 14px;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: #4c72b0;
+    color: #fff;
+    cursor: pointer;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    line-height: 1;
+  }
+
+  .sysid-play-btn:hover {
+    background: #3a5d94;
+  }
+
+  .sysid-play-btn.playing {
+    background: #c44e52;
+  }
+
+</style>
+</head>
+<body>
+<div class="sysid-widget" id="sysidWidget">
+  <div class="sysid-main">
+    <div class="sysid-chart-container">
+      <canvas id="responseChart"></canvas>
+      <div class="sysid-controls">
+        <select class="sysid-joint-select" id="jointSelect"></select>
+        <button class="sysid-play-btn" id="playBtn" title="Play/Replay">&#9654;</button>
+        <input type="range" id="epochSlider" min="0" max="0" value="0">
+        <span class="sysid-epoch-label">Epoch <span id="epochLabel">-</span></span>
+      </div>
+      <div class="sysid-sub-caption"><b>Response Curve.</b> Select a joint above, then use the slider to scrub through optimization epochs and watch the simulated trajectory converge to the real one.</div>
+    </div>
+    <div class="sysid-grid-container">
+      <div class="sysid-grid-wrap">
+        <canvas id="sysidGrid" class="sysid-grid-canvas"></canvas>
+        <span class="sysid-axis-label sysid-axis-label-kp">K<sub>p</sub></span>
+        <span class="sysid-axis-label sysid-axis-label-kd">K<sub>d</sub></span>
+      </div>
+      <div class="sysid-sub-caption" style="margin-top: 24px;"><b>Sysid Error.</b> Darker blue = lower error. Click any cell to load its response curves.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  const INDEX_URL = 'sysid-data/sysid_index.json';
+  const CELLS_DIR = 'sysid-data/cells';
+  const CHART_PADDING = { top: 12, right: 16, bottom: 32, left: 56 };
+  const NUM_JOINTS = 7;
+
+  const COLOR_REAL = [76, 114, 176];
+  const COLOR_SIM  = [196, 78, 82];
+  const COLOR_QDES = [160, 160, 160];
+
+  const BLUES_R_CMAP = [
+    [0.000,   8,  48, 107],
+    [0.125,   8,  81, 156],
+    [0.250,  33, 113, 181],
+    [0.375,  66, 146, 198],
+    [0.500, 107, 174, 214],
+    [0.625, 158, 202, 225],
+    [0.750, 198, 219, 239],
+    [0.875, 222, 235, 247],
+    [1.000, 247, 251, 255],
+  ];
+
+  // ======== STATE ========
+  let allData = null;
+  let cellCache = {};  // name -> response curve data (lazy loaded)
+  let selectedCell = null;
+  let selectedJoint = 0;
+  let currentEpochIdx = 0;
+  let playInterval = null;
+  let loadingCell = null;  // name of cell currently being fetched
+
+  // ======== ELEMENTS ========
+  const chartCanvas = document.getElementById('responseChart');
+  const gridCanvas  = document.getElementById('sysidGrid');
+  const jointSelect = document.getElementById('jointSelect');
+  const epochSlider = document.getElementById('epochSlider');
+  const epochLabel  = document.getElementById('epochLabel');
+  const playBtn     = document.getElementById('playBtn');
+  const chartCtx = chartCanvas.getContext('2d');
+  const gridCtx  = gridCanvas.getContext('2d');
+
+  // ======== BUILD JOINT DROPDOWN ========
+  function buildJointSelect() {
+    jointSelect.innerHTML = '';
+    for (let j = 0; j < NUM_JOINTS; j++) {
+      const opt = document.createElement('option');
+      opt.value = j;
+      opt.textContent = 'Joint ' + (j + 1);
+      jointSelect.appendChild(opt);
+    }
+    jointSelect.value = selectedJoint;
+    jointSelect.addEventListener('change', () => {
+      selectedJoint = parseInt(jointSelect.value);
+      drawChart();
+    });
+  }
+
+  buildJointSelect();
+
+  // ======== LOAD DATA ========
+  fetch(INDEX_URL)
+    .then(r => r.json())
+    .then(data => {
+      allData = data;
+      initSize();
+      drawGrid();
+      // Auto-select best cell (or defaultCell from index)
+      if (data.defaultCell) {
+        const name = data.defaultCell;
+        for (let i = 0; i < data.kds.length; i++)
+          for (let j = 0; j < data.kps.length; j++)
+            if (`K${data.kps[j]}_D${data.kds[i]}` === name)
+              return loadCell(i, j);
+      }
+      autoSelectBest();
+    })
+    .catch(err => console.error('Failed to load sysid index:', err));
+
+  // ======== SIZING ========
+  function initSize() {
+    const container = chartCanvas.parentElement;
+    const dpr = window.devicePixelRatio || 1;
+    const fixedEls = container.querySelectorAll('.sysid-controls, .sysid-sub-caption, .sysid-legend');
+    let fixedH = 0;
+    fixedEls.forEach(el => fixedH += el.offsetHeight);
+    const canvasW = container.clientWidth;
+    const canvasH = container.clientHeight - fixedH;
+    chartCanvas.width = canvasW * dpr;
+    chartCanvas.height = canvasH * dpr;
+    chartCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    chartCanvas.style.width = canvasW + 'px';
+    chartCanvas.style.height = canvasH + 'px';
+
+    if (allData) {
+      const cellW = 38, cellH = 32;
+      gridCanvas.width = allData.kps.length * cellW;
+      gridCanvas.height = allData.kds.length * cellH;
+      gridCanvas.style.width = gridCanvas.width + 'px';
+      gridCanvas.style.height = gridCanvas.height + 'px';
+    }
+  }
+
+  window.addEventListener('resize', () => { initSize(); render(); });
+
+  // ======== AUTO-SELECT ========
+  function autoSelectBest() {
+    if (!allData) return;
+    let minVal = Infinity, minI = 0, minJ = 0;
+    for (let i = 0; i < allData.kds.length; i++) {
+      for (let j = 0; j < allData.kps.length; j++) {
+        const v = allData.heatmap[i][j];
+        if (v !== null && v < minVal) { minVal = v; minI = i; minJ = j; }
+      }
+    }
+    loadCell(minI, minJ);
+  }
+
+  function getCellRC(name) {
+    return cellCache[name] || null;
+  }
+
+  // Lazily prefetch cell data one at a time during idle periods
+  let prefetchQueue = [];
+  function prefetchNext() {
+    if (!prefetchQueue.length) return;
+    const name = prefetchQueue.shift();
+    if (cellCache[name]) { prefetchNext(); return; }
+    fetch(`${CELLS_DIR}/${name}.json`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) cellCache[name] = data; })
+      .catch(() => {})
+      .finally(() => {
+        const idle = window.requestIdleCallback || (cb => setTimeout(cb, 200));
+        idle(prefetchNext);
+      });
+  }
+  function startPrefetch() {
+    if (!allData || prefetchQueue.length) return;
+    for (let i = 0; i < allData.kds.length; i++)
+      for (let j = 0; j < allData.kps.length; j++) {
+        if (allData.heatmap[i][j] === null) continue;
+        const name = `K${allData.kps[j]}_D${allData.kds[i]}`;
+        if (!cellCache[name]) prefetchQueue.push(name);
+      }
+    prefetchNext();
+  }
+
+  function loadCell(row, col) {
+    const kp = allData.kps[col];
+    const kd = allData.kds[row];
+    const name = `K${kp}_D${kd}`;
+    selectedCell = { row, col, kp, kd, name };
+    stopPlay(false);
+
+    // If already cached, use immediately
+    if (cellCache[name]) {
+      applyCellData(name);
+      render();
+      startPlay();
+      return;
+    }
+
+    // Show loading state
+    loadingCell = name;
+    epochSlider.max = 0;
+    epochSlider.value = 0;
+    currentEpochIdx = 0;
+    epochLabel.textContent = '...';
+    render();
+
+    fetch(`${CELLS_DIR}/${name}.json`)
+      .then(r => {
+        if (!r.ok) throw new Error(r.status);
+        return r.json();
+      })
+      .then(data => {
+        cellCache[name] = data;
+        loadingCell = null;
+        if (selectedCell && selectedCell.name === name) {
+          applyCellData(name);
+          render();
+          startPlay();
+        }
+        // After first cell loads, prefetch the rest
+        startPrefetch();
+      })
+      .catch(() => {
+        loadingCell = null;
+        if (selectedCell && selectedCell.name === name) {
+          // No response curve data for this cell — just show loss curve
+          render();
+        }
+      });
+  }
+
+  function applyCellData(name) {
+    const rc = cellCache[name];
+    if (rc && rc.snapshots && rc.snapshots.length > 0) {
+      epochSlider.max = rc.snapshots.length - 1;
+      epochSlider.value = rc.snapshots.length - 1;
+      currentEpochIdx = rc.snapshots.length - 1;
+      updateEpochDisplay();
+    } else {
+      epochSlider.max = 0;
+      epochSlider.value = 0;
+      currentEpochIdx = 0;
+      epochLabel.textContent = '-';
+    }
+  }
+
+  function updateEpochDisplay() {
+    if (!selectedCell) return;
+    const rc = getCellRC(selectedCell.name);
+    if (rc && rc.snapshots && rc.snapshots[currentEpochIdx]) {
+      epochLabel.textContent = rc.snapshots[currentEpochIdx].epoch;
+    }
+  }
+
+  // ======== RENDERING ========
+  function render() {
+    drawChart();
+    drawGrid();
+  }
+
+  function getHeatmapColor(value, minVal, maxVal) {
+    const range = maxVal - minVal;
+    const t = range > 0 ? Math.min(Math.max((value - minVal) / range, 0), 1) : 0;
+    let i = 0;
+    while (i < BLUES_R_CMAP.length - 2 && BLUES_R_CMAP[i + 1][0] < t) i++;
+    const [t0, r0, g0, b0] = BLUES_R_CMAP[i];
+    const [t1, r1, g1, b1] = BLUES_R_CMAP[i + 1];
+    const f = t1 > t0 ? (t - t0) / (t1 - t0) : 0;
+    const r = Math.round(r0 + (r1 - r0) * f);
+    const g = Math.round(g0 + (g1 - g0) * f);
+    const b = Math.round(b0 + (b1 - b0) * f);
+    return { str: `rgb(${r},${g},${b})`, lum: 0.299*r + 0.587*g + 0.114*b };
+  }
+
+  function drawGrid() {
+    if (!allData) return;
+    const kps = allData.kps, kds = allData.kds, heatmap = allData.heatmap;
+    const cellW = 38, cellH = 32;
+
+    gridCtx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
+
+    let minVal = Infinity, maxVal = -Infinity;
+    for (let i = 0; i < kds.length; i++)
+      for (let j = 0; j < kps.length; j++) {
+        const v = heatmap[i][j];
+        if (v !== null) { if (v < minVal) minVal = v; if (v > maxVal) maxVal = v; }
+      }
+
+    for (let i = 0; i < kds.length; i++) {
+      for (let j = 0; j < kps.length; j++) {
+        const displayRow = kds.length - 1 - i;  // flip: low Kd at bottom
+        const x = j * cellW, y = displayRow * cellH;
+        const value = heatmap[i][j];
+
+        if (value !== null) {
+          const color = getHeatmapColor(value, minVal, maxVal);
+          gridCtx.fillStyle = color.str;
+          gridCtx.fillRect(x, y, cellW, cellH);
+          gridCtx.fillStyle = color.lum < 128 ? '#fff' : '#333';
+          gridCtx.font = 'bold 10px -apple-system, BlinkMacSystemFont, sans-serif';
+          gridCtx.textAlign = 'center';
+          gridCtx.textBaseline = 'middle';
+          gridCtx.fillText(value.toFixed(2), x + cellW / 2, y + cellH / 2);
+        } else {
+          gridCtx.fillStyle = '#f0f0f0';
+          gridCtx.fillRect(x, y, cellW, cellH);
+          gridCtx.fillStyle = '#999';
+          gridCtx.font = '10px sans-serif';
+          gridCtx.textAlign = 'center';
+          gridCtx.textBaseline = 'middle';
+          gridCtx.fillText('N/A', x + cellW / 2, y + cellH / 2);
+        }
+
+        gridCtx.strokeStyle = '#fff';
+        gridCtx.lineWidth = 1;
+        gridCtx.strokeRect(x, y, cellW, cellH);
+
+        if (selectedCell && selectedCell.row === i && selectedCell.col === j) {  // y already uses displayRow
+          gridCtx.strokeStyle = `rgb(${COLOR_SIM[0]},${COLOR_SIM[1]},${COLOR_SIM[2]})`;
+          gridCtx.lineWidth = 3;
+          gridCtx.strokeRect(x + 1.5, y + 1.5, cellW - 3, cellH - 3);
+        }
+      }
+    }
+
+    // Axis tick labels
+    gridCtx.fillStyle = '#333';
+    gridCtx.font = '11px -apple-system, BlinkMacSystemFont, sans-serif';
+    gridCtx.textAlign = 'center';
+    gridCtx.textBaseline = 'top';
+    for (let j = 0; j < kps.length; j++)
+      gridCtx.fillText(kps[j], j * cellW + cellW / 2, gridCanvas.height + 4);
+    gridCtx.textAlign = 'right';
+    gridCtx.textBaseline = 'middle';
+    for (let i = 0; i < kds.length; i++) {
+      const displayRow = kds.length - 1 - i;
+      gridCtx.fillText(kds[i], -6, displayRow * cellH + cellH / 2);
+    }
+  }
+
+  function drawChart() {
+    const w = chartCanvas.width / (window.devicePixelRatio || 1);
+    const h = chartCanvas.height / (window.devicePixelRatio || 1);
+    chartCtx.clearRect(0, 0, w, h);
+
+    if (!allData || !selectedCell) {
+      chartCtx.fillStyle = '#999';
+      chartCtx.font = '14px -apple-system, BlinkMacSystemFont, sans-serif';
+      chartCtx.textAlign = 'center';
+      chartCtx.fillText('Click a heatmap cell to view response curves', w / 2, h / 2);
+      return;
+    }
+
+    if (loadingCell === selectedCell.name) {
+      chartCtx.fillStyle = '#999';
+      chartCtx.font = '13px -apple-system, BlinkMacSystemFont, sans-serif';
+      chartCtx.textAlign = 'center';
+      chartCtx.fillText('Loading...', w / 2, h / 2);
+      return;
+    }
+
+    const rc = getCellRC(selectedCell.name);
+    const lc = allData.lossCurves[selectedCell.name];
+    const hasRC = rc && rc.snapshots && rc.snapshots.length > 0;
+    const hasLC = lc && lc.length > 0;
+
+    if (!hasRC && !hasLC) {
+      chartCtx.fillStyle = '#999';
+      chartCtx.font = '13px -apple-system, BlinkMacSystemFont, sans-serif';
+      chartCtx.textAlign = 'center';
+      chartCtx.fillText('No data for this cell.', w / 2, h / 2);
+      return;
+    }
+
+    const GAP = 12;
+    const LOSS_RATIO = 0.28;  // bottom 28% for loss curve
+    const lossH = hasLC ? Math.round((h - GAP) * LOSS_RATIO) : 0;
+    const respH = h - lossH - (hasLC ? GAP : 0);
+
+    // ---- RESPONSE CURVE (top) ----
+    if (hasRC) {
+      drawResponseCurve(w, respH, 0, rc);
+    }
+
+    // ---- LOSS CURVE (bottom) ----
+    if (hasLC) {
+      drawLossCurve(w, lossH, respH + GAP, lc, hasRC ? rc : null);
+    }
+  }
+
+  function drawResponseCurve(w, h, yOff, rc) {
+    const snap = rc.snapshots[currentEpochIdx];
+    const realQ = rc.real_qpos;
+    const qdes  = rc.real_qdes;
+    const simQ  = snap.sim_qpos;
+    const T = realQ.length;
+    const j = selectedJoint;
+
+    const pad = CHART_PADDING;
+    const plotX = pad.left, plotY = yOff + 4;
+    const plotW = w - pad.left - pad.right;
+    const plotH = h - 4 - 20;  // 4 top, 20 bottom for label
+
+    // Compute y range across ALL snapshots (fixed during animation)
+    let yMin = Infinity, yMax = -Infinity;
+    for (let t = 0; t < T; t++) {
+      for (const v of [realQ[t][j], qdes[t][j]]) {
+        if (v < yMin) yMin = v;
+        if (v > yMax) yMax = v;
+      }
+    }
+    for (const s of rc.snapshots) {
+      for (let t = 0; t < T; t++) {
+        const v = s.sim_qpos[t][j];
+        if (v < yMin) yMin = v;
+        if (v > yMax) yMax = v;
+      }
+    }
+    const yMargin = (yMax - yMin) * 0.08 || 0.01;
+    yMin -= yMargin;
+    yMax += yMargin;
+
+    function mapX(t) { return plotX + (t / (T - 1)) * plotW; }
+    function mapY(v) { return plotY + plotH - ((v - yMin) / (yMax - yMin)) * plotH; }
+
+    // Background + grid
+    chartCtx.fillStyle = '#fafafa';
+    chartCtx.fillRect(plotX, plotY, plotW, plotH);
+    chartCtx.strokeStyle = '#e8e8e8';
+    chartCtx.lineWidth = 1;
+    for (let i = 0; i <= 4; i++) {
+      const gy = plotY + (i / 4) * plotH;
+      chartCtx.beginPath();
+      chartCtx.moveTo(plotX, gy);
+      chartCtx.lineTo(plotX + plotW, gy);
+      chartCtx.stroke();
+    }
+    chartCtx.strokeStyle = '#ccc';
+    chartCtx.strokeRect(plotX, plotY, plotW, plotH);
+
+    // Y ticks
+    chartCtx.fillStyle = '#777';
+    chartCtx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
+    chartCtx.textAlign = 'right';
+    chartCtx.textBaseline = 'middle';
+    for (let i = 0; i <= 4; i++) {
+      const v = yMax - (i / 4) * (yMax - yMin);
+      chartCtx.fillText(v.toFixed(2), plotX - 6, plotY + (i / 4) * plotH);
+    }
+
+    // X label
+    chartCtx.textAlign = 'center';
+    chartCtx.textBaseline = 'top';
+    chartCtx.fillText('Timestep', plotX + plotW / 2, plotY + plotH + 4);
+
+    // Y label
+    chartCtx.save();
+    chartCtx.translate(10, plotY + plotH / 2);
+    chartCtx.rotate(-Math.PI / 2);
+    chartCtx.textAlign = 'center';
+    chartCtx.fillText('Joint Position (rad)', 0, 0);
+    chartCtx.restore();
+
+    // qdes (dashed gray)
+    chartCtx.strokeStyle = `rgb(${COLOR_QDES[0]},${COLOR_QDES[1]},${COLOR_QDES[2]})`;
+    chartCtx.lineWidth = 1.5;
+    chartCtx.setLineDash([5, 3]);
+    chartCtx.beginPath();
+    for (let t = 0; t < T; t++) {
+      const x = mapX(t), y = mapY(qdes[t][j]);
+      t === 0 ? chartCtx.moveTo(x, y) : chartCtx.lineTo(x, y);
+    }
+    chartCtx.stroke();
+    chartCtx.setLineDash([]);
+
+    // real (blue)
+    chartCtx.strokeStyle = `rgb(${COLOR_REAL[0]},${COLOR_REAL[1]},${COLOR_REAL[2]})`;
+    chartCtx.lineWidth = 2.5;
+    chartCtx.beginPath();
+    for (let t = 0; t < T; t++) {
+      const x = mapX(t), y = mapY(realQ[t][j]);
+      t === 0 ? chartCtx.moveTo(x, y) : chartCtx.lineTo(x, y);
+    }
+    chartCtx.stroke();
+
+    // sim (red)
+    chartCtx.strokeStyle = `rgb(${COLOR_SIM[0]},${COLOR_SIM[1]},${COLOR_SIM[2]})`;
+    chartCtx.lineWidth = 2.5;
+    chartCtx.beginPath();
+    for (let t = 0; t < T; t++) {
+      const x = mapX(t), y = mapY(simQ[t][j]);
+      t === 0 ? chartCtx.moveTo(x, y) : chartCtx.lineTo(x, y);
+    }
+    chartCtx.stroke();
+
+    // In-plot legend (top-right)
+    const legX = plotX + plotW - 8, legY = plotY + 8;
+    chartCtx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
+    chartCtx.textAlign = 'right';
+    chartCtx.textBaseline = 'middle';
+    const items = [
+      { label: 'Real', color: COLOR_REAL, dash: false },
+      { label: 'Sim',  color: COLOR_SIM,  dash: false },
+      { label: 'Desired', color: COLOR_QDES, dash: true },
+    ];
+    for (let li = 0; li < items.length; li++) {
+      const iy = legY + li * 14;
+      const c = items[li].color;
+      chartCtx.strokeStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+      chartCtx.lineWidth = 2;
+      chartCtx.setLineDash(items[li].dash ? [4, 2] : []);
+      chartCtx.beginPath();
+      chartCtx.moveTo(legX - 48, iy);
+      chartCtx.lineTo(legX - 30, iy);
+      chartCtx.stroke();
+      chartCtx.setLineDash([]);
+      chartCtx.fillStyle = '#555';
+      chartCtx.fillText(items[li].label, legX, iy);
+    }
+  }
+
+  function drawLossCurve(w, h, yOff, lc, rc) {
+    const pad = CHART_PADDING;
+    const plotX = pad.left, plotY = yOff;
+    const plotW = w - pad.left - pad.right;
+    const plotH = h - 16;  // 16 bottom for label
+
+    // Y range
+    let lcMin = Infinity, lcMax = -Infinity;
+    for (const v of lc) {
+      if (v < lcMin) lcMin = v;
+      if (v > lcMax) lcMax = v;
+    }
+    const lcMargin = (lcMax - lcMin) * 0.08 || 0.001;
+    lcMin -= lcMargin;
+    lcMax += lcMargin;
+
+    function mapLX(i) { return plotX + (i / (lc.length - 1)) * plotW; }
+    function mapLY(v) { return plotY + plotH - ((v - lcMin) / (lcMax - lcMin)) * plotH; }
+
+    // Background + grid
+    chartCtx.fillStyle = '#fafafa';
+    chartCtx.fillRect(plotX, plotY, plotW, plotH);
+    chartCtx.strokeStyle = '#e8e8e8';
+    chartCtx.lineWidth = 1;
+    for (let i = 0; i <= 3; i++) {
+      const gy = plotY + (i / 3) * plotH;
+      chartCtx.beginPath();
+      chartCtx.moveTo(plotX, gy);
+      chartCtx.lineTo(plotX + plotW, gy);
+      chartCtx.stroke();
+    }
+    chartCtx.strokeStyle = '#ccc';
+    chartCtx.strokeRect(plotX, plotY, plotW, plotH);
+
+    // Y ticks
+    chartCtx.fillStyle = '#777';
+    chartCtx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
+    chartCtx.textAlign = 'right';
+    chartCtx.textBaseline = 'middle';
+    for (let i = 0; i <= 3; i++) {
+      const v = lcMax - (i / 3) * (lcMax - lcMin);
+      chartCtx.fillText(v.toFixed(3), plotX - 6, plotY + (i / 3) * plotH);
+    }
+
+    // X label
+    chartCtx.textAlign = 'center';
+    chartCtx.textBaseline = 'top';
+    chartCtx.fillText('Iteration', plotX + plotW / 2, plotY + plotH + 2);
+
+    // Y label
+    chartCtx.save();
+    chartCtx.translate(10, plotY + plotH / 2);
+    chartCtx.rotate(-Math.PI / 2);
+    chartCtx.textAlign = 'center';
+    chartCtx.fillText('Loss', 0, 0);
+    chartCtx.restore();
+
+    // Full loss curve (faded)
+    chartCtx.strokeStyle = 'rgba(150,150,150,0.4)';
+    chartCtx.lineWidth = 1.5;
+    chartCtx.beginPath();
+    for (let i = 0; i < lc.length; i++) {
+      const x = mapLX(i), y = mapLY(lc[i]);
+      i === 0 ? chartCtx.moveTo(x, y) : chartCtx.lineTo(x, y);
+    }
+    chartCtx.stroke();
+
+    // Animated: draw up to current epoch in bold
+    if (rc && rc.snapshots && rc.snapshots.length > 0) {
+      const curEpoch = rc.snapshots[currentEpochIdx].epoch;
+      const drawUpTo = Math.min(curEpoch, lc.length - 1);
+
+      chartCtx.strokeStyle = `rgb(${COLOR_SIM[0]},${COLOR_SIM[1]},${COLOR_SIM[2]})`;
+      chartCtx.lineWidth = 2.5;
+      chartCtx.beginPath();
+      for (let i = 0; i <= drawUpTo; i++) {
+        const x = mapLX(i), y = mapLY(lc[i]);
+        i === 0 ? chartCtx.moveTo(x, y) : chartCtx.lineTo(x, y);
+      }
+      chartCtx.stroke();
+
+      // Dot at current position
+      const dotX = mapLX(drawUpTo), dotY = mapLY(lc[drawUpTo]);
+      chartCtx.fillStyle = `rgb(${COLOR_SIM[0]},${COLOR_SIM[1]},${COLOR_SIM[2]})`;
+      chartCtx.beginPath();
+      chartCtx.arc(dotX, dotY, 4, 0, Math.PI * 2);
+      chartCtx.fill();
+    }
+  }
+
+
+  // ======== INTERACTIONS ========
+  function getGridCell(e) {
+    if (!allData) return null;
+    const rect = gridCanvas.getBoundingClientRect();
+    const col = Math.floor((e.clientX - rect.left) / 38);
+    const displayRow = Math.floor((e.clientY - rect.top) / 32);
+    if (col < 0 || col >= allData.kps.length || displayRow < 0 || displayRow >= allData.kds.length) return null;
+    const row = allData.kds.length - 1 - displayRow;  // flip back to data row
+    return { row, col };
+  }
+
+  gridCanvas.addEventListener('click', (e) => {
+    const cell = getGridCell(e);
+    if (!cell || allData.heatmap[cell.row][cell.col] === null) return;
+    loadCell(cell.row, cell.col);
+  });
+
+  gridCanvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const cell = getGridCell(e.touches[0]);
+    if (!cell || allData.heatmap[cell.row][cell.col] === null) return;
+    loadCell(cell.row, cell.col);
+  }, { passive: false });
+
+  epochSlider.addEventListener('input', (e) => {
+    currentEpochIdx = parseInt(e.target.value);
+    updateEpochDisplay();
+    drawChart();
+  });
+
+  // ======== PLAY/REPLAY ========
+  let playRAF = null;
+  let playLastTime = 0;
+
+  function stopPlay(finished) {
+    if (playRAF) { cancelAnimationFrame(playRAF); playRAF = null; }
+    if (playInterval) { clearInterval(playInterval); playInterval = null; }
+    playBtn.innerHTML = finished ? '&#8634;' : '&#9654;';
+    playBtn.classList.remove('playing');
+  }
+
+  // Exponential delay: starts at ~33ms (30fps), decays to ~200ms (5fps)
+  function getFrameDelay(idx, total) {
+    const t = total > 1 ? idx / (total - 1) : 0;  // 0..1
+    const fast = 33;   // 30fps
+    const slow = 200;  // 5fps
+    return fast + (slow - fast) * t * t;  // quadratic ease-out
+  }
+
+  function startPlay() {
+    if (!selectedCell) return;
+    const rc = getCellRC(selectedCell.name);
+    if (!rc || !rc.snapshots || rc.snapshots.length === 0) return;
+
+    if (playRAF || playInterval) { stopPlay(false); return; }
+
+    // Reset to beginning
+    currentEpochIdx = 0;
+    epochSlider.value = 0;
+    updateEpochDisplay();
+    drawChart();
+
+    playBtn.innerHTML = '&#9724;';  // stop square
+    playBtn.classList.add('playing');
+    playLastTime = performance.now();
+
+    function tick(now) {
+      const delay = getFrameDelay(currentEpochIdx, rc.snapshots.length);
+      if (now - playLastTime < delay) {
+        playRAF = requestAnimationFrame(tick);
+        return;
+      }
+      playLastTime = now;
+      currentEpochIdx++;
+      if (currentEpochIdx >= rc.snapshots.length) {
+        currentEpochIdx = rc.snapshots.length - 1;
+        playRAF = null;
+        stopPlay(true);
+        return;
+      }
+      epochSlider.value = currentEpochIdx;
+      updateEpochDisplay();
+      drawChart();
+      playRAF = requestAnimationFrame(tick);
+    }
+    playRAF = requestAnimationFrame(tick);
+  }
+
+  playBtn.addEventListener('click', startPlay);
+})();
+</script>
+</body>
+</html>

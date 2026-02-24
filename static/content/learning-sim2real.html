@@ -3,35 +3,146 @@
      ════════════════════════════════════════════════════════════ -->
 
 <section class="section alt-bg">
+  <!-- ── Result V-C-I: System Identification ──────────────── -->
   <div class="container container-medium">
-    <h2>Gains &amp; Sim-to-Real Transfer</h2>
+    <h2>Sim-to-Real Transfer Degrades on Stiff, Overdamped Gains</h2>
     <div class="container">
       <p>
-        Sim-to-real transfer is the <strong>most sensitive</strong> to gain selection.
-        Stiff and overdamped gain regimes amplify the reality gap: small modelling errors
-        in contact dynamics, friction, and latency get magnified into catastrophic failures.
-      </p>
-      <p>
-        Compliant and critically damped settings act as a natural low-pass filter,
-        absorbing sim-to-real discrepancies and enabling significantly more reliable transfer.
-        In our experiments, policies trained with compliant gains transferred successfully
-        while identical policies with stiff gains failed consistently.
+        Finally, we examine whether certain gain settings transfer more reliably
+        from simulation to real hardware. We study reaching tasks with a
+        Franka Research 3 robot to directly isolate the motor-level sim-to-real gap.
       </p>
     </div>
 
-    <div class="figure-grid cols-2" style="margin-top:1.5rem;">
-      <figure>
-        <div class="placeholder-img" style="height:250px;">
-          <i class="fas fa-chart-bar"></i><span>Sim-to-Real Success Rate</span>
-        </div>
-        <figcaption>Real-world success rate vs. gain regime for transferred policies.</figcaption>
-      </figure>
-      <figure>
-        <div class="placeholder-img" style="height:250px;">
-          <i class="fas fa-chart-line"></i><span>Sim–Real Gap Analysis</span>
-        </div>
-        <figcaption>Tracking error gap between sim and real across gain settings.</figcaption>
-      </figure>
+    <h3>Stiff, overdamped gains are easiest to model&hellip;</h3>
+    <div class="container">
+      <p>
+        To ensure a fair comparison across gain settings, we first perform
+        gain-specific system identification. For each gain configuration
+        $\mathbf{K}$, we excite the real robot with sinusoidal position targets
+        $\mathbf{q}^{\text{des}}(t) = A\sin(\omega t)$ and optimize simulation
+        parameters $\psi$ to match the resulting state trajectories:
+      </p>
+
+      $$\psi^\star(\mathbf{K}) = \arg\min_\psi \sum_{t=0}^{T} \|\mathbf{x}(t;\,\mathbf{K}) - \bar{\mathbf{x}}(t;\,\psi)\|^2$$
+
+      <p>
+        where $\mathbf{x} = (\mathbf{q},\,\dot{\mathbf{q}})$ denotes the real
+        robot state and $\bar{\mathbf{x}}(\cdot;\psi)$ its simulated counterpart.
+        The MSE after system identification is over an order of magnitude lower
+        for <strong>stiff, overdamped</strong> gains compared to other settings.
+        We attribute this to stiff, overdamped dynamics filtering out nonlinearities
+        that are difficult to capture with idealized simulated actuators:
+        high damping suppresses high-frequency effects such as joint flexibility and
+        transmission dynamics, while high stiffness reduces sensitivity to
+        steady-state errors from imperfect gravity compensation or stiction.
+      </p>
     </div>
+
+    <p class="widget-hint" style="margin-top: 1.5rem; margin-bottom: 1rem; font-size: 0.9rem; color: #666; font-style: italic;">
+      Select a gain cell on the heatmap to view how the identified simulator
+      tracks the real robot's joint response. Scrub the epoch slider to watch
+      the fit improve during optimization.
+    </p>
+    <iframe
+      data-src="static/assets/sysid_widget.html"
+      style="width:100%; height:500px; border:none; background:#fff;"
+      allow="autoplay"
+    ></iframe>
+
+
+    <h3>&hellip;but hardest to transfer.</h3>
+    <div class="container">
+      <p>
+        For each gain setting, we train RL policies in the corresponding
+        calibrated simulation and deploy them directly on the real robot
+        without fine-tuning. We adapt the hyperparameter optimization from
+        the RL section to account for real-world constraints:
+      </p>
+
+      $$h^\star(\mathbf{K}) = \arg\max_h \; \tilde{J}\!\bigl(\pi^\star(h;\,\mathbf{K})\bigr),$$
+
+      <p>
+        where $\tilde{J}$ augments the original objective with a penalty for
+        violating real-world robot limits.
+        We measure sim-to-real fidelity via <em>trajectory error</em>&mdash;the
+        MSE between real and simulated state trajectories:
+      </p>
+
+      $$\mathcal{E} = \underbrace{\|\mathbf{q}_{\text{sim}} - \mathbf{q}_{\text{real}}\|^2}_{\text{position error}} + \underbrace{\|\dot{\mathbf{q}}_{\text{sim}} - \dot{\mathbf{q}}_{\text{real}}\|^2}_{\text{velocity error}}$$
+
+      <p>
+        Paradoxically, <strong>stiff and overdamped gains&mdash;which yield the
+        best system identification&mdash;produce the worst sim-to-real transfer</strong>.
+        The dominant failure mode is high-frequency oscillation from the
+        closed-loop interaction between the neural network policy and the
+        aggressive controller, which amplifies small prediction errors into
+        out-of-distribution states. Even domain randomization is insufficient
+        to prevent this failure mode.
+        In contrast, compliant and critically damped settings act as a natural
+        low-pass filter, absorbing sim-to-real discrepancies and enabling
+        significantly more reliable transfer.
+      </p>
+    </div>
+
+    <!-- Side-by-side sim2real transfer videos -->
+    <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+      <div style="flex: 1;">
+        <div style="overflow: hidden; border-radius: 6px; aspect-ratio: 16/18;">
+          <video autoplay loop muted playsinline
+            style="width: 100%; object-fit: cover; object-position: center bottom; height: 100%; cursor: pointer;"
+            onclick="this.muted=!this.muted"
+            title="Click to unmute">
+            <source src="static/videos/good_sim2real.mp4" type="video/mp4">
+          </video>
+        </div>
+        <p style="margin-top: 0.4rem; font-size: 0.8rem; color: #666; text-align: center;">
+          (a) Compliant &times; Underdamped
+        </p>
+      </div>
+      <div style="flex: 1;">
+        <div style="overflow: hidden; border-radius: 6px; aspect-ratio: 16/18; position: relative;">
+          <video id="bad-sim2real" autoplay loop muted playsinline
+            style="width: 100%; object-fit: cover; object-position: center bottom; height: 100%; cursor: pointer;"
+            title="Click to unmute">
+            <source src="static/videos/bad_sim2real.mp4" type="video/mp4">
+          </video>
+          <div id="unmute-hint" onclick="var v=document.getElementById('bad-sim2real');v.muted=!v.muted;var el=this;if(!v.muted){el.classList.remove('pulsing');el.querySelector('.unmute-label').textContent='sound on';el.querySelector('.ico-muted').style.display='none';el.querySelector('.ico-unmuted').style.display='inline';}else{el.classList.add('pulsing');el.querySelector('.unmute-label').textContent='click to hear the jitter';el.querySelector('.ico-muted').style.display='inline';el.querySelector('.ico-unmuted').style.display='none';}"
+            class="pulsing"
+            style="position: absolute; bottom: 12px; right: 12px; display: flex; align-items: center; gap: 6px;
+                   background: rgba(0,0,0,0.65); color: #fff; padding: 5px 10px; border-radius: 20px;
+                   font-size: 0.75rem; cursor: pointer;">
+            <svg class="ico-muted" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+              <line x1="23" y1="9" x2="17" y2="15"/>
+              <line x1="17" y1="9" x2="23" y2="15"/>
+            </svg>
+            <svg class="ico-unmuted" style="display:none" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+            </svg>
+            <span class="unmute-label">click to hear the jitter</span>
+          </div>
+        </div>
+        <p style="margin-top: 0.4rem; font-size: 0.8rem; color: #666; text-align: center;">
+          (b) Stiff &times; Overdamped
+        </p>
+        <style>
+          @keyframes pulse-hint {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.04); }
+          }
+          #unmute-hint.pulsing { animation: pulse-hint 1.5s ease-in-out infinite; }
+        </style>
+      </div>
+    </div>
+    <p style="margin-top: 0.75rem; font-size: 0.85rem; color: #555;">
+      <strong>Zero-shot sim-to-real transfer of a reaching policy.</strong>
+      With compliant, underdamped gains (a), the arm smoothly approaches the target.
+      With stiff, overdamped gains (b), the same policy architecture produces
+      violent high-frequency jittering&mdash;click a video and turn up your
+      volume to hear the difference.
+    </p>
   </div>
 </section>
