@@ -7,7 +7,7 @@
     <h2>BC prefers Compliant and Damped Controllers.</h2>
     <div class="container">
       <p>
-        Our experiments across multiple manipulation tasks show that offline imitation learning
+        Our experiments across multiple manipulation tasks show that behavior cloning
         is <strong>highly sensitive</strong> to the choice of controller gains. Policies trained with
         <em>compliant, overdamped</em> gains consistently achieve the highest success rates — often
         outperforming stiff-gain counterparts by over <strong>30%</strong>.
@@ -16,7 +16,7 @@
       <h3>Generating Gain-Dependent Demonstrations</h3>
 
       <p>
-        Offline imitation learning distills a dataset of state-action pairs $\mathcal{D}(s, a)$ into a predictive policy $\pi(a|s)$.
+        behavior cloning distills a dataset of state-action pairs $\mathcal{D}(s, a)$ into a predictive policy $\pi(a|s)$.
         When using position targets as the action representation, the low-level controller gains $\mathbf{K}$
         (stiffness $\mathbf{K}_p$ and damping $\mathbf{K}_d$) implicitly affect this learning process
         by altering the underlying state transition dynamics $p(s'|s, a)$.

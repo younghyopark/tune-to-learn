@@ -107,7 +107,7 @@
   <div class="container container-narrow">
     <h2>Abstract</h2>
     <p class="abstract-text">
-Position controllers have become the dominant interface for executing learned manipulation policies. Yet a critical design decision remains understudied: how should we choose controller gains for policy learning? The conventional wisdom is to select gains based on desired task compliance or stiffness. However, this logic breaks down when controllers are paired with state-conditioned policies: effective stiffness emerges from the interplay between learned reactions and control dynamics, not from gains alone. We argue that gain selection should instead be guided by learnability: how amenable different gain settings are to the learning algorithm in use. In this work, we systematically investigate how position controller gains affect three core components of modern robot learning pipelines: offline imitation learning, reinforcement learning from scratch, and sim-to-real transfer. Through extensive experiments across multiple tasks and robot embodiments, we find that: 
+Position controllers have become the dominant interface for executing learned manipulation policies. Yet a critical design decision remains understudied: how should we choose controller gains for policy learning? The conventional wisdom is to select gains based on desired task compliance or stiffness. However, this logic breaks down when controllers are paired with state-conditioned policies: effective stiffness emerges from the interplay between learned reactions and control dynamics, not from gains alone. We argue that gain selection should instead be guided by learnability: how amenable different gain settings are to the learning algorithm in use. In this work, we systematically investigate how position controller gains affect three core components of modern robot learning pipelines: behavior cloning, reinforcement learning from scratch, and sim-to-real transfer. Through extensive experiments across multiple tasks and robot embodiments, we find that: 
     </p>
     <ol class="abstract-findings">
       <li><b>Behavior Cloning (BC)</b> learning benefits from compliant and overdamped gain regimes,</li>
@@ -230,7 +230,7 @@ Position controllers have become the dominant interface for executing learned ma
       <p>
         You're not alone — many practitioners never touch the default gains.
         But our experiments show that the <em>default</em> gain regime can quietly
-        bottleneck policy performance. In offline imitation learning, for example,
+        bottleneck policy performance. In behavior cloning, for example,
         swapping to a compliant, overdamped regime can improve success rates
         by over <strong>30%</strong> on the same task with the same data.
         Keep reading to see how different gain choices interact with each
@@ -262,7 +262,7 @@ Position controllers have become the dominant interface for executing learned ma
         demonstration data. However, gains that feel natural for a human
         operator may not be optimal for the downstream learning algorithm.
         Our results show that the best gain regime differs depending on
-        whether you're doing imitation learning, RL from scratch, or
+        whether you're doing behavior cloning, RL from scratch, or
         sim-to-real transfer. Read on to find out which regime helps most
         for your pipeline.
       </p>
