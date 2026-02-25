@@ -1,0 +1,928 @@
+<!--
+  Interactive Sim-to-Real Gap Visualization Widget
+
+  Usage: Copy this file and sim2real_data/ to your website.
+  Embed with: <iframe src="sim2real_widget.html" width="960" height="620"></iframe>
+
+  Dependencies: None (vanilla JS + Canvas)
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sim-to-Real Transfer Gap</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  .s2r-widget {
+    display: flex;
+    flex-direction: column;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: #fff;
+    max-width: 960px;
+    margin: 0 auto;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .s2r-main {
+    display: flex;
+    align-items: stretch;
+    min-height: 480px;
+    height: 500px;
+  }
+
+  .s2r-chart-container {
+    flex: 1;
+    min-width: 0;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .s2r-chart-container canvas {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    display: block;
+  }
+
+  .s2r-grid-container {
+    width: 340px;
+    min-width: 340px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 15px 10px 0;
+    position: relative;
+  }
+
+  .s2r-grid-wrap {
+    position: relative;
+  }
+
+  .s2r-grid-canvas {
+    cursor: pointer;
+    display: block;
+  }
+
+  .s2r-axis-label {
+    font-size: 16px;
+    font-style: italic;
+    color: #333;
+    position: absolute;
+  }
+
+  .s2r-axis-label-kp {
+    bottom: -24px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .s2r-axis-label-kd {
+    top: 50%;
+    left: -30px;
+    transform: rotate(-90deg) translateX(-50%);
+    transform-origin: center center;
+  }
+
+  .s2r-sub-caption {
+    font-size: 12px;
+    color: #555;
+    text-align: left;
+    padding: 6px 16px 8px;
+    line-height: 1.5;
+  }
+
+  .s2r-sub-caption b {
+    color: #222;
+    font-weight: 600;
+  }
+
+  .s2r-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 16px 3px;
+    background: #f5f5f5;
+    border-radius: 6px;
+    margin: 2px 16px 0;
+  }
+
+  .s2r-joint-select {
+    flex-shrink: 0;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 8px;
+    border: 1.5px solid #ddd;
+    border-radius: 4px;
+    background: #fff;
+    color: #333;
+    cursor: pointer;
+    outline: none;
+  }
+
+  .s2r-joint-select:hover { border-color: #999; }
+  .s2r-joint-select:focus { border-color: rgb(76, 114, 176); }
+
+  .s2r-controls input[type="range"] {
+    flex: 1;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: #ccc;
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .s2r-controls input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #4c72b0;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+
+  .s2r-time-label {
+    font-size: 11px;
+    color: #666;
+    white-space: nowrap;
+    min-width: 80px;
+    text-align: right;
+  }
+
+  .s2r-time-label span {
+    font-weight: 600;
+    color: #333;
+  }
+
+  .s2r-play-btn {
+    font-size: 14px;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: #4c72b0;
+    color: #fff;
+    cursor: pointer;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    line-height: 1;
+  }
+
+  .s2r-play-btn:hover { background: #3a5d94; }
+  .s2r-play-btn.playing { background: #c44e52; }
+
+  .s2r-resample-btn {
+    font-size: 14px;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1.5px solid #ddd;
+    border-radius: 50%;
+    background: #fff;
+    color: #666;
+    cursor: pointer;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    line-height: 1;
+  }
+
+  .s2r-resample-btn:hover { border-color: #999; color: #333; }
+
+  .s2r-tooltip {
+    display: none;
+    position: absolute;
+    background: rgba(15, 23, 42, 0.92);
+    color: #fff;
+    font-size: 11px;
+    padding: 5px 9px;
+    border-radius: 5px;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 10;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+<div class="s2r-widget" id="s2rWidget">
+  <div class="s2r-main">
+    <div class="s2r-chart-container">
+      <canvas id="s2rChart"></canvas>
+      <div class="s2r-controls">
+        <select class="s2r-joint-select" id="jointSelect"></select>
+        <button class="s2r-play-btn" id="playBtn" title="Play/Pause">&#9654;</button>
+        <input type="range" id="timeSlider" min="0" max="100" value="0">
+        <span class="s2r-time-label"><span id="timeLabel">&ndash;</span></span>
+        <button class="s2r-resample-btn" id="resampleBtn" title="Load different rollout">&#8635;</button>
+      </div>
+      <div class="s2r-sub-caption" id="chartCaption">
+        <b>Trajectory Comparison.</b> Select a joint, then scrub through time to compare real vs simulated position and velocity.
+      </div>
+    </div>
+    <div class="s2r-grid-container">
+      <div class="s2r-grid-wrap">
+        <canvas id="s2rGrid" class="s2r-grid-canvas"></canvas>
+        <div class="s2r-tooltip" id="tooltip"></div>
+        <span class="s2r-axis-label s2r-axis-label-kp">K<sub>p</sub></span>
+        <span class="s2r-axis-label s2r-axis-label-kd">K<sub>d</sub></span>
+      </div>
+      <div class="s2r-sub-caption" style="margin-top: 24px;">
+        <b>Sim2Real Error.</b> Darker blue = lower MSE (better transfer). Click any cell to load its rollout data.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  const INDEX_URL = 'sim2real_data/summary.json';
+  const CELLS_DIR = 'sim2real_data';
+  const CHART_PAD = { top: 12, right: 16, bottom: 28, left: 56 };
+  const NUM_JOINTS = 7;
+  const WINDOW_SIZE = 100;  // steps visible at once
+  const ANIM_SPEED = 1.5;  // steps per frame at ~30fps
+
+  const COLOR_REAL = [76, 114, 176];
+  const COLOR_SIM  = [196, 78, 82];
+
+  const BLUES_R = [
+    [0.000,   8,  48, 107],
+    [0.125,   8,  81, 156],
+    [0.250,  33, 113, 181],
+    [0.375,  66, 146, 198],
+    [0.500, 107, 174, 214],
+    [0.625, 158, 202, 225],
+    [0.750, 198, 219, 239],
+    [0.875, 222, 235, 247],
+    [1.000, 247, 251, 255],
+  ];
+
+  // ── State ──
+  let allData = null;
+  let cellCache = {};
+  let selectedCell = null;      // { row, col, kp, kd, name }
+  let selectedJoint = 0;
+  let rolloutIdx = 0;
+  let windowPos = 0;
+  let playing = false;
+  let playRAF = null;
+  let playLastTime = 0;
+  let loadingCell = null;
+  let isVisible = false;
+  let pendingPlay = false;
+
+  // ── Elements ──
+  const chartCanvas = document.getElementById('s2rChart');
+  const gridCanvas  = document.getElementById('s2rGrid');
+  const jointSelect = document.getElementById('jointSelect');
+  const timeSlider  = document.getElementById('timeSlider');
+  const timeLabel   = document.getElementById('timeLabel');
+  const playBtn     = document.getElementById('playBtn');
+  const resampleBtn = document.getElementById('resampleBtn');
+  const captionEl   = document.getElementById('chartCaption');
+  const tooltipEl   = document.getElementById('tooltip');
+  const chartCtx = chartCanvas.getContext('2d');
+  const gridCtx  = gridCanvas.getContext('2d');
+
+  // ── Grid layout constants ──
+  const CELL_W = 38, CELL_H = 32;
+
+  // ── Build joint dropdown ──
+  for (let j = 0; j < NUM_JOINTS; j++) {
+    const opt = document.createElement('option');
+    opt.value = j;
+    opt.textContent = 'Joint ' + (j + 1);
+    jointSelect.appendChild(opt);
+  }
+  jointSelect.addEventListener('change', () => {
+    selectedJoint = parseInt(jointSelect.value);
+    drawChart();
+  });
+
+  // ── Load index ──
+  fetch(INDEX_URL)
+    .then(r => r.json())
+    .then(data => {
+      allData = data;
+      initSize();
+      drawGrid();
+      if (data.defaultCell) {
+        const m = data.defaultCell.match(/K(\d+)_D(\d+)/);
+        if (m) {
+          const kp = parseInt(m[1]), kd = parseInt(m[2]);
+          const col = data.kps.indexOf(kp);
+          const row = data.kds.indexOf(kd);
+          if (row >= 0 && col >= 0) return loadCell(row, col);
+        }
+      }
+      autoSelectBest();
+    })
+    .catch(err => console.error('Failed to load sim2real index:', err));
+
+  // ── Sizing ──
+  function initSize() {
+    // Chart canvas (DPR-scaled)
+    const container = chartCanvas.parentElement;
+    const dpr = window.devicePixelRatio || 1;
+    const fixedEls = container.querySelectorAll('.s2r-controls, .s2r-sub-caption');
+    let fixedH = 0;
+    fixedEls.forEach(el => fixedH += el.offsetHeight);
+    const canvasW = container.clientWidth;
+    const canvasH = container.clientHeight - fixedH;
+    chartCanvas.width = canvasW * dpr;
+    chartCanvas.height = canvasH * dpr;
+    chartCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    chartCanvas.style.width = canvasW + 'px';
+    chartCanvas.style.height = canvasH + 'px';
+
+    // Grid canvas (1:1 pixels)
+    if (allData) {
+      gridCanvas.width = allData.kps.length * CELL_W + 48;
+      gridCanvas.height = allData.kds.length * CELL_H;
+      gridCanvas.style.width = gridCanvas.width + 'px';
+      gridCanvas.style.height = gridCanvas.height + 'px';
+    }
+  }
+
+  window.addEventListener('resize', () => { initSize(); render(); });
+
+  // ── Auto-select best cell ──
+  function autoSelectBest() {
+    if (!allData) return;
+    let minVal = Infinity, minI = 0, minJ = 0;
+    for (let i = 0; i < allData.kds.length; i++)
+      for (let j = 0; j < allData.kps.length; j++) {
+        const v = allData.heatmap[i][j];
+        if (v !== null && v < minVal) { minVal = v; minI = i; minJ = j; }
+      }
+    loadCell(minI, minJ);
+  }
+
+  // ── Cell loading ──
+  function loadCell(row, col) {
+    const kp = allData.kps[col];
+    const kd = allData.kds[row];
+    const name = 'K' + kp + '_D' + kd;
+    selectedCell = { row, col, kp, kd, name };
+    stopPlay();
+
+    if (cellCache[name]) {
+      applyCell(name);
+      render();
+      triggerPlay();
+      return;
+    }
+
+    loadingCell = name;
+    render();
+
+    fetch(CELLS_DIR + '/' + name + '.json')
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(data => {
+        cellCache[name] = data;
+        loadingCell = null;
+        if (selectedCell && selectedCell.name === name) {
+          applyCell(name);
+          render();
+          triggerPlay();
+        }
+      })
+      .catch(() => { loadingCell = null; render(); });
+  }
+
+  function applyCell(name) {
+    const cd = cellCache[name];
+    if (!cd || !cd.rollouts || !cd.rollouts.length) return;
+    rolloutIdx = Math.floor(Math.random() * cd.rollouts.length);
+    windowPos = -WINDOW_SIZE;
+    updateTimeDisplay();
+    updateCaption();
+  }
+
+  function resample() {
+    if (!selectedCell) return;
+    const cd = cellCache[selectedCell.name];
+    if (!cd || cd.rollouts.length <= 1) return;
+    let newIdx = rolloutIdx;
+    while (newIdx === rolloutIdx && cd.rollouts.length > 1)
+      newIdx = Math.floor(Math.random() * cd.rollouts.length);
+    rolloutIdx = newIdx;
+    windowPos = -WINDOW_SIZE;
+    updateCaption();
+    drawChart();
+  }
+
+  function updateTimeDisplay() {
+    if (!selectedCell || !cellCache[selectedCell.name]) { timeLabel.textContent = '\u2013'; return; }
+    const cd = cellCache[selectedCell.name];
+    const N = cd.n_steps;
+    const dur = cd.duration;
+    const ws = Math.max(0, Math.floor(windowPos));
+    const we = Math.min(Math.floor(windowPos) + WINDOW_SIZE, N - 1);
+    const t0 = (ws / (N - 1) * dur).toFixed(1);
+    const t1 = (we / (N - 1) * dur).toFixed(1);
+    timeLabel.textContent = t0 + ' \u2013 ' + t1 + 's';
+  }
+
+  function updateCaption() {
+    if (!selectedCell) return;
+    const info = allData.cellInfo[selectedCell.name];
+    const cd = cellCache[selectedCell.name];
+    if (!info || !cd) return;
+    const rollout = cd.rollouts[rolloutIdx];
+    const pjMse = info.per_joint[selectedJoint];
+    captionEl.innerHTML =
+      '<b>K<sub>p</sub>=' + selectedCell.kp + ', K<sub>d</sub>=' + selectedCell.kd + '</b>' +
+      ' &nbsp;\u00b7&nbsp; Rollout #' + rollout.id +
+      ' &nbsp;\u00b7&nbsp; MSE: ' + info.mse.toFixed(4) +
+      ' &nbsp;\u00b7&nbsp; log\u2081\u2080: ' + info.log_mse.toFixed(2);
+  }
+
+  // ── Rendering ──
+  function render() { drawChart(); drawGrid(); }
+
+  // ── Heatmap colormap (Blues_r) ──
+  function getHeatmapColor(value, minVal, maxVal) {
+    const range = maxVal - minVal;
+    const t = range > 0 ? Math.min(Math.max((value - minVal) / range, 0), 1) : 0;
+    let i = 0;
+    while (i < BLUES_R.length - 2 && BLUES_R[i + 1][0] < t) i++;
+    const [t0, r0, g0, b0] = BLUES_R[i];
+    const [t1, r1, g1, b1] = BLUES_R[i + 1];
+    const f = t1 > t0 ? (t - t0) / (t1 - t0) : 0;
+    const r = Math.round(r0 + (r1 - r0) * f);
+    const g = Math.round(g0 + (g1 - g0) * f);
+    const b = Math.round(b0 + (b1 - b0) * f);
+    return { str: 'rgb(' + r + ',' + g + ',' + b + ')', lum: 0.299*r + 0.587*g + 0.114*b };
+  }
+
+  // ── Draw grid ──
+  function drawGrid() {
+    if (!allData) return;
+    const kps = allData.kps, kds = allData.kds, heatmap = allData.heatmap;
+
+    gridCtx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
+
+    let minVal = Infinity, maxVal = -Infinity;
+    for (let i = 0; i < kds.length; i++)
+      for (let j = 0; j < kps.length; j++) {
+        const v = heatmap[i][j];
+        if (v !== null) { if (v < minVal) minVal = v; if (v > maxVal) maxVal = v; }
+      }
+
+    for (let i = 0; i < kds.length; i++) {
+      for (let j = 0; j < kps.length; j++) {
+        const displayRow = kds.length - 1 - i;
+        const x = j * CELL_W, y = displayRow * CELL_H;
+        const value = heatmap[i][j];
+
+        if (value !== null) {
+          const color = getHeatmapColor(value, minVal, maxVal);
+          gridCtx.fillStyle = color.str;
+          gridCtx.fillRect(x, y, CELL_W, CELL_H);
+          gridCtx.fillStyle = color.lum < 128 ? '#fff' : '#333';
+          gridCtx.font = 'bold 10px -apple-system, BlinkMacSystemFont, sans-serif';
+          gridCtx.textAlign = 'center';
+          gridCtx.textBaseline = 'middle';
+          gridCtx.fillText(value.toFixed(2), x + CELL_W / 2, y + CELL_H / 2);
+        } else {
+          gridCtx.fillStyle = '#f0f0f0';
+          gridCtx.fillRect(x, y, CELL_W, CELL_H);
+          gridCtx.fillStyle = '#999';
+          gridCtx.font = '10px sans-serif';
+          gridCtx.textAlign = 'center';
+          gridCtx.textBaseline = 'middle';
+          gridCtx.fillText('N/A', x + CELL_W / 2, y + CELL_H / 2);
+        }
+
+        gridCtx.strokeStyle = '#fff';
+        gridCtx.lineWidth = 1;
+        gridCtx.strokeRect(x, y, CELL_W, CELL_H);
+
+        if (selectedCell && selectedCell.row === i && selectedCell.col === j) {
+          gridCtx.strokeStyle = 'rgb(' + COLOR_SIM[0] + ',' + COLOR_SIM[1] + ',' + COLOR_SIM[2] + ')';
+          gridCtx.lineWidth = 3;
+          gridCtx.strokeRect(x + 1.5, y + 1.5, CELL_W - 3, CELL_H - 3);
+        }
+      }
+    }
+
+    // Axis tick labels
+    gridCtx.fillStyle = '#333';
+    gridCtx.font = '11px -apple-system, BlinkMacSystemFont, sans-serif';
+    gridCtx.textAlign = 'center';
+    gridCtx.textBaseline = 'top';
+    for (let j = 0; j < kps.length; j++)
+      gridCtx.fillText(kps[j], j * CELL_W + CELL_W / 2, gridCanvas.height + 4);
+    gridCtx.textAlign = 'right';
+    gridCtx.textBaseline = 'middle';
+    for (let i = 0; i < kds.length; i++) {
+      const displayRow = kds.length - 1 - i;
+      gridCtx.fillText(kds[i], -6, displayRow * CELL_H + CELL_H / 2);
+    }
+
+    // ── Best / Worst cell arrows ──
+    // Worst: globally worst cell
+    let worstI = 0, worstJ = 0, worstV = -Infinity;
+    for (let i = 0; i < kds.length; i++)
+      for (let j = 0; j < kps.length; j++) {
+        const v = heatmap[i][j];
+        if (v !== null && v > worstV) { worstV = v; worstI = i; worstJ = j; }
+      }
+    // Best: best cell in the bottom row (lowest Kd, data row 0)
+    let bestI = 0, bestJ = 0, bestV = Infinity;
+    for (let j = 0; j < kps.length; j++) {
+      const v = heatmap[0][j];
+      if (v !== null && v < bestV) { bestV = v; bestI = 0; bestJ = j; }
+    }
+
+    const gridRight = kps.length * CELL_W;
+    const ARROW_MARGIN = 48;  // space for labels right of grid
+
+    function drawArrow(row, col, label, color) {
+      const displayRow = kds.length - 1 - row;
+      const x = col * CELL_W;
+      const y = displayRow * CELL_H;
+      const cy = y + CELL_H / 2;
+      const labelX = gridRight + 6;
+
+      // Cell border
+      gridCtx.strokeStyle = color;
+      gridCtx.lineWidth = 2.5;
+      gridCtx.strokeRect(x + 1.5, y + 1.5, CELL_W - 3, CELL_H - 3);
+
+      // Arrow line from label area to cell right edge
+      gridCtx.lineWidth = 1.5;
+      gridCtx.beginPath();
+      gridCtx.moveTo(gridRight + 2, cy);
+      gridCtx.lineTo(x + CELL_W + 2, cy);
+      gridCtx.stroke();
+
+      // Arrowhead pointing left into the cell
+      gridCtx.fillStyle = color;
+      gridCtx.beginPath();
+      gridCtx.moveTo(x + CELL_W + 2, cy);
+      gridCtx.lineTo(x + CELL_W + 9, cy - 4);
+      gridCtx.lineTo(x + CELL_W + 9, cy + 4);
+      gridCtx.closePath();
+      gridCtx.fill();
+
+      // Label outside the grid
+      gridCtx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif';
+      gridCtx.fillStyle = color;
+      gridCtx.textAlign = 'left';
+      gridCtx.textBaseline = 'middle';
+      gridCtx.fillText(label, labelX, cy);
+    }
+
+    drawArrow(bestI, bestJ, 'Best', '#16a34a');
+    drawArrow(worstI, worstJ, 'Worst', '#dc2626');
+  }
+
+  // ── Draw chart (stacked: position top, velocity bottom) ──
+  function drawChart() {
+    const dpr = window.devicePixelRatio || 1;
+    const w = chartCanvas.width / dpr;
+    const h = chartCanvas.height / dpr;
+    chartCtx.clearRect(0, 0, w, h);
+
+    if (!allData || !selectedCell) {
+      chartCtx.fillStyle = '#999';
+      chartCtx.font = '14px -apple-system, BlinkMacSystemFont, sans-serif';
+      chartCtx.textAlign = 'center';
+      chartCtx.fillText('Click a heatmap cell to view trajectories', w / 2, h / 2);
+      return;
+    }
+
+    if (loadingCell === selectedCell.name) {
+      chartCtx.fillStyle = '#999';
+      chartCtx.font = '13px -apple-system, sans-serif';
+      chartCtx.textAlign = 'center';
+      chartCtx.fillText('Loading...', w / 2, h / 2);
+      return;
+    }
+
+    const cd = cellCache[selectedCell.name];
+    if (!cd || !cd.rollouts || !cd.rollouts.length) {
+      chartCtx.fillStyle = '#999';
+      chartCtx.font = '13px -apple-system, sans-serif';
+      chartCtx.textAlign = 'center';
+      chartCtx.fillText('No data for this cell.', w / 2, h / 2);
+      return;
+    }
+
+    const rollout = cd.rollouts[rolloutIdx];
+    const GAP = 12;
+    const topH = Math.floor((h - GAP) * 0.5);
+    const botH = h - topH - GAP;
+
+    drawSubChart(w, topH, 0, rollout, 'pos', 'Position (rad)', true);
+    drawSubChart(w, botH, topH + GAP, rollout, 'vel', 'Velocity (rad/s)', false);
+  }
+
+  function drawSubChart(w, h, yOff, rollout, mode, ylabel, showLegend) {
+    const real = mode === 'pos' ? rollout.rp[selectedJoint] : rollout.rv[selectedJoint];
+    const sim  = mode === 'pos' ? rollout.sp[selectedJoint] : rollout.sv[selectedJoint];
+    const N = real.length;
+    const cd = cellCache[selectedCell.name];
+    const dur = cd.duration;
+
+    const pad = {
+      top: 4,
+      right: CHART_PAD.right,
+      bottom: showLegend ? 4 : CHART_PAD.bottom,
+      left: CHART_PAD.left
+    };
+    const plotX = pad.left;
+    const plotY = yOff + pad.top;
+    const plotW = w - pad.left - pad.right;
+    const plotH = h - pad.top - pad.bottom;
+
+    // Window bounds: x-axis left edge is always >= 0; data fills in from the left initially
+    const rawWs = Math.floor(windowPos);
+    const winStart = Math.max(0, rawWs);                 // x-axis left edge (always >= 0)
+    const dataStart = winStart;                          // data starts at left edge
+    const dataEnd = Math.min(rawWs + WINDOW_SIZE, N - 1); // data right edge grows during fill-in
+
+    // Y range: use full window extent for scaling (avoids jitter during initial fill-in)
+    const yRangeStart = winStart;
+    const yRangeEnd = Math.min(winStart + WINDOW_SIZE, N - 1);
+    let yMin = Infinity, yMax = -Infinity;
+    for (let i = yRangeStart; i <= yRangeEnd; i++) {
+      if (real[i] < yMin) yMin = real[i];
+      if (real[i] > yMax) yMax = real[i];
+      if (sim[i] < yMin) yMin = sim[i];
+      if (sim[i] > yMax) yMax = sim[i];
+    }
+    if (!isFinite(yMin)) { yMin = -0.1; yMax = 0.1; }
+    // Enforce minimum range so flat regions don't look jittery
+    const MIN_RANGE = mode === 'pos' ? 0.05 : 0.5;
+    let range = yMax - yMin;
+    if (range < MIN_RANGE) {
+      const mid = (yMin + yMax) / 2;
+      yMin = mid - MIN_RANGE / 2;
+      yMax = mid + MIN_RANGE / 2;
+    }
+    const yPad = (yMax - yMin) * 0.08;
+    yMin -= yPad;
+    yMax += yPad;
+
+    // x maps over [winStart, winStart + WINDOW_SIZE]
+    function mapX(i) { return plotX + ((i - winStart) / WINDOW_SIZE) * plotW; }
+    function mapY(v) { return plotY + plotH - ((v - yMin) / (yMax - yMin)) * plotH; }
+
+    // Background
+    chartCtx.fillStyle = '#fafafa';
+    chartCtx.fillRect(plotX, plotY, plotW, plotH);
+
+    // Grid lines
+    chartCtx.strokeStyle = '#e8e8e8';
+    chartCtx.lineWidth = 1;
+    for (let i = 0; i <= 4; i++) {
+      const gy = plotY + (i / 4) * plotH;
+      chartCtx.beginPath();
+      chartCtx.moveTo(plotX, gy);
+      chartCtx.lineTo(plotX + plotW, gy);
+      chartCtx.stroke();
+    }
+    chartCtx.strokeStyle = '#ccc';
+    chartCtx.strokeRect(plotX, plotY, plotW, plotH);
+
+    if (dataStart > dataEnd) return; // no data visible yet
+
+    // Gap fill between real and sim
+    chartCtx.fillStyle = 'rgba(' + COLOR_SIM[0] + ',' + COLOR_SIM[1] + ',' + COLOR_SIM[2] + ',0.12)';
+    chartCtx.beginPath();
+    for (let i = dataStart; i <= dataEnd; i++) chartCtx.lineTo(mapX(i), mapY(real[i]));
+    for (let i = dataEnd; i >= dataStart; i--) chartCtx.lineTo(mapX(i), mapY(sim[i]));
+    chartCtx.closePath();
+    chartCtx.fill();
+
+    // Real line
+    chartCtx.strokeStyle = 'rgb(' + COLOR_REAL[0] + ',' + COLOR_REAL[1] + ',' + COLOR_REAL[2] + ')';
+    chartCtx.lineWidth = 2.5;
+    chartCtx.lineJoin = 'round';
+    chartCtx.beginPath();
+    for (let i = dataStart; i <= dataEnd; i++) {
+      i === dataStart ? chartCtx.moveTo(mapX(i), mapY(real[i])) : chartCtx.lineTo(mapX(i), mapY(real[i]));
+    }
+    chartCtx.stroke();
+
+    // Sim line
+    chartCtx.strokeStyle = 'rgb(' + COLOR_SIM[0] + ',' + COLOR_SIM[1] + ',' + COLOR_SIM[2] + ')';
+    chartCtx.lineWidth = 2.5;
+    chartCtx.beginPath();
+    for (let i = dataStart; i <= dataEnd; i++) {
+      i === dataStart ? chartCtx.moveTo(mapX(i), mapY(sim[i])) : chartCtx.lineTo(mapX(i), mapY(sim[i]));
+    }
+    chartCtx.stroke();
+
+    // Y ticks
+    chartCtx.fillStyle = '#777';
+    chartCtx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
+    chartCtx.textAlign = 'right';
+    chartCtx.textBaseline = 'middle';
+    for (let i = 0; i <= 4; i++) {
+      const v = yMax - (i / 4) * (yMax - yMin);
+      chartCtx.fillText(v.toFixed(2), plotX - 6, plotY + (i / 4) * plotH);
+    }
+
+    // Y label
+    chartCtx.save();
+    chartCtx.translate(10, plotY + plotH / 2);
+    chartCtx.rotate(-Math.PI / 2);
+    chartCtx.textAlign = 'center';
+    chartCtx.fillText(ylabel, 0, 0);
+    chartCtx.restore();
+
+    // X ticks (bottom chart only)
+    if (!showLegend) {
+      chartCtx.fillStyle = '#777';
+      chartCtx.textAlign = 'center';
+      chartCtx.textBaseline = 'top';
+      const nTicks = 4;
+      for (let i = 0; i <= nTicks; i++) {
+        const step = winStart + WINDOW_SIZE * (i / nTicks);
+        const t = step / (N - 1) * dur;
+        const x = plotX + (i / nTicks) * plotW;
+        chartCtx.fillText(t.toFixed(1) + 's', x, plotY + plotH + 4);
+      }
+      chartCtx.fillText('Time', plotX + plotW / 2, plotY + plotH + 16);
+    }
+
+    // Legend (top chart only)
+    if (showLegend) {
+      const legX = plotX + plotW - 8, legY = plotY + 8;
+      chartCtx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
+      chartCtx.textAlign = 'right';
+      chartCtx.textBaseline = 'middle';
+
+      const items = [
+        { label: 'Real', color: COLOR_REAL },
+        { label: 'Sim',  color: COLOR_SIM },
+      ];
+      for (let li = 0; li < items.length; li++) {
+        const iy = legY + li * 14;
+        const c = items[li].color;
+        chartCtx.strokeStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+        chartCtx.lineWidth = 2;
+        chartCtx.beginPath();
+        chartCtx.moveTo(legX - 48, iy);
+        chartCtx.lineTo(legX - 30, iy);
+        chartCtx.stroke();
+        chartCtx.fillStyle = '#555';
+        chartCtx.fillText(items[li].label, legX, iy);
+      }
+    }
+  }
+
+  // ── Play/Pause ──
+  function stopPlay() {
+    if (playRAF) { cancelAnimationFrame(playRAF); playRAF = null; }
+    playing = false;
+    playBtn.innerHTML = '&#9654;';
+    playBtn.classList.remove('playing');
+  }
+
+  function startPlay() {
+    if (playing) { stopPlay(); return; }
+    if (!selectedCell || !cellCache[selectedCell.name]) return;
+
+    playing = true;
+    playBtn.innerHTML = '&#9724;';
+    playBtn.classList.add('playing');
+    playLastTime = performance.now();
+
+    function tick(now) {
+      if (!playing) return;
+      if (now - playLastTime >= 33) {  // ~30fps
+        playLastTime = now;
+        const cd = cellCache[selectedCell.name];
+        const minPos = -WINDOW_SIZE;
+        const maxPos = cd.n_steps - WINDOW_SIZE;
+        windowPos += ANIM_SPEED;
+        if (windowPos > maxPos) {
+          // Resample and loop
+          const cd2 = cd;
+          let newIdx = rolloutIdx;
+          if (cd2.rollouts.length > 1) {
+            while (newIdx === rolloutIdx) newIdx = Math.floor(Math.random() * cd2.rollouts.length);
+          }
+          rolloutIdx = newIdx;
+          windowPos = minPos;
+          updateCaption();
+        }
+        timeSlider.value = ((windowPos - minPos) / (maxPos - minPos)) * 100;
+        updateTimeDisplay();
+        drawChart();
+      }
+      playRAF = requestAnimationFrame(tick);
+    }
+    playRAF = requestAnimationFrame(tick);
+  }
+
+  // ── Visibility-gated play ──
+  function triggerPlay() {
+    if (isVisible) { startPlay(); }
+    else { pendingPlay = true; }
+  }
+
+  const visObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      isVisible = entry.isIntersecting;
+      if (isVisible && pendingPlay) {
+        pendingPlay = false;
+        startPlay();
+      }
+    });
+  }, { threshold: 0.3 });
+  visObserver.observe(document.getElementById('s2rWidget'));
+
+  // ── Interactions ──
+  function getGridCell(e) {
+    if (!allData) return null;
+    const rect = gridCanvas.getBoundingClientRect();
+    const col = Math.floor((e.clientX - rect.left) / CELL_W);
+    const displayRow = Math.floor((e.clientY - rect.top) / CELL_H);
+    if (col < 0 || col >= allData.kps.length || displayRow < 0 || displayRow >= allData.kds.length) return null;
+    const row = allData.kds.length - 1 - displayRow;
+    return { row, col };
+  }
+
+  gridCanvas.addEventListener('click', (e) => {
+    const cell = getGridCell(e);
+    if (!cell || allData.heatmap[cell.row][cell.col] === null) return;
+    loadCell(cell.row, cell.col);
+  });
+
+  gridCanvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const cell = getGridCell(e.touches[0]);
+    if (!cell || allData.heatmap[cell.row][cell.col] === null) return;
+    loadCell(cell.row, cell.col);
+  }, { passive: false });
+
+  gridCanvas.addEventListener('mousemove', (e) => {
+    const cell = getGridCell(e);
+    if (!cell || allData.heatmap[cell.row][cell.col] === null) {
+      tooltipEl.style.display = 'none';
+      return;
+    }
+    const kp = allData.kps[cell.col];
+    const kd = allData.kds[cell.row];
+    const name = 'K' + kp + '_D' + kd;
+    const info = allData.cellInfo[name];
+    if (!info) { tooltipEl.style.display = 'none'; return; }
+
+    const rect = gridCanvas.getBoundingClientRect();
+    const wrap = gridCanvas.parentElement.getBoundingClientRect();
+    tooltipEl.style.display = 'block';
+    tooltipEl.innerHTML = 'K<sub>p</sub>=' + kp + ', K<sub>d</sub>=' + kd +
+      '<br>MSE: ' + info.mse.toFixed(4) +
+      '<br>log\u2081\u2080: ' + info.log_mse.toFixed(2);
+    let tx = (e.clientX - wrap.left) + 12;
+    let ty = (e.clientY - wrap.top) - 10;
+    if (tx + 130 > wrap.width) tx = (e.clientX - wrap.left) - 130;
+    tooltipEl.style.left = tx + 'px';
+    tooltipEl.style.top = ty + 'px';
+  });
+
+  gridCanvas.addEventListener('mouseleave', () => {
+    tooltipEl.style.display = 'none';
+  });
+
+  playBtn.addEventListener('click', startPlay);
+
+  resampleBtn.addEventListener('click', resample);
+
+  timeSlider.addEventListener('input', (e) => {
+    if (!selectedCell || !cellCache[selectedCell.name]) return;
+    const cd = cellCache[selectedCell.name];
+    const minPos = -WINDOW_SIZE;
+    const maxPos = cd.n_steps - WINDOW_SIZE;
+    windowPos = minPos + (e.target.value / 100) * (maxPos - minPos);
+    stopPlay();
+    updateTimeDisplay();
+    drawChart();
+  });
+})();
+</script>
+</body>
+</html>
