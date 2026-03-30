@@ -19,6 +19,52 @@
     </div>
 
   </div>
+
+  <div class="container container-medium">
+    <h2>Compliant Gains Can Teleop Just as Well</h2>
+    <div class="container">
+      <p>
+        A common justification for stiff controllers is that they make teleoperation feel more responsive and precise —
+        the robot tracks the operator's commands tightly, giving a sense of direct control.
+        But this reasoning conflates controller stiffness with operator experience.
+        A critical factor is the <strong>input mapping</strong> $\phi(\mathbf{u}, \mathbf{x}) \rightarrow \mathbf{x}_{\text{des}}$
+        that translates user commands into position targets — it substantially modulates how the robot feels to the operator.
+        To ensure a fair comparison across gain settings, we allow each participant to calibrate $\phi$ for each gain configuration before evaluation,
+        yielding the gain-specific optimum:
+      </p>
+      <p style="text-align: center; font-size: 1.1em; margin: 0.25rem 0;">
+        $\phi^\star(\mathbf{K}) = \arg\max_\phi \; \mathcal{Q}(\phi; \mathbf{K})$
+      </p>
+      <p>
+        where $\mathcal{Q}$ denotes the operator's perceived control quality.
+        This lets operators compare each gain configuration at its <em>best achievable</em> teleop experience.
+        In our study, participants teleoperated a Franka Research 3 using a 6-DoF SpaceMouse to command delta movements in SE(3) space.
+        The mapping takes the form:
+      </p>
+      <p style="text-align: center; font-size: 1.1em; margin: 0.25rem 0;">
+        $\mathbf{x}_{\text{des}}(t) = \alpha\,\mathbf{u}(t) + \beta\,\mathbf{x}(t) + (1-\beta)\,\mathbf{x}_{\text{des}}(t-1)$
+      </p>
+      <p>
+        where $\alpha \in \mathbb{R}_0^+$ is a scaling factor and $\beta \in \{0, 1\}$ selects between the current robot pose or the previous target as the integration base.
+        After calibration, participants performed a non-prehensile box pushing task with gain configurations randomly sampled and blindly presented.
+        We recorded task completion time, success/failure, and subjective 1–5 control quality ratings across 500 trials.
+        The results show that when each gain setting is evaluated with its own optimized input mapping,
+        compliant and overdamped settings achieve <strong>comparable success rates</strong>, <strong>similar completion times</strong>,
+        and <strong>high subjective ratings</strong> from operators.
+        The key insight is that appropriately tuning the scaling factor $\alpha$ compensates for the reduced responsiveness
+        of compliant gains — the teleop penalty most practitioners fear from softer gains largely disappears
+        once the interface is properly calibrated, removing a major barrier to adopting gain settings
+        that are far more favorable for downstream policy learning.
+      </p>
+    </div>
+
+    <!-- Figure placeholder: teleop user study results (success rate, completion time, user rating heatmaps) -->
+    <div class="widget-container" style="margin-top:1.5rem;">
+    </div>
+
+  </div>
+
+
 </section>
 <!-- Learning-algorithm poll (shared component, loaded dynamically) -->
 <div class="learning-poll-placeholder"></div>
