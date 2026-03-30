@@ -60,16 +60,6 @@
         same $p^{\star}(s)$, &nbsp; different $p(a; \mathbf{K})$
       </p>
 
-      <p style="margin-bottom: 1.5rem;">
-        <strong>Can't we just collect separately for each gain?</strong>
-        A naive approach of collecting separate demonstrations under each gain setting fails to achieve this:
-        the resulting datasets would differ in <em>both</em> state and action distributions due to different closed-loop dynamics
-        and inherent stochasticity in the collection process (e.g., varying initial conditions, environmental randomness,
-        human demonstrator variability). This conflation makes it difficult to isolate how gains affect learning.
-        What we prefer instead is a method that produces <strong>nearly identical state trajectories</strong>
-        across gain settings while varying only the actions represented as position targets.
-      </p>
-
       <p style="margin-bottom: 1rem;">
         <strong>Torque-to-Position Retargeting (TPR).</strong>
         We achieve this through a two-stage dataset generation procedure.
@@ -90,6 +80,60 @@
         We conduct this entire process in simulation to ensure controlled experimental conditions.
       </p>
 
+      <details class="why-not-box">
+        <summary>
+          <span class="why-not-icon">?</span>
+          Why not just collect separately for each gain?
+        </summary>
+        <p>
+          A naive approach of collecting separate demonstrations under each gain setting fails to achieve this:
+          the resulting datasets would differ in <em>both</em> state and action distributions due to different closed-loop dynamics
+          and inherent stochasticity in the collection process (e.g., varying initial conditions, environmental randomness,
+          human demonstrator variability). This conflation makes it difficult to isolate how gains affect learning.
+          What we prefer instead is a method that produces <strong>nearly identical state trajectories</strong>
+          across gain settings while varying only the actions represented as position targets.
+        </p>
+      </details>
+      <style>
+        .why-not-box {
+          margin: 1.25rem 0 1.75rem;
+          border-left: 3px solid #6366f1;
+          border-radius: 0 6px 6px 0;
+          background: linear-gradient(135deg, #f5f3ff, #ede9fe);
+        }
+        .why-not-box summary {
+          cursor: pointer;
+          list-style: none;
+          display: flex;
+          align-items: center;
+          gap: 0.6rem;
+          padding: 0.7rem 1rem;
+          font-weight: 600;
+          font-size: 0.93em;
+          color: #4338ca;
+        }
+        .why-not-box summary::-webkit-details-marker { display: none; }
+        .why-not-icon {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 22px;
+          height: 22px;
+          border-radius: 50%;
+          background: #6366f1;
+          color: #fff;
+          font-weight: 700;
+          font-size: 0.8em;
+          flex-shrink: 0;
+        }
+        .why-not-box p {
+          margin: 0;
+          padding: 0 1rem 0.85rem 2.85rem;
+          color: #3730a3;
+          font-size: 0.92em;
+          line-height: 1.65;
+        }
+      </style>
 
       <h3>Gain-Dependent BC Training</h3>
 
@@ -112,7 +156,6 @@
       <h3>Live BC Policies Across Gain Settings</h3>
       <p style="margin-bottom: 1rem;">
         Explore how controller gains affect both the <em>training data</em> and the <em>learned policy</em>.
-        Switch between viewing gain-dependent trajectories (training demos) and running the trained BC policies live.
       </p>
 
         <div class="pgw-task-tabs" id="pgw-task-tabs">

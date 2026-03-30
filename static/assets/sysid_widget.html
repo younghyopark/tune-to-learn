@@ -285,6 +285,10 @@
   fetch(INDEX_URL)
     .then(r => r.json())
     .then(data => {
+      // Heatmap values are stored as np.log — convert back
+      for (let i = 0; i < data.heatmap.length; i++)
+        for (let j = 0; j < data.heatmap[i].length; j++)
+          if (data.heatmap[i][j] !== null) data.heatmap[i][j] = Math.exp(data.heatmap[i][j]);
       allData = data;
       initSize();
       drawGrid();
