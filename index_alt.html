@@ -1,0 +1,1989 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Tune to Learn: How Controller Gains Affect Robot Policy Learning</title>
+  <meta name="description" content="Explore how different controller gains impact the learning of robot policies in various tasks." />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Tune to Learn: How Controller Gains Affect Robot Policy Learning" />
+  <meta property="og:description" content="Explore how different controller gains impact the learning of robot policies in various tasks." />
+  <meta property="og:image" content="static/images/og-preview.png" />
+  <meta property="og:type" content="website" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <!-- KaTeX -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.body, {delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]});"></script>
+
+  <!-- Base component styles -->
+  <link rel="stylesheet" href="static/css/style.css" />
+
+  <style>
+    /* ═══════════════════════════════════════════════════════════
+       SLIDE DECK — HEADED TWO-PANEL LAYOUT
+       ═══════════════════════════════════════════════════════════ */
+
+    html, body {
+      overflow: hidden;
+      height: 100%;
+      scroll-behavior: auto;
+    }
+
+    /* Hide original page chrome */
+    .dynamic-toc, .sticky-header { display: none !important; }
+
+    /* ── Deck ───────────────────────────────────────────────── */
+    .deck {
+      position: fixed;
+      inset: 0;
+      bottom: 0;
+      overflow: hidden;
+    }
+
+    /* ── Base Slide ─────────────────────────────────────────── */
+    .slide {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.45s ease, transform 0.45s ease;
+      transform: translateX(50px);
+      background: #fff;
+    }
+    .slide.active {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateX(0);
+      z-index: 10;
+    }
+    .slide.exiting-left  { opacity: 0; transform: translateX(-50px); }
+    .slide.exiting-right { opacity: 0; transform: translateX(50px); }
+
+    /* ── Headed Two-Panel Slide ──────────────────────────────
+       Configure per-slide via data attributes:
+         data-width="80"    → container occupies 80% of viewport width
+         data-split="50"    → left panel gets 50%, right gets 50%
+       Defaults: width=80, split=50
+       ──────────────────────────────────────────────────────── */
+    .slide-headed {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow-y: auto;
+    }
+    .slide-headed-top {
+      width: 80%;
+      padding: 0 0 0.5rem;
+      flex-shrink: 0;
+    }
+    .slide-headed-top .section { padding: 0; }
+    .slide-headed-top h2 {
+      font-size: 1.725rem;
+      font-weight: 600;
+    }
+    .slide-headed[data-heading-center] .slide-headed-top h2 {
+      text-align: center;
+      justify-content: center;
+    }
+    .slide-headed[data-heading-center] .slide-headed-top h2::before {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+    .slide-headed-panels {
+      display: flex;
+      width: 80%;
+      flex-shrink: 0;
+      gap: 1rem;
+    }
+    .slide-panel {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 1rem 1.5rem;
+      min-width: 0;
+    }
+    .slide-panel.v-center {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .slide-panel iframe {
+      width: 100%;
+      height: 50vh;
+      border: none;
+      border-radius: 6px;
+    }
+    .slide-panel .panel-caption {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-align: center;
+      margin-top: 0.4rem;
+    }
+    .slide-panel .section { padding: 0; }
+    .slide-panel h3 {
+      font-size: 1.35rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .slide-panel h3::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border, #e2e5e9);
+    }
+    .slide-panel .sim-tabs { margin: 0; margin-top: 1rem;}
+    .slide-panel .sim-tab-viewport { height: 50vh; }
+    .slide-panel .policy-grid-widget { height: 50vh; margin: 0rem 0 0; }
+
+    /* ── Sim2Real right-panel tab toggle ──────────────────── */
+    .s2r-tab-bar {
+      display: flex;
+      gap: 0;
+      margin-bottom: 0.5rem;
+      border-bottom: 1.5px solid var(--border, #e2e5e9);
+    }
+    .s2r-tab {
+      padding: 0.35rem 0.75rem;
+      font-family: var(--font-sans);
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: #888;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1.5px;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .s2r-tab:hover { color: #555; }
+    .s2r-tab.active {
+      color: var(--text, #1a1a2e);
+      border-bottom-color: var(--primary, #1a1a2e);
+    }
+
+    /* ── Headed-Paged: multiple panel sets under one heading ── */
+    .paged-panels-wrapper {
+      display: grid;
+      min-height: 0;
+    }
+    .paged-panels-wrapper > .paged-panel {
+      grid-row: 1;
+      grid-column: 1;
+      width: 100%;
+      visibility: hidden;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .paged-panels-wrapper > .paged-panel.paged-active {
+      visibility: visible;
+      opacity: 1;
+    }
+    .paged-single-col {
+      max-width: 720px;
+      text-align: center;
+    }
+    .paged-single-col h3 { justify-content: center; }
+    .paged-single-col h3::after { display: none; }
+    .slide-page-dots {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      padding: 0.4rem 0 0.25rem;
+    }
+    .slide-page-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--border, #e2e5e9);
+      border: none; padding: 0;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.2s;
+    }
+    .slide-page-dot:hover { background: #aaa; }
+    .slide-page-dot.active { background: var(--primary, #1a1a2e); transform: scale(1.35); }
+
+    /* ── Expandable Detail Toggle ─────────────────────────── */
+    details.slide-detail {
+      margin: 0.75rem 0;
+    }
+    details.slide-detail summary {
+      display: inline;
+      cursor: pointer;
+      list-style: none;
+      font-weight: 600;
+      color: var(--text, #1a1a2e);
+      border-bottom: 1.5px dashed #aaa;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    details.slide-detail summary::-webkit-details-marker { display: none; }
+    details.slide-detail summary::after {
+      content: ' +';
+      font-weight: 400;
+      color: #999;
+      font-size: 0.9em;
+      transition: color 0.15s;
+    }
+    details.slide-detail[open] summary::after {
+      content: ' −';
+    }
+    details.slide-detail summary:hover {
+      border-bottom-color: #555;
+    }
+    details.slide-detail summary:hover::after {
+      color: #555;
+    }
+    details.slide-detail .slide-detail-body {
+      margin-top: 0.5rem;
+      padding: 0.6rem 0.8rem;
+      border-left: 2.5px solid var(--border, #e2e5e9);
+      color: #555;
+    }
+    details.slide-detail .slide-detail-body p { margin-bottom: 0.5rem; }
+    details.slide-detail .slide-detail-body p:last-child { margin-bottom: 0; }
+
+    /* ── Full-Width Slide ───────────────────────────────────── */
+    .slide-full {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 2.5rem 3rem;
+    }
+
+    .slide-full-inner {
+      width: 100%;
+      max-width: 960px;
+    }
+
+    /* Scrollable full-width slide */
+    .slide-full.scrollable {
+      justify-content: center;
+      padding-bottom: 3rem;
+    }
+
+    /* ── Section overrides inside slides ────────────────────── */
+    .slide .section { padding: 0; }
+    .slide .container,
+    .slide .container-narrow,
+    .slide .container-medium {
+      padding: 0;
+      max-width: 100%;
+    }
+
+    /* ── Hero slide (slide 0) ──────────────────────────────── */
+    .slide-hero .slide-full-inner {
+      max-width: 800px;
+      text-align: center;
+    }
+    .slide-hero .author-list {
+      justify-content: center;
+    }
+    .slide-hero .link-buttons {
+      justify-content: center;
+    }
+    .slide-hero .abstract-text {
+      font-size: 0.92rem;
+      line-height: 1.65;
+      text-align: justify;
+    }
+    .slide-hero .abstract-findings {
+      font-size: 0.92rem;
+      line-height: 1.65;
+      text-align: left;
+      margin: 0.5rem 0 0.5rem 1.25rem;
+    }
+    .slide-hero .section h2 {
+      font-size: 1.35rem;
+      margin-top: 1.5rem;
+    }
+    .slide-hero .hero-video {
+      margin-top: 1.5rem;
+    }
+    .slide-hero .hero-video iframe {
+      width: 100%;
+      max-width: 700px;
+      aspect-ratio: 16/9;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      display: block;
+      margin: 0 auto;
+    }
+
+    /* ── Poll Overlay (modal) ──────────────────────────────── */
+    .poll-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+    .poll-overlay-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+    }
+    .poll-overlay-content {
+      position: relative;
+      background: #fff;
+      border-radius: 16px;
+      padding: 2.5rem 3rem;
+      max-width: 960px;
+      width: 90%;
+      max-height: 85vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+      animation: modal-in 0.35s ease;
+    }
+    .poll-overlay-content .poll-box {
+      background: none;
+      padding: 0;
+    }
+    .poll-overlay-content #poll,
+    .poll-overlay-content #learning-poll {
+      background: none;
+      border: none;
+    }
+    .poll-overlay-content .section {
+      padding: 0;
+    }
+    .poll-overlay-nav {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 1.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(0,0,0,0.08);
+    }
+    @keyframes modal-in {
+      from { opacity: 0; transform: translateY(20px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* ── Side-by-side findings (headed layout) ────────────── */
+    .slide-panel .col-finding-label {
+      font-size: 1.05rem;
+      font-weight: 400;
+      color: #666;
+      margin-bottom: 0.25rem;
+    }
+    .slide-panel .col-finding-label + .injected-content .section:first-child {
+      padding-top: 0;
+    }
+    .slide-panel .col-finding-label + .injected-content .section:first-child h2 {
+      margin-top: 0;
+    }
+    .slide-panel .injected-content .section {
+      padding: 0.75rem 0;
+    }
+    .slide-panel.panel-finding {
+      justify-content: flex-start;
+    }
+
+    /* ── Findings transition subtitle ────────────────────── */
+    .findings-transition {
+      font-size: 1.05rem;
+      color: #666;
+      margin-bottom: 0.25rem;
+    }
+
+    /* ── Navigation Bar ─────────────────────────────────────── */
+    .slide-nav {
+      display: none;
+    }
+
+    .slide-nav-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.4rem 1rem;
+      font-family: var(--font-sans);
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--text);
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+      user-select: none;
+    }
+    .slide-nav-btn:hover {
+      border-color: var(--text);
+      background: #f7f8fa;
+    }
+    .slide-nav-btn:disabled {
+      opacity: 0.25;
+      cursor: default;
+      pointer-events: none;
+    }
+    .slide-nav-btn.primary {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+    .slide-nav-btn.primary:hover { background: #000; }
+
+    /* Progress dots */
+    .slide-dots {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .slide-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--border);
+      border: none;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.2s;
+      padding: 0;
+    }
+    .slide-dot:hover { background: #aaa; }
+    .slide-dot.active { background: var(--primary); transform: scale(1.4); }
+    .slide-dot.visited { background: #999; }
+
+    .slide-counter {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Scroll hint on hero slide */
+    .scroll-hint {
+      margin-top: 2rem;
+      text-align: center;
+      font-size: 0.95rem;
+      color: #666;
+      animation: pulse-hint 2s ease-in-out infinite;
+    }
+    .scroll-hint .scroll-icon {
+      display: block;
+      font-size: 1.8rem;
+      margin-bottom: 0.4rem;
+    }
+    .scroll-hint kbd {
+      display: inline-block;
+      padding: 0.1em 0.35em;
+      font-size: 0.75rem;
+      font-family: var(--font-sans);
+      background: #f0f0f0;
+      border: 1px solid #ddd;
+      border-radius: 3px;
+    }
+    @keyframes pulse-hint {
+      0%, 100% { opacity: 0.4; transform: translateY(0); }
+      50% { opacity: 1; transform: translateY(4px); }
+    }
+
+    /* ── Top bar (title + authors) ─────────────────────────── */
+    .slide-topbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 90;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.45rem max(1.5rem, calc((100vw - 1000px) / 2));
+      background: var(--bg-alt, #f0f1f4);
+      border-bottom: 1px solid rgba(0,0,0,0.1);
+      font-family: var(--font-sans);
+      color: var(--text, #1a1a2e);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    .slide-topbar.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .topbar-left {
+      display: flex;
+      flex-direction: column;
+      gap: 0.05rem;
+    }
+    .topbar-left .topbar-title {
+      font-size: 0.92rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+    .topbar-left .topbar-meta {
+      font-size: 0.78rem;
+      color: var(--text-light, #555);
+    }
+    .topbar-left .topbar-meta .topbar-sep {
+      margin: 0 0.35rem;
+      color: #bbb;
+    }
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .topbar-right a {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.25rem 0.6rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--text, #1a1a2e);
+      text-decoration: none;
+      border: 1px solid rgba(0,0,0,0.15);
+      border-radius: 6px;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .topbar-right a:hover {
+      background: rgba(0,0,0,0.05);
+      border-color: rgba(0,0,0,0.25);
+    }
+    .topbar-right a i { font-size: 0.7rem; }
+
+    /* Section nav (below topbar) — includes prev/next */
+    .section-nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 89;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 max(1rem, calc((100vw - 1000px) / 2));
+      height: 32px;
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-bottom: 1px solid rgba(0,0,0,0.06);
+      font-family: var(--font-sans);
+      font-size: 0.72rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease, top 0.3s ease;
+    }
+    .section-nav.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .section-nav-sections {
+      display: flex;
+      align-items: center;
+      gap: 0;
+    }
+    .section-nav-item {
+      position: relative;
+      padding: 0.35rem 0.75rem;
+      color: var(--text-light, #888);
+      cursor: pointer;
+      background: none;
+      border: none;
+      font: inherit;
+      font-size: 0.72rem;
+      font-weight: 500;
+      white-space: nowrap;
+      transition: color 0.2s;
+    }
+    .section-nav-item:hover:not(.dimmed) { color: var(--text, #1a1a2e); }
+    .section-nav-item.dimmed { opacity: 0.35; cursor: default; }
+    .section-nav-item.active {
+      color: var(--text, #1a1a2e);
+      font-weight: 600;
+    }
+    .section-nav-item.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0.75rem; right: 0.75rem;
+      height: 2px;
+      background: var(--text, #1a1a2e);
+      border-radius: 1px;
+    }
+    .section-nav-sep {
+      width: 3px; height: 3px;
+      border-radius: 50%;
+      background: #ccc;
+      flex-shrink: 0;
+    }
+    .section-nav-arrows {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+    .section-nav-arrows .nav-arrow {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px; height: 24px;
+      border-radius: 6px;
+      border: 1px solid rgba(0,0,0,0.12);
+      background: none;
+      color: var(--text, #1a1a2e);
+      cursor: pointer;
+      font-size: 0.65rem;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .section-nav-arrows .nav-arrow:hover {
+      background: rgba(0,0,0,0.05);
+      border-color: rgba(0,0,0,0.2);
+    }
+    .section-nav-arrows .nav-arrow:disabled {
+      opacity: 0.2;
+      cursor: default;
+      pointer-events: none;
+    }
+    .section-nav-counter {
+      font-size: 0.68rem;
+      color: var(--text-light, #888);
+      font-variant-numeric: tabular-nums;
+      min-width: 2.5rem;
+      text-align: center;
+    }
+
+    /* Keyboard hint */
+    .key-hint {
+      position: fixed;
+      bottom: 1rem;
+      right: 1.5rem;
+      z-index: 99;
+      font-size: 0.65rem;
+      color: var(--text-light);
+      opacity: 0.5;
+      pointer-events: none;
+    }
+    .key-hint kbd {
+      display: inline-block;
+      padding: 0.1em 0.4em;
+      font-family: var(--font-sans);
+      font-size: 0.65rem;
+      background: #f0f0f0;
+      border: 1px solid #ddd;
+      border-radius: 3px;
+    }
+
+    /* ── Responsive: stack panels on narrow screens ─────────── */
+    @media (max-width: 1024px) {
+      .slide-headed-top,
+      .slide-headed-panels {
+        width: 100% !important;
+      }
+      .slide-headed-panels {
+        flex-direction: column;
+      }
+      .slide-panel { padding: 1.5rem 1.25rem; }
+      .slide-full { padding: 1.5rem 1.25rem; }
+    }
+    @media (max-width: 640px) {
+      .slide-panel { padding: 1.25rem 1rem; }
+      .slide-nav { padding: 0 1rem; }
+      .key-hint { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Top bar: title + authors (hidden on hero) ──────────── -->
+<div class="slide-topbar" id="slide-topbar">
+  <div class="topbar-left">
+    <div class="topbar-title">Tune to Learn: How Controller Gains Affect Robot Policy Learning</div>
+    <div class="topbar-meta">
+      Antonia Bronars*, Younghyo Park*, Pulkit Agrawal
+      <span class="topbar-sep">&middot;</span>
+      MIT Improbable AI
+    </div>
+  </div>
+  <div class="topbar-right">
+    <a href="#"><i class="fas fa-file-pdf"></i> Paper</a>
+    <a href="#"><i class="fas fa-video"></i> Video</a>
+    <a href="#"><i class="fas fa-scroll"></i> arXiv</a>
+  </div>
+</div>
+
+<!-- ── Section nav (populated by JS) ───────────────────────── -->
+<div class="section-nav" id="section-nav"></div>
+
+<!-- ╔══════════════════════════════════════════════════════════╗
+     ║  SLIDE DECK                                             ║
+     ╚══════════════════════════════════════════════════════════╝ -->
+<div class="deck" id="deck">
+
+  <!-- ════════════════════════════════════════════════════════
+       SLIDE 0: Hero + Abstract + Video (single column)
+       ════════════════════════════════════════════════════════ -->
+  <div class="slide slide-full scrollable slide-hero" data-slide="0" data-nav="Introduction">
+    <div class="slide-full-inner">
+      <div class="venue-badge">
+        <span class="badge">RSS 2026 (Under Review)</span>
+      </div>
+
+      <h1 class="paper-title">
+        Tune to Learn:<br/>
+        <span class="subtitle">How Controller Gains Affect Robot Policy Learning</span>
+      </h1>
+
+      <div class="author-list">
+        <div class="author"><a href="https://example.com" target="_blank">Antonia Bronars</a><sup>1*</sup></div>
+        <div class="author"><a href="https://younghyopark.me/" target="_blank">Younghyo Park</a><sup>1*</sup></div>
+        <div class="author"><a href="https://pulkitag.github.io/" target="_blank">Pulkit Agrawal</a><sup>1</sup></div>
+      </div>
+
+      <div class="affiliations"><span><sup>1</sup> MIT Improbable AI</span></div>
+      <p class="equal-contrib">* Equal contribution, Order determined by Coin Flipping</p>
+
+      <div class="link-buttons" style="margin-bottom: 1.5rem;">
+        <a href="#" class="btn"><i class="fas fa-file-pdf"></i> Paper</a>
+        <a href="#" class="btn"><i class="fas fa-video"></i> Video</a>
+        <a href="#" class="btn"><i class="fas fa-scroll"></i> arXiv</a>
+      </div>
+
+      <section class="section" id="abstract">
+        <h2>Abstract</h2>
+        <p class="abstract-text">
+          Position controllers have become the dominant interface for executing learned manipulation policies. Yet a critical design decision remains understudied: how should we choose controller gains for policy learning? The conventional wisdom is to select gains based on desired task compliance or stiffness. However, this logic breaks down when controllers are paired with state-conditioned policies: effective stiffness emerges from the interplay between learned reactions and control dynamics, not from gains alone. We argue that gain selection should instead be guided by <strong>learnability</strong>.
+        </p>
+        <ol class="abstract-findings">
+          <li><b>Behavior Cloning (BC)</b> benefits from compliant and overdamped gain regimes,</li>
+          <li><b>Reinforcement Learning (RL)</b> can succeed across all gain regimes given compatible hyperparameters, and</li>
+          <li><b>Sim-to-Real</b> transfer is harmed by stiff and overdamped gain regimes.</li>
+        </ol>
+      </section>
+
+      <div class="hero-video">
+        <iframe src="https://www.youtube.com/embed/6_6fhu_oo68?si=uoDsAM3wg6H_QJOE"
+                title="YouTube video player" frameborder="0" width="100%"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+      </div>
+
+      <div class="scroll-hint" id="scroll-hint">
+        Scroll or click <kbd>&larr;</kbd> <kbd>&rarr;</kbd> to navigate
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════
+       SLIDE 1: PD Controllers | MuJoCo Demo (headed two-panel)
+       ════════════════════════════════════════════════════════ -->
+  <div class="slide slide-headed" data-slide="1" data-width="65" data-split="50" data-nav="PD Controllers" data-heading-center>
+    <!-- Top: heading + equation + description -->
+    <div class="slide-headed-top">
+      <section class="section" id="method">
+        <h2><span style="font-weight:400">Back to Basics:</span> Position Impedance Controllers</h2>
+      </section>
+    </div>
+    <!-- Bottom: two panels -->
+    <div class="slide-headed-panels">
+      <div class="slide-panel">
+        <p>
+          Position impedance controllers are commonly used in robotics to enable compliant behavior. The control law is typically defined as:
+        </p>
+        <p>
+          $$\tau = \underbrace{\mathbf{K}_p (\mathbf{x}_{\text{desired}} - \mathbf{x})}_{\text{feedback}} + \underbrace{\mathbf{K}_d (- \dot{\mathbf{x}})}_{\text{damping}} + \underbrace{\tau_{\text{ff}}}_{\text{feedforward}}$$
+        </p>
+        <p>
+          where $\tau$ is the control torque, $\mathbf{K}_p$ is the stiffness gain matrix, and $\mathbf{K}_d$ is the damping gain matrix.
+        </p>
+
+
+        <p class="widget-hint" style="margin-top: 1.5rem; margin-bottom: 1rem; font-size: 0.9rem; color: #666; font-style: italic;">
+          Click and drag the circle below to adjust the gains and see how it affects the robot's response to different excitations.
+          The response curves are recorded from real-world Franka Research 3.
+        </p>
+
+        <iframe data-src="static/assets/pd_response_widget.html" style="height:40vh;"></iframe>
+      </div>
+
+      <div class="slide-panel v-center" >
+        <iframe id="mujoco-iframe" data-src="static/assets/mujoco_fr3_widget.html"
+                allow="autoplay"></iframe>
+        <p class="panel-caption">
+          Click &amp; drag to apply forces &middot; Right-click: orbit &middot; Scroll: zoom
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════
+       SLIDE 2: Selected Choice Findings (full width, scrollable)
+       Hidden until poll choice is made.
+       ════════════════════════════════════════════════════════ -->
+  <div class="slide slide-full scrollable" data-slide="2" id="slide-primary-choice" style="display:none;" data-nav="Status Quo">
+    <div class="slide-full-inner">
+      <div class="findings-transition" id="findings-transition"></div>
+      <div id="primary-choice-content"></div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════
+       SLIDE 3: Two Non-Selected Findings (headed two-panel)
+       Hidden until poll choice is made.
+       ════════════════════════════════════════════════════════ -->
+  <div class="slide slide-headed" data-slide="3" data-width="70" data-split="50" id="slide-other-choices" style="display:none;" data-gap="10rem" data-nav="Gain Effects">
+    <div class="slide-headed-top">
+      <!-- <h2 style="font-size:1.2rem; color:var(--text-light);">Other Approaches</h2> -->
+    </div>
+    <div class="slide-headed-panels">
+      <div class="slide-panel panel-finding" id="other-choice-left">
+        <div class="col-finding-label" id="other-left-label"></div>
+        <div class="injected-content" id="other-left-content"></div>
+      </div>
+      <div class="slide-panel panel-finding" id="other-choice-right">
+        <div class="col-finding-label" id="other-right-label"></div>
+        <div class="injected-content" id="other-right-content"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════
+       LP Dynamic Slides — injected here by JS from *-slides.html
+       ════════════════════════════════════════════════════════ -->
+  <div id="lp-dynamic-slides"></div>
+
+  <!-- ════════════════════════════════════════════════════════
+       BibTeX + Acknowledgments (data-slide set dynamically)
+       ════════════════════════════════════════════════════════ -->
+  <div class="slide slide-full" data-slide="7" data-nav="Citation">
+    <div class="slide-full-inner">
+      <section class="section" id="citation" style="margin-bottom: 2rem;">
+        <h2>BibTeX</h2>
+        <div class="bibtex-block">
+          <button class="copy-btn" data-copy="bibtex-code" title="Copy to clipboard">
+            <i class="fas fa-copy"></i> Copy
+          </button>
+          <pre><code id="bibtex-code">@inproceedings{author2026method,
+  title     = {Your Paper Title Goes Here},
+  author    = {One, Author and Two, Author and Three, Author and Four, Author},
+  booktitle = {Conference on Robot Learning (CoRL)},
+  year      = {2026}
+}</code></pre>
+        </div>
+      </section>
+
+      <section class="section" id="acknowledgments">
+        <h2>Acknowledgments</h2>
+        <p>
+          This work was supported by … We thank … for helpful discussions.
+          The website template is adapted from
+          <a href="https://nerfies.github.io" target="_blank">Nerfies</a>.
+        </p>
+      </section>
+
+      <footer style="margin-top: 2rem; text-align: center; font-size: 0.85rem; color: var(--text-light);  padding-top: 1rem;">
+        <p>&copy; 2026 ImprobableAI @MIT CSAIL. All rights reserved.</p>
+      </footer>
+    </div>
+  </div>
+
+</div><!-- /deck -->
+
+<!-- ── Poll Overlay (modal, not a slide) ──────────────────── -->
+<div class="poll-overlay" id="poll-overlay" style="display:none;">
+  <div class="poll-overlay-backdrop"></div>
+  <div class="poll-overlay-content">
+    <section class="section" id="poll">
+      <div class="poll-box">
+        <p class="poll-onboarding">Before we move on, a quick question for you —</p>
+        <h2 class="poll-question">How do you tune your controller gains?</h2>
+
+        <div class="poll-options">
+          <button class="poll-card" data-poll="a">
+            <div class="poll-card-text">
+              <span class="poll-card-title">Don't Tune</span>
+              <span class="poll-card-desc">I use whatever controller gains that ship with the robot (or controller software) by default.</span>
+            </div>
+          </button>
+          <button class="poll-card" data-poll="b">
+            <div class="poll-card-text">
+              <span class="poll-card-title">Tune based on the Task</span>
+              <span class="poll-card-desc">I set gains based on desired task behavior — e.g. stiff for precision requiring tasks.</span>
+            </div>
+          </button>
+          <button class="poll-card" data-poll="c">
+            <div class="poll-card-text">
+              <span class="poll-card-title">Tune for Teleoperation</span>
+              <span class="poll-card-desc">I pick whatever gains feel best during teleoperation or data collection.</span>
+            </div>
+          </button>
+        </div>
+
+        <p class="poll-subtitle">Select the approach that best describes your current practice.</p>
+      </div>
+
+      <!-- Response panels -->
+      <div class="poll-response" id="poll-response-a">
+        <div class="poll-response-header purple"><strong>You said: Don't Tune</strong></div>
+        <p>You're not alone — many practitioners never touch the default gains. But our experiments show that the <em>default</em> gain regime can quietly bottleneck policy performance. Swapping to a compliant, overdamped regime can improve success rates by over <strong>30%</strong>.</p>
+      </div>
+      <div class="poll-response" id="poll-response-b">
+        <div class="poll-response-header blue"><strong>You said: Tune for Task</strong></div>
+        <p>Matching gains to the <em>desired task stiffness</em> is the most common heuristic — but it can be misleading when a learned policy is in the loop. The <em>effective</em> stiffness is a product of both the controller gains <strong>and</strong> the learned behavior.</p>
+      </div>
+      <div class="poll-response" id="poll-response-c">
+        <div class="poll-response-header green"><strong>You said: Tune for Teleop</strong></div>
+        <p>Optimizing for a comfortable teleoperation feel is reasonable. However, gains that feel natural for a human operator may not be optimal for the downstream learning algorithm.</p>
+      </div>
+    </section>
+    <div class="poll-overlay-nav">
+      <button class="slide-nav-btn" id="poll-nav-prev">
+        <i class="fas fa-arrow-left"></i> Prev
+      </button>
+      <button class="slide-nav-btn primary" id="poll-nav-next">
+        Next <i class="fas fa-arrow-right"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Learning Poll Overlay (modal, same style as gain poll) ── -->
+<div class="poll-overlay" id="lp-overlay" style="display:none;">
+  <div class="poll-overlay-backdrop"></div>
+  <div class="poll-overlay-content">
+    <!-- Page 0: transition text -->
+    <div id="lp-overlay-page-0" class="lp-overlay-page">
+      <section class="section" style="padding:0; text-align:center;">
+        <h2 style="justify-content:center;">Instead: Tune for Your Learning Algorithm</h2>
+        <p style="max-width:600px; margin:0.75rem auto 0; font-size:1.05rem; line-height:1.6;">
+          The <em>right</em> gain regime depends on how you train your policy:
+          behavior cloning, reinforcement learning, and sim-to-real transfer each respond to gains very differently.
+        </p>
+      </section>
+    </div>
+    <!-- Page 1: learning poll -->
+    <div id="lp-overlay-page-1" class="lp-overlay-page" style="display:none;">
+      <div id="learning-poll-slot"></div>
+    </div>
+    <div class="poll-overlay-nav">
+      <button class="slide-nav-btn" id="lp-nav-prev">
+        <i class="fas fa-arrow-left"></i> Prev
+      </button>
+      <button class="slide-nav-btn primary" id="lp-nav-next">
+        Next <i class="fas fa-arrow-right"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Navigation Bar ───────────────────────────────────────── -->
+<nav class="slide-nav" id="slide-nav">
+  <button class="slide-nav-btn" id="nav-prev" disabled>
+    <i class="fas fa-arrow-left"></i> Prev
+  </button>
+  <div style="display:flex; flex-direction:column; align-items:center; gap:3px;">
+    <div class="slide-dots" id="slide-dots"></div>
+    <span class="slide-counter" id="slide-counter"></span>
+  </div>
+  <button class="slide-nav-btn primary" id="nav-next">
+    Next <i class="fas fa-arrow-right"></i>
+  </button>
+</nav>
+
+<div class="key-hint">
+  <kbd>&larr;</kbd> <kbd>&rarr;</kbd> to navigate
+</div>
+
+
+<!-- ╔══════════════════════════════════════════════════════════╗
+     ║  SCRIPTS                                                ║
+     ╚══════════════════════════════════════════════════════════╝ -->
+
+<!-- Original site JS (polls, widgets, lazy loading, etc.) -->
+<script src="static/js/script.js"></script>
+
+<!-- ── Slide Deck Engine ──────────────────────────────────── -->
+<script>
+(function() {
+  'use strict';
+
+  const deck = document.getElementById('deck');
+  const dotsEl = document.getElementById('slide-dots');
+  const counterEl = document.getElementById('slide-counter');
+  const prevBtn = document.getElementById('nav-prev');
+  const nextBtn = document.getElementById('nav-next');
+
+  let slides = [];
+  let idx = 0;
+
+  function collect() {
+    slides = Array.from(deck.querySelectorAll('.slide')).filter(s => s.style.display !== 'none');
+  }
+
+  function buildDots() {
+    dotsEl.innerHTML = '';
+    slides.forEach((_, i) => {
+      const d = document.createElement('button');
+      d.className = 'slide-dot';
+      d.addEventListener('click', () => goTo(i));
+      dotsEl.appendChild(d);
+    });
+  }
+
+  // Section nav: static list, always visible
+  var sectionNavEl = document.getElementById('section-nav');
+  var SECTIONS = [
+    'Introduction', 'PD Controllers', 'Gain Effects',
+    'Behavior Cloning', 'Reinforcement Learning', 'Sim-to-Real Transfer',
+    'Citation'
+  ];
+
+  function findSectionSlide(label) {
+    for (var i = 0; i < slides.length; i++) {
+      if (slides[i].getAttribute('data-nav') === label) return i;
+    }
+    return -1;
+  }
+
+  function buildSectionNav() {
+    sectionNavEl.innerHTML = '';
+
+    // Prev arrow
+    var arrowsLeft = document.createElement('div');
+    arrowsLeft.className = 'section-nav-arrows';
+    var prevA = document.createElement('button');
+    prevA.className = 'nav-arrow';
+    prevA.id = 'snav-prev';
+    prevA.innerHTML = '<i class="fas fa-arrow-left"></i>';
+    prevA.addEventListener('click', function() { goTo(idx - 1); });
+    arrowsLeft.appendChild(prevA);
+    sectionNavEl.appendChild(arrowsLeft);
+
+    // Section labels (center)
+    var center = document.createElement('div');
+    center.className = 'section-nav-sections';
+    SECTIONS.forEach(function(label, si) {
+      if (si > 0) {
+        var sep = document.createElement('span');
+        sep.className = 'section-nav-sep';
+        center.appendChild(sep);
+      }
+      var btn = document.createElement('button');
+      btn.className = 'section-nav-item';
+      btn.textContent = label;
+      btn.addEventListener('click', function() {
+        var si = findSectionSlide(label);
+        if (si >= 0) goTo(si);
+      });
+      center.appendChild(btn);
+    });
+    sectionNavEl.appendChild(center);
+
+    // Next arrow + counter
+    var arrowsRight = document.createElement('div');
+    arrowsRight.className = 'section-nav-arrows';
+    var ctr = document.createElement('span');
+    ctr.className = 'section-nav-counter';
+    ctr.id = 'snav-counter';
+    arrowsRight.appendChild(ctr);
+    var nextA = document.createElement('button');
+    nextA.className = 'nav-arrow';
+    nextA.id = 'snav-next';
+    nextA.innerHTML = '<i class="fas fa-arrow-right"></i>';
+    nextA.addEventListener('click', function() { goTo(idx + 1); });
+    arrowsRight.appendChild(nextA);
+    sectionNavEl.appendChild(arrowsRight);
+  }
+
+  function updateSectionNav() {
+    var curNav = slides[idx] && slides[idx].getAttribute('data-nav');
+    sectionNavEl.querySelectorAll('.section-nav-item').forEach(function(btn) {
+      var reachable = findSectionSlide(btn.textContent) >= 0;
+      btn.classList.toggle('active', btn.textContent === curNav);
+      btn.classList.toggle('dimmed', !reachable);
+      btn.disabled = !reachable;
+    });
+    // Arrow + counter state
+    var prevA = document.getElementById('snav-prev');
+    var nextA = document.getElementById('snav-next');
+    var ctr = document.getElementById('snav-counter');
+    if (prevA) prevA.disabled = (idx === 0);
+    if (nextA) nextA.disabled = (idx === slides.length - 1);
+    if (ctr) ctr.textContent = (idx + 1) + ' / ' + slides.length;
+    // Position below topbar
+    var topbar = document.getElementById('slide-topbar');
+    var show = idx > 0;
+    sectionNavEl.classList.toggle('visible', show);
+    if (topbar && show) {
+      sectionNavEl.style.top = topbar.offsetHeight + 'px';
+    }
+  }
+
+  function lazyLoad(slide) {
+    slide.querySelectorAll('iframe[data-src]').forEach(f => {
+      f.src = f.dataset.src;
+      f.removeAttribute('data-src');
+    });
+  }
+
+  function updateUI() {
+    const dots = dotsEl.querySelectorAll('.slide-dot');
+    slides.forEach((s, i) => {
+      s.classList.remove('active', 'exiting-left', 'exiting-right');
+      if (i === idx) s.classList.add('active');
+    });
+    dots.forEach((d, i) => {
+      d.classList.remove('active', 'visited');
+      if (i === idx) d.classList.add('active');
+      else if (i < idx) d.classList.add('visited');
+    });
+    counterEl.textContent = (idx + 1) + ' / ' + slides.length;
+    prevBtn.disabled = (idx === 0);
+    nextBtn.disabled = (idx === slides.length - 1);
+    nextBtn.innerHTML = idx === slides.length - 1
+      ? 'End <i class="fas fa-check"></i>'
+      : 'Next <i class="fas fa-arrow-right"></i>';
+    lazyLoad(slides[idx]);
+    // Show top bar + section nav from slide 1 onward
+    var topbar = document.getElementById('slide-topbar');
+    if (topbar) topbar.classList.toggle('visible', idx > 0);
+    updateSectionNav();
+  }
+
+  // Poll overlay state (gain poll between slide 1 ↔ 2)
+  var pollOverlay = document.getElementById('poll-overlay');
+  var pollOpen = false;
+
+  function showPollOverlay() {
+    pollOverlay.style.display = '';
+    pollOpen = true;
+    var pnb = document.getElementById('poll-nav-next');
+    if (pnb) pnb.disabled = !localStorage.getItem('poll-choice');
+  }
+  function dismissPollOverlay() {
+    pollOverlay.style.display = 'none';
+    pollOpen = false;
+  }
+
+  // Learning poll overlay state (2-page modal: transition → poll)
+  var lpOverlay = document.getElementById('lp-overlay');
+  var lpOpen = false;
+  var lpPage = 0; // 0 = transition text, 1 = poll
+
+  function setLpPage(p) {
+    lpPage = p;
+    document.getElementById('lp-overlay-page-0').style.display = p === 0 ? '' : 'none';
+    document.getElementById('lp-overlay-page-1').style.display = p === 1 ? '' : 'none';
+    // Next button: always enabled on page 0; on page 1, only if choice made
+    var btn = document.getElementById('lp-nav-next');
+    if (btn) btn.disabled = (p === 1 && !localStorage.getItem('lp-choice'));
+  }
+
+  function showLpOverlay() {
+    lpOverlay.style.display = '';
+    lpOpen = true;
+    setLpPage(0);
+  }
+  function dismissLpOverlay() {
+    lpOverlay.style.display = 'none';
+    lpOpen = false;
+  }
+
+  var skipPollIntercept = false;
+
+  function goTo(target) {
+    if (target < 0 || target >= slides.length || target === idx) return;
+
+    if (!skipPollIntercept && !window._skipPollIntercept) {
+      // ── Paged slide: advance/retreat substeps, then pages ──
+      var curSlide = slides[idx];
+      var totalPages = parseInt(curSlide.dataset.pages) || 0;
+      if (totalPages > 1) {
+        var curPage = parseInt(curSlide.dataset.currentPage) || 0;
+        var activePanel = curSlide.querySelector('.paged-panel.paged-active');
+
+        // Substeps within current page (e.g. widget → videos)
+        if (activePanel && activePanel.dataset.substeps) {
+          var totalSubs = parseInt(activePanel.dataset.substeps);
+          var curSub = parseInt(activePanel.dataset.currentSubstep) || 0;
+          if (target === idx + 1 && curSub < totalSubs - 1) {
+            setSubstep(activePanel, curSub + 1);
+            return;
+          }
+          if (target === idx - 1 && curSub > 0) {
+            setSubstep(activePanel, curSub - 1);
+            return;
+          }
+        }
+
+        // Page advancement
+        if (target === idx + 1 && curPage < totalPages - 1) {
+          setPagedSlide(curSlide, curPage + 1);
+          return;
+        }
+        if (target === idx - 1 && curPage > 0) {
+          setPagedSlide(curSlide, curPage - 1, true);
+          return;
+        }
+      }
+
+      // ── Gain poll: between slide 1 (PD) ↔ slide 2 (findings) ──
+      var pdSlide = slides[1];
+      var findingsSlide = slides[2];
+      // Forward from slide 1 → show gain poll
+      if (slides[idx] === pdSlide && target > idx) {
+        showPollOverlay();
+        return;
+      }
+      // Backward from slide 2 → go to slide 1, then show gain poll
+      if (slides[idx] === findingsSlide && target < idx) {
+        skipPollIntercept = true;
+        goTo(1);
+        skipPollIntercept = false;
+        showPollOverlay();
+        return;
+      }
+
+      // ── Learning poll: between other-choices slide ↔ first LP slide ──
+      var otherChoicesSlide = document.getElementById('slide-other-choices');
+      var otherIdx = otherChoicesSlide ? slides.indexOf(otherChoicesSlide) : -1;
+      // Forward from other-choices → show LP overlay
+      if (otherIdx >= 0 && idx === otherIdx && target > idx) {
+        showLpOverlay();
+        return;
+      }
+      // Backward from first LP slide → go to other-choices, then show LP overlay
+      if (otherIdx >= 0 && idx === otherIdx + 1 && target < idx) {
+        skipPollIntercept = true;
+        goTo(otherIdx);
+        skipPollIntercept = false;
+        showLpOverlay();
+        return;
+      }
+    }
+    const dir = target > idx ? 'left' : 'right';
+    const cur = slides[idx];
+
+    cur.classList.remove('active');
+    cur.classList.add(dir === 'left' ? 'exiting-left' : 'exiting-right');
+    setTimeout(() => cur.classList.remove('exiting-left', 'exiting-right'), 500);
+
+    idx = target;
+    try { sessionStorage.setItem('deck-slide', idx); } catch(_) {}
+    const nxt = slides[idx];
+
+    // Set initial page when arriving at a paged slide
+    var nxtPages = parseInt(nxt.dataset.pages) || 0;
+    if (nxtPages > 1) {
+      var goingBack = dir === 'right';
+      setPagedSlide(nxt, goingBack ? nxtPages - 1 : 0, goingBack);
+    }
+
+    nxt.style.transition = 'none';
+    nxt.style.transform = dir === 'left' ? 'translateX(50px)' : 'translateX(-50px)';
+    nxt.style.opacity = '0';
+    nxt.offsetHeight; // reflow
+    nxt.style.transition = '';
+    nxt.style.transform = '';
+    nxt.style.opacity = '';
+    nxt.scrollTop = 0;
+    // Reset scroll on panels too
+    nxt.querySelectorAll('.slide-panel').forEach(c => c.scrollTop = 0);
+
+    // Hide scroll hint once user leaves slide 0
+    var hint = document.getElementById('scroll-hint');
+    if (hint && idx > 0) hint.style.display = 'none';
+
+    updateUI();
+  }
+
+  prevBtn.addEventListener('click', () => goTo(idx - 1));
+  nextBtn.addEventListener('click', () => goTo(idx + 1));
+
+  // ── Paged slide: switch visible panel set ──
+  // fromEnd: if true, set substep to last (for backward navigation)
+  function setPagedSlide(slide, pageIdx, fromEnd) {
+    slide.querySelectorAll('.paged-panel').forEach(function(p) {
+      var isActive = parseInt(p.dataset.pageIdx) === pageIdx;
+      p.classList.toggle('paged-active', isActive);
+      // Reset substeps on the newly active page
+      if (isActive && p.dataset.substeps) {
+        var sub = fromEnd ? (parseInt(p.dataset.substeps) - 1) : 0;
+        setSubstep(p, sub);
+      }
+    });
+    slide.querySelectorAll('.slide-page-dot').forEach(function(d, i) {
+      d.classList.toggle('active', i === pageIdx);
+    });
+    slide.dataset.currentPage = pageIdx;
+    // Lazy-load iframes on newly visible page
+    var active = slide.querySelector('.paged-panel.paged-active');
+    if (active) {
+      active.querySelectorAll('iframe[data-src]').forEach(function(f) {
+        f.src = f.dataset.src;
+        f.removeAttribute('data-src');
+      });
+    }
+    // Re-init widgets that may need dimensions
+    if (window.initSimTabs) window.initSimTabs();
+    if (window.initPolicyGrid) window.initPolicyGrid();
+    if (window.initRlPolicyGrid) window.initRlPolicyGrid();
+    if (window.renderMathInElement) {
+      window.renderMathInElement(document.body, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$', right: '$', display: false }
+        ]
+      });
+    }
+  }
+
+  // ── Substep: toggle content within a page (e.g. widget → videos) ──
+  function setSubstep(panel, subIdx) {
+    panel.querySelectorAll('[data-substep]').forEach(function(el) {
+      el.style.display = parseInt(el.dataset.substep) === subIdx ? '' : 'none';
+    });
+    panel.dataset.currentSubstep = subIdx;
+    // Sync tab buttons if present
+    panel.querySelectorAll('[data-substep-btn]').forEach(function(btn) {
+      btn.classList.toggle('active', parseInt(btn.dataset.substepBtn) === subIdx);
+    });
+  }
+
+  // Dot click → jump to page
+  deck.addEventListener('click', function(e) {
+    var dot = e.target.closest('.slide-page-dot');
+    if (!dot) return;
+    var slide = dot.closest('.slide');
+    var pageIdx = parseInt(dot.dataset.page);
+    if (slide && !isNaN(pageIdx)) setPagedSlide(slide, pageIdx);
+  });
+
+  // Substep tab click → jump to substep
+  deck.addEventListener('click', function(e) {
+    var btn = e.target.closest('[data-substep-btn]');
+    if (!btn) return;
+    var panel = btn.closest('.paged-panel');
+    if (panel) setSubstep(panel, parseInt(btn.dataset.substepBtn));
+  });
+
+  // ── Gain poll overlay nav buttons ──
+  var pollPrevBtn = document.getElementById('poll-nav-prev');
+  var pollNextBtn = document.getElementById('poll-nav-next');
+
+  pollPrevBtn.addEventListener('click', function() {
+    dismissPollOverlay();
+    skipPollIntercept = true;
+    goTo(idx === 1 ? idx : idx - 1);
+    skipPollIntercept = false;
+  });
+  pollNextBtn.addEventListener('click', function() {
+    if (localStorage.getItem('poll-choice')) {
+      dismissPollOverlay();
+      skipPollIntercept = true;
+      goTo(idx === 1 ? idx + 1 : idx);
+      skipPollIntercept = false;
+    }
+  });
+
+  // ── Learning poll overlay nav buttons ──
+  var lpPrevBtn = document.getElementById('lp-nav-prev');
+  var lpNextBtn = document.getElementById('lp-nav-next');
+
+  lpPrevBtn.addEventListener('click', function() {
+    if (lpPage === 1) {
+      setLpPage(0);
+    } else {
+      dismissLpOverlay();
+    }
+  });
+  lpNextBtn.addEventListener('click', async function() {
+    if (lpPage === 0) {
+      setLpPage(1);
+    } else if (localStorage.getItem('lp-choice')) {
+      if (window.lpSlideLoadPromise) await window.lpSlideLoadPromise;
+      dismissLpOverlay();
+      deckRefresh();
+      skipPollIntercept = true;
+      goTo(idx + 1);
+      skipPollIntercept = false;
+    }
+  });
+
+  // Helper: is any overlay open?
+  function anyOverlayOpen() { return pollOpen || lpOpen; }
+
+  // ── Generic overlay dismiss helpers for keyboard/scroll ──
+  function handleOverlayPrev() {
+    if (pollOpen) {
+      dismissPollOverlay();
+      skipPollIntercept = true;
+      goTo(idx === 1 ? idx : idx - 1);
+      skipPollIntercept = false;
+    } else if (lpOpen) {
+      if (lpPage === 1) {
+        setLpPage(0);
+      } else {
+        dismissLpOverlay();
+      }
+    }
+  }
+  async function handleOverlayNext() {
+    if (pollOpen && localStorage.getItem('poll-choice')) {
+      dismissPollOverlay();
+      skipPollIntercept = true;
+      goTo(idx === 1 ? idx + 1 : idx);
+      skipPollIntercept = false;
+    } else if (lpOpen) {
+      if (lpPage === 0) {
+        setLpPage(1);
+        return;
+      }
+      if (!localStorage.getItem('lp-choice')) return;
+      if (window.lpSlideLoadPromise) await window.lpSlideLoadPromise;
+      dismissLpOverlay();
+      deckRefresh();
+      skipPollIntercept = true;
+      goTo(idx + 1);
+      skipPollIntercept = false;
+    }
+  }
+
+  document.addEventListener('keydown', e => {
+    if (anyOverlayOpen()) {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        handleOverlayPrev();
+      }
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        handleOverlayNext();
+      }
+      return;
+    }
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); goTo(idx + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); goTo(idx - 1); }
+  });
+
+  // Scroll-wheel navigation (debounced)
+  let wheelCooldown = false;
+  document.addEventListener('wheel', e => {
+    if (wheelCooldown || anyOverlayOpen()) return;
+    // Skip if user is scrolling inside a scrollable panel/slide
+    const scrollable = e.target.closest('.scrollable, .slide-panel, iframe');
+    if (scrollable && scrollable.scrollHeight > scrollable.clientHeight) {
+      const atTop = scrollable.scrollTop <= 0;
+      const atBottom = scrollable.scrollTop + scrollable.clientHeight >= scrollable.scrollHeight - 1;
+      if ((e.deltaY < 0 && !atTop) || (e.deltaY > 0 && !atBottom)) return;
+    }
+    if (Math.abs(e.deltaY) < 15) return; // ignore tiny scrolls
+    wheelCooldown = true;
+    if (e.deltaY > 0) goTo(idx + 1);
+    else goTo(idx - 1);
+    setTimeout(() => { wheelCooldown = false; }, 700);
+  }, { passive: true });
+
+  // Public API
+  window.dismissPollOverlay = dismissPollOverlay;
+  window.dismissLpOverlay = dismissLpOverlay;
+  window.isPollOpen = function() { return pollOpen; };
+  window.isLpOpen = function() { return lpOpen; };
+  window.deckRefresh = function() {
+    collect();
+    buildDots();
+    buildSectionNav();
+    if (idx >= slides.length) idx = slides.length - 1;
+    updateUI();
+  };
+  window.deckGoTo = goTo;
+  window.deckNext = function() { goTo(idx + 1); };
+  window.deckShowSlide = function(el) {
+    if (el && el.style.display === 'none') {
+      el.style.display = '';
+      deckRefresh();
+    }
+  };
+
+  // Init — restore slide index from sessionStorage on refresh
+  collect();
+  buildDots();
+  buildSectionNav();
+  var saved = 0;
+  try { saved = parseInt(sessionStorage.getItem('deck-slide'), 10) || 0; } catch(_) {}
+  if (saved >= slides.length) saved = 0;
+  idx = saved;
+  if (slides.length) slides[idx].classList.add('active');
+  updateUI();
+})();
+</script>
+
+<!-- ── Headed Layout Init ─────────────────────────────────── -->
+<!--
+  Each .slide-headed reads data attributes:
+    data-width="80"   → top + panels occupy 80% of viewport width  (default 80)
+    data-split="50"   → left panel = 50%, right panel = 50%        (default 50)
+    data-gap="2rem"   → gap between the two columns                (default 1rem)
+-->
+<script>
+(function() {
+  'use strict';
+
+  document.querySelectorAll('.slide-headed').forEach(slide => {
+    const top    = slide.querySelector('.slide-headed-top');
+    const panels = slide.querySelector('.slide-headed-panels');
+    if (!top || !panels) return;
+
+    const widthPct = parseFloat(slide.dataset.width) || 80;
+    const splitPct = parseFloat(slide.dataset.split) || 50;
+    const gap      = slide.dataset.gap || null;
+
+    top.style.width    = widthPct + '%';
+    panels.style.width = widthPct + '%';
+
+    if (gap) panels.style.gap = gap;
+
+    // Apply split to panels
+    const panelEls = panels.querySelectorAll('.slide-panel');
+    if (panelEls.length === 2) {
+      panelEls[0].style.flex = '0 1 ' + splitPct + '%';
+      panelEls[1].style.flex = '0 1 ' + (100 - splitPct) + '%';
+    }
+  });
+})();
+</script>
+
+<!-- ── Poll → Slide Wiring ────────────────────────────────── -->
+<script>
+(function() {
+  'use strict';
+
+  const CHOICE_LABELS = { a: 'Don\'t Tune', b: 'Tune based on Task', c: 'Tune for Teleop' };
+  const CHOICE_TRANSITION = {
+    a: 'You said <strong style="color:#7b3f8d">"I don\'t tune the gains at all."</strong>&nbsp; Unfortunately…',
+    b: 'You said <strong style="color:#4a7fb5">"I tune the gains based on the task."</strong>&nbsp; Unfortunately…',
+    c: 'You said <strong style="color:#4a7a3e">"I tune the gains for teleoperation."</strong>&nbsp; Unfortunately…'
+  };
+  const CHOICE_ALSO = {
+    a: 'Others said <strong style="color:#7b3f8d">"I don\'t tune the gains at all."</strong>&nbsp; Unfortunately…',
+    b: 'Others said <strong style="color:#4a7fb5">"I tune the gains based on the task."</strong>&nbsp; Unfortunately…',
+    c: 'Others said <strong style="color:#4a7a3e">"I tune the gains for teleoperation."</strong>&nbsp; Unfortunately…'
+  };
+
+  const primarySlide = document.getElementById('slide-primary-choice');
+  const otherSlide   = document.getElementById('slide-other-choices');
+
+  const primaryContent   = document.getElementById('primary-choice-content');
+  const otherLeftContent = document.getElementById('other-left-content');
+  const otherRightContent= document.getElementById('other-right-content');
+  const otherLeftLabel   = document.getElementById('other-left-label');
+  const otherRightLabel  = document.getElementById('other-right-label');
+
+  // Content cache
+  const cache = {};
+
+  async function fetchChoice(key) {
+    if (cache[key]) return cache[key];
+    const res = await fetch('static/content/choice-' + key + '.html');
+    if (!res.ok) throw new Error(res.status);
+    let html = await res.text();
+    // Strip learning-poll placeholders and fix duplicate IDs
+    html = html.replace(/<div class="learning-poll-placeholder"><\/div>/g, '');
+    html = html.replace(/id="results"/g, 'id="results-' + key + '"');
+    cache[key] = html;
+    return html;
+  }
+
+  function reinit() {
+    // Re-run component initializers from script.js
+    if (window.initTabs) initTabs();
+    if (window.initComparisonSliders) initComparisonSliders();
+    if (window.initCarousels) initCarousels();
+    if (window.initCopyButtons) initCopyButtons();
+    if (window.initLazyIframes) initLazyIframes();
+    if (window.initLazyVideos) initLazyVideos();
+    if (window.initSimTabs) initSimTabs();
+    if (window.initPolicyGrid) initPolicyGrid();
+    if (window.initRlPolicyGrid) initRlPolicyGrid();
+    if (window.rerenderMath) rerenderMath();
+    // KaTeX re-render
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$', right: '$', display: false }
+        ]
+      });
+    }
+  }
+
+  async function loadChoiceContent(choice) {
+    const all = ['a', 'b', 'c'];
+    const others = all.filter(k => k !== choice);
+
+    try {
+      const [primaryHtml, otherHtml0, otherHtml1] = await Promise.all([
+        fetchChoice(choice),
+        fetchChoice(others[0]),
+        fetchChoice(others[1])
+      ]);
+
+      // Findings transition subtitle
+      var ft = document.getElementById('findings-transition');
+      if (ft) {
+        ft.innerHTML = CHOICE_TRANSITION[choice];
+      }
+
+      // Slide 2: primary choice
+      primaryContent.innerHTML = primaryHtml;
+
+      // Slide 3: two non-selected side by side
+      otherLeftLabel.innerHTML = CHOICE_ALSO[others[0]];
+      otherLeftContent.innerHTML = otherHtml0;
+      otherRightLabel.innerHTML = CHOICE_ALSO[others[1]];
+      otherRightContent.innerHTML = otherHtml1;
+
+      // Reveal slides
+      deckShowSlide(primarySlide);
+      deckShowSlide(otherSlide);
+
+      reinit();
+
+      // Load learning poll into its slot
+      loadLearningPoll();
+    } catch (err) {
+      console.warn('Failed to load choice content:', err);
+    }
+  }
+
+  // === LP results → slides ===
+  const LP_LABELS_FULL = {
+    bc:       'Behavior Cloning',
+    rl:       'Reinforcement Learning',
+    sim2real: 'Sim-to-Real Transfer'
+  };
+  const LP_COLORS = { bc: '#d97706', rl: '#0d9488', sim2real: '#6366f1' };
+  const LP_TRANSITION = {
+    bc:       'You said <strong style="color:#d97706">"Behavior Cloning."</strong>',
+    rl:       'You said <strong style="color:#0d9488">"Reinforcement Learning."</strong>',
+    sim2real: 'You said <strong style="color:#6366f1">"Sim-to-Real Transfer."</strong>'
+  };
+  const LP_ALSO = {
+    bc:       'Others said <strong style="color:#d97706">"Behavior Cloning."</strong>',
+    rl:       'Others said <strong style="color:#0d9488">"Reinforcement Learning."</strong>',
+    sim2real: 'Others said <strong style="color:#6366f1">"Sim-to-Real Transfer."</strong>'
+  };
+
+  // Fetch a *-slides.html file and return its HTML string
+  const lpSlidesCache = {};
+  async function fetchLpSlides(key) {
+    if (lpSlidesCache[key]) return lpSlidesCache[key];
+    const res = await fetch('static/content/learning-' + key + '-slides.html');
+    if (!res.ok) throw new Error(res.status);
+    const html = await res.text();
+    lpSlidesCache[key] = html;
+    return html;
+  }
+
+  // Build a real deck slide from a .lp-slide element
+  function buildSlideFromLpSlide(lpSlide, slideIndex) {
+    var layout = lpSlide.getAttribute('data-layout') || 'full';
+    var slide;
+
+    if (layout === 'headed') {
+      slide = document.createElement('div');
+      slide.className = 'slide slide-headed';
+      slide.setAttribute('data-slide', slideIndex);
+      if (lpSlide.dataset.width) slide.setAttribute('data-width', lpSlide.dataset.width);
+      if (lpSlide.dataset.split) slide.setAttribute('data-split', lpSlide.dataset.split);
+      if (lpSlide.dataset.gap) slide.setAttribute('data-gap', lpSlide.dataset.gap);
+
+      var top = document.createElement('div');
+      top.className = 'slide-headed-top';
+      var headingEl = lpSlide.querySelector('.lp-slide-heading');
+      if (headingEl) top.innerHTML = headingEl.innerHTML;
+
+      var panels = document.createElement('div');
+      panels.className = 'slide-headed-panels';
+
+      var leftSrc = lpSlide.querySelector('.lp-slide-left');
+      var rightSrc = lpSlide.querySelector('.lp-slide-right');
+
+      var leftPanel = document.createElement('div');
+      leftPanel.className = 'slide-panel' + (leftSrc && leftSrc.classList.contains('v-center') ? ' v-center' : '');
+      if (leftSrc) leftPanel.innerHTML = leftSrc.innerHTML;
+
+      var rightPanel = document.createElement('div');
+      rightPanel.className = 'slide-panel' + (rightSrc && rightSrc.classList.contains('v-center') ? ' v-center' : '');
+      if (rightSrc) rightPanel.innerHTML = rightSrc.innerHTML;
+
+      panels.appendChild(leftPanel);
+      panels.appendChild(rightPanel);
+      slide.appendChild(top);
+      slide.appendChild(panels);
+
+      // Apply headed layout sizing
+      var widthPct = parseFloat(slide.dataset.width) || 80;
+      var splitPct = parseFloat(slide.dataset.split) || 50;
+      top.style.width = widthPct + '%';
+      panels.style.width = widthPct + '%';
+      if (slide.dataset.gap) panels.style.gap = slide.dataset.gap;
+      leftPanel.style.flex = '0 1 ' + splitPct + '%';
+      rightPanel.style.flex = '0 1 ' + (100 - splitPct) + '%';
+
+    } else if (layout === 'headed-paged') {
+      slide = document.createElement('div');
+      slide.className = 'slide slide-headed';
+      slide.setAttribute('data-slide', slideIndex);
+
+      var widthPct = parseFloat(lpSlide.dataset.width) || 80;
+      var gapVal = lpSlide.dataset.gap || null;
+
+      // Heading
+      var top = document.createElement('div');
+      top.className = 'slide-headed-top';
+      var headingEl = lpSlide.querySelector('.lp-slide-heading');
+      if (headingEl) top.innerHTML = headingEl.innerHTML;
+      top.style.width = widthPct + '%';
+      slide.appendChild(top);
+
+      var pages = Array.from(lpSlide.querySelectorAll('.lp-page'));
+
+      // Wrapper: CSS grid stacks all pages in the same cell (max height wins → heading stays fixed)
+      var wrapper = document.createElement('div');
+      wrapper.className = 'paged-panels-wrapper';
+      wrapper.style.width = widthPct + '%';
+
+      // Create panel sets for each page
+      pages.forEach(function(page, pi) {
+        var pageSplit = parseFloat(page.dataset.split) || 50;
+        var panels = document.createElement('div');
+        panels.className = 'slide-headed-panels paged-panel' + (pi === 0 ? ' paged-active' : '');
+        panels.setAttribute('data-page-idx', pi);
+        if (page.dataset.substeps) {
+          panels.setAttribute('data-substeps', page.dataset.substeps);
+          panels.setAttribute('data-current-substep', '0');
+        }
+        if (gapVal) panels.style.gap = gapVal;
+
+        var leftSrc = page.querySelector('.lp-slide-left');
+        var rightSrc = page.querySelector('.lp-slide-right');
+
+        if (leftSrc && !rightSrc) {
+          // Single-column centered page
+          panels.style.justifyContent = 'center';
+          var sp = document.createElement('div');
+          sp.className = 'slide-panel paged-single-col';
+          if (leftSrc.classList.contains('v-center')) sp.classList.add('v-center');
+          sp.innerHTML = leftSrc.innerHTML;
+          panels.appendChild(sp);
+        } else {
+          var lp = document.createElement('div');
+          lp.className = 'slide-panel' + (leftSrc && leftSrc.classList.contains('v-center') ? ' v-center' : '');
+          if (leftSrc) lp.innerHTML = leftSrc.innerHTML;
+
+          var rp = document.createElement('div');
+          rp.className = 'slide-panel' + (rightSrc && rightSrc.classList.contains('v-center') ? ' v-center' : '');
+          if (rightSrc) rp.innerHTML = rightSrc.innerHTML;
+
+          lp.style.flex = '0 1 ' + pageSplit + '%';
+          rp.style.flex = '0 1 ' + (100 - pageSplit) + '%';
+
+          panels.appendChild(lp);
+          panels.appendChild(rp);
+        }
+        wrapper.appendChild(panels);
+      });
+      slide.appendChild(wrapper);
+
+      // Page indicator dots (below content)
+      if (pages.length > 1) {
+        var dotsDiv = document.createElement('div');
+        dotsDiv.className = 'slide-page-dots';
+        dotsDiv.style.width = widthPct + '%';
+        pages.forEach(function(_, pi) {
+          var dot = document.createElement('button');
+          dot.className = 'slide-page-dot' + (pi === 0 ? ' active' : '');
+          dot.setAttribute('data-page', pi);
+          dotsDiv.appendChild(dot);
+        });
+        slide.appendChild(dotsDiv);
+      }
+
+      slide.setAttribute('data-pages', pages.length);
+      slide.setAttribute('data-current-page', '0');
+
+    } else {
+      // full-width scrollable
+      slide = document.createElement('div');
+      slide.className = 'slide slide-full scrollable';
+      slide.setAttribute('data-slide', slideIndex);
+      var inner = document.createElement('div');
+      inner.className = 'slide-full-inner';
+      inner.innerHTML = lpSlide.innerHTML;
+      slide.appendChild(inner);
+    }
+
+    slide.style.display = 'none';
+    return slide;
+  }
+
+  // Parse HTML string into .lp-slide elements
+  function parseLpSlides(html) {
+    var temp = document.createElement('div');
+    temp.innerHTML = html;
+    return Array.from(temp.querySelectorAll('.lp-slide'));
+  }
+
+  let lpSlidesLoaded = false;
+
+  async function loadLpSlideContent(choice) {
+    var container = document.getElementById('lp-dynamic-slides');
+    var deck = document.getElementById('deck');
+    if (!container || !deck) return;
+
+    // Remove previously injected LP slides
+    container.querySelectorAll('.slide').forEach(function(s) { s.remove(); });
+    // Also remove any that were moved into the deck
+    deck.querySelectorAll('.lp-injected-slide').forEach(function(s) { s.remove(); });
+    lpSlidesLoaded = false;
+
+    var allLp = ['bc', 'rl', 'sim2real'];
+    var others = allLp.filter(function(k) { return k !== choice; });
+    // Order: primary choice first, then others
+    var ordered = [choice].concat(others);
+
+    try {
+      var htmls = await Promise.all(ordered.map(function(k) { return fetchLpSlides(k); }));
+
+      // Find the bibtex slide (last slide in the deck) to insert before
+      var bibtexSlide = deck.lastElementChild;
+
+      var slideIdx = 4; // start numbering after slide 3 (other-choices)
+
+      for (var t = 0; t < ordered.length; t++) {
+        var key = ordered[t];
+        var lpSlideEls = parseLpSlides(htmls[t]);
+
+        // Add transition subtitle as first child of the .lp-slide itself (above h2)
+        if (lpSlideEls.length > 0) {
+          var ftDiv = document.createElement('div');
+          ftDiv.className = 'findings-transition';
+          ftDiv.innerHTML = (t === 0 ? LP_TRANSITION : LP_ALSO)[key];
+          lpSlideEls[0].insertBefore(ftDiv, lpSlideEls[0].firstChild);
+        }
+
+        for (var s = 0; s < lpSlideEls.length; s++) {
+          var realSlide = buildSlideFromLpSlide(lpSlideEls[s], slideIdx);
+          realSlide.classList.add('lp-injected-slide');
+          realSlide.setAttribute('data-nav', LP_LABELS_FULL[key]);
+          // Insert into deck before bibtex
+          deck.insertBefore(realSlide, bibtexSlide);
+          slideIdx++;
+        }
+      }
+
+      lpSlidesLoaded = true;
+
+      // Reveal all injected slides and refresh deck
+      deck.querySelectorAll('.lp-injected-slide').forEach(function(s) {
+        s.style.display = '';
+      });
+      deckRefresh();
+      reinit();
+    } catch (err) {
+      console.warn('Failed to load LP slide content:', err);
+    }
+  }
+
+  // Learning poll injection
+  let lpCache = null;
+  async function loadLearningPoll() {
+    const slot = document.getElementById('learning-poll-slot');
+    if (!slot || slot.dataset.loaded) return;
+    try {
+      if (!lpCache) {
+        const res = await fetch('static/content/learning-poll.html');
+        if (!res.ok) return;
+        lpCache = await res.text();
+      }
+      slot.innerHTML = lpCache;
+      slot.dataset.loaded = '1';
+      reinit();
+
+      // Restore saved learning choice
+      const saved = localStorage.getItem('lp-choice');
+      if (saved && window.applyLpChoice) applyLpChoice(saved, false);
+    } catch (e) {
+      console.warn('Failed to load learning poll:', e);
+    }
+  }
+
+  // === Hook into gain poll clicks ===
+  document.querySelectorAll('.poll-card[data-poll]').forEach(card => {
+    card.addEventListener('click', () => {
+      const choice = card.getAttribute('data-poll');
+      setTimeout(() => {
+        loadChoiceContent(choice);
+        var pnb = document.getElementById('poll-nav-next');
+        if (pnb) pnb.disabled = false;
+      }, 150);
+    });
+  });
+
+  // === Hook into learning poll clicks — enable LP overlay Next & load slides ===
+  window.lpSlideLoadPromise = null;
+  document.addEventListener('click', function(e) {
+    if (e.target.closest('.lp-card')) {
+      setTimeout(function() {
+        setLpPage(1); // refresh button state
+        var choice = localStorage.getItem('lp-choice');
+        if (choice) window.lpSlideLoadPromise = loadLpSlideContent(choice);
+      }, 200);
+    }
+  });
+
+  // === Restore state on page load ===
+  const saved = localStorage.getItem('poll-choice');
+  if (saved) {
+    primarySlide.style.display = '';
+    otherSlide.style.display = '';
+    var lpSaved = localStorage.getItem('lp-choice');
+    setTimeout(() => {
+      deckRefresh();
+      loadChoiceContent(saved);
+      // Dynamically inject LP slides if they already voted
+      if (lpSaved) loadLpSlideContent(lpSaved);
+    }, 100);
+  }
+
+})();
+</script>
+
+<!-- ── Relay gains: PD widget ↔ MuJoCo widget ─────────────── -->
+<script>
+(function() {
+  function getPdIframe() {
+    return document.querySelector('iframe[src*="pd_response_widget"], iframe[data-src*="pd_response_widget"]');
+  }
+  window.addEventListener('message', function(e) {
+    if (!e.data || !e.data.type) return;
+    var mj = document.getElementById('mujoco-iframe');
+    var pd = getPdIframe();
+    if (e.data.type === 'pd-gains-changed' || e.data.type === 'pd-joint-changed') {
+      if (mj && mj.contentWindow && e.source !== mj.contentWindow)
+        mj.contentWindow.postMessage(e.data, '*');
+    }
+    if (e.data.type === 'mujoco-gains-changed' || e.data.type === 'mujoco-joint-changed') {
+      if (pd && pd.contentWindow && e.source !== pd.contentWindow)
+        pd.contentWindow.postMessage(e.data, '*');
+    }
+  });
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,158 @@
+<!-- ════════════════════════════════════════════════════════════
+     Learning Poll → Sim-to-Real Transfer Findings (Slide Version)
+     headed-paged: persistent heading, two swappable pages.
+     Page 2 has substeps (widget → videos) controlled by Next/Prev.
+     ════════════════════════════════════════════════════════════ -->
+
+<div class="lp-slide" data-layout="headed-paged" data-width="75" data-gap="2rem">
+  <div class="lp-slide-heading">
+    <section class="section">
+      <h2>Sim-to-Real Transfer Degrades on Stiff, Overdamped Gains</h2>
+    </section>
+  </div>
+
+  <!-- Page 1: System Identification -->
+  <div class="lp-page" data-split="42">
+    <div class="lp-slide-left">
+      <h3>Stiff, overdamped gains are easiest to model&hellip;</h3>
+      <p>
+        We examine whether certain gain settings transfer more reliably
+        from simulation to real hardware. We study reaching tasks with a
+        Franka Research 3 robot to directly isolate the motor-level sim-to-real gap.
+      </p>
+      <p style="margin-top: 0.75rem;">
+        For each gain configuration $\mathbf{K}$, we excite the real robot with
+        sinusoidal position targets and optimize simulation parameters $\psi$
+        to match the resulting state trajectories:
+      </p>
+      <p style="text-align: center; font-size: 1.1em; margin: 1rem 0;">
+        $\psi^\star(\mathbf{K}) = \arg\min_\psi \sum_{t} \|\mathbf{x}(t;\,\mathbf{K}) - \bar{\mathbf{x}}(t;\,\psi)\|^2$
+      </p>
+      <p>
+        The MSE after system identification is over an order of magnitude lower
+        for <strong>stiff, overdamped</strong> gains compared to other settings.
+        We attribute this to stiff, overdamped dynamics filtering out nonlinearities
+        that are difficult to capture with idealized simulated actuators:
+        high damping suppresses high-frequency effects such as joint flexibility and
+        transmission dynamics, while high stiffness reduces sensitivity to
+        steady-state errors from imperfect gravity compensation or stiction.
+      </p>
+      <p style="margin-top: 1rem; font-size: 0.9rem; color: #666; font-style: italic;">
+        Select a gain cell on the heatmap to view how the identified simulator
+        tracks the real robot's joint response. Scrub the epoch slider to watch
+        the fit improve during optimization.
+      </p>
+    </div>
+    <div class="lp-slide-right v-center">
+      <iframe
+        data-src="static/assets/sysid_widget.html"
+        style="width:100%; height:55vh; border:none; background:#fff;"
+        allow="autoplay"
+      ></iframe>
+    </div>
+  </div>
+
+  <!-- Page 2: Transfer Results — right panel has 2 substeps -->
+  <div class="lp-page" data-split="42" data-substeps="2">
+    <div class="lp-slide-left">
+      <h3>&hellip;but hardest to transfer.</h3>
+      <p>
+        For each gain setting, we train RL policies in the corresponding
+        calibrated simulation and deploy them directly on the real robot
+        without fine-tuning. We measure sim-to-real fidelity via
+        <em>trajectory error</em>&mdash;the MSE between real and simulated
+        state trajectories:
+      </p>
+      <p style="text-align: center; font-size: 1.1em; margin: 1rem 0;">
+        $\mathcal{E} = \|\mathbf{q}_{\text{sim}} - \mathbf{q}_{\text{real}}\|^2 + \|\dot{\mathbf{q}}_{\text{sim}} - \dot{\mathbf{q}}_{\text{real}}\|^2$
+      </p>
+      <p>
+        Paradoxically, <strong>stiff and overdamped gains&mdash;which yield the
+        best system identification&mdash;produce the worst sim-to-real transfer</strong>.
+        The dominant failure mode is high-frequency oscillation from the
+        closed-loop interaction between the neural network policy and the
+        aggressive controller, which amplifies small prediction errors into
+        out-of-distribution states.
+      </p>
+      <p style="margin-top: 0.75rem;">
+        In contrast, compliant and critically damped settings act as a natural
+        low-pass filter, absorbing sim-to-real discrepancies and enabling
+        significantly more reliable transfer.
+      </p>
+    </div>
+    <div class="lp-slide-right">
+      <!-- Tab bar for direct switching -->
+      <div class="s2r-tab-bar">
+        <button class="s2r-tab active" data-substep-btn="0">Trajectory Data</button>
+        <button class="s2r-tab" data-substep-btn="1">Real-World Video</button>
+      </div>
+
+      <!-- Substep 0: sim2real widget -->
+      <div data-substep="0">
+        <iframe
+          data-src="static/assets/sim2real_widget.html"
+          style="width:100%; height:52vh; border:none; background:#fff;"
+          allow="autoplay"
+        ></iframe>
+      </div>
+
+      <!-- Substep 1: side-by-side videos -->
+      <div data-substep="1" style="display:none;">
+        <p style="font-size: 0.85rem; color: #555; margin-bottom: 0.75rem; text-align: center;">
+          <strong>Zero-shot sim-to-real transfer.</strong>
+          Compliant gains (a) transfer smoothly; stiff gains (b) produce violent jittering.
+        </p>
+        <div style="display: flex; gap: 1rem; width: 70%; margin: 0 auto;">
+          <div style="flex: 1;">
+            <div style="overflow: hidden; border-radius: 6px; aspect-ratio: 16/18;">
+              <video autoplay loop muted playsinline
+                style="width: 100%; object-fit: cover; object-position: center bottom; height: 100%; cursor: pointer;"
+                onclick="this.muted=!this.muted" title="Click to unmute">
+                <source src="static/videos/good_sim2real.mp4" type="video/mp4">
+              </video>
+            </div>
+            <p style="margin-top: 0.3rem; font-size: 0.75rem; color: #666; text-align: center;">
+              (a) Compliant &times; Underdamped
+            </p>
+          </div>
+          <div style="flex: 1;">
+            <div style="overflow: hidden; border-radius: 6px; aspect-ratio: 16/18; position: relative;">
+              <video id="bad-sim2real" autoplay loop muted playsinline
+                style="width: 100%; object-fit: cover; object-position: center bottom; height: 100%; cursor: pointer;"
+                title="Click to unmute">
+                <source src="static/videos/bad_sim2real.mp4" type="video/mp4">
+              </video>
+              <div id="unmute-hint" onclick="var v=document.getElementById('bad-sim2real');v.muted=!v.muted;var el=this;if(!v.muted){el.classList.remove('pulsing');el.querySelector('.unmute-label').textContent='sound on';el.querySelector('.ico-muted').style.display='none';el.querySelector('.ico-unmuted').style.display='inline';}else{el.classList.add('pulsing');el.querySelector('.unmute-label').textContent='hear the jitter';el.querySelector('.ico-muted').style.display='inline';el.querySelector('.ico-unmuted').style.display='none';}"
+                class="pulsing"
+                style="position: absolute; bottom: 8px; right: 8px; display: flex; align-items: center; gap: 5px;
+                       background: rgba(0,0,0,0.65); color: #fff; padding: 4px 8px; border-radius: 16px;
+                       font-size: 0.7rem; cursor: pointer;">
+                <svg class="ico-muted" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                  <line x1="23" y1="9" x2="17" y2="15"/>
+                  <line x1="17" y1="9" x2="23" y2="15"/>
+                </svg>
+                <svg class="ico-unmuted" style="display:none" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+                  <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                </svg>
+                <span class="unmute-label">hear the jitter</span>
+              </div>
+            </div>
+            <p style="margin-top: 0.3rem; font-size: 0.75rem; color: #666; text-align: center;">
+              (b) Stiff &times; Overdamped
+            </p>
+            <style>
+              @keyframes pulse-hint {
+                0%, 100% { opacity: 1; transform: scale(1); }
+                50% { opacity: 0.7; transform: scale(1.04); }
+              }
+              #unmute-hint.pulsing { animation: pulse-hint 1.5s ease-in-out infinite; }
+            </style>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,95 @@
+<!-- ════════════════════════════════════════════════════════════
+     Learning Poll → Reinforcement Learning Findings (Slide Version)
+     headed-paged: persistent heading, two swappable pages.
+     ════════════════════════════════════════════════════════════ -->
+
+<div class="lp-slide" data-layout="headed-paged" data-width="65" data-gap="2rem">
+  <div class="lp-slide-heading">
+    <section class="section">
+      <h2>RL can succeed across all gain regimes.</h2>
+    </section>
+  </div>
+
+  <!-- Page 1: Solution Existence + Live RL Policies -->
+  <div class="lp-page" data-split="45">
+    <div class="lp-slide-left">
+      <h3>Solution Existence</h3>
+      <p style="margin-bottom: 0.75rem; margin-top: 1rem;">
+        A key challenge in isolating the effect of controller gains on online RL
+        is that performance can be highly sensitive to environment design and
+        algorithm hyperparameters. To avoid conflating gain effects with
+        suboptimal training configurations, we re-tune key hyperparameters
+        (per-joint action scaling factors and reward term weights) for each gain
+        setting using hyperparameter optimization:
+      </p>
+      <p style="text-align: center; font-size: 1.1em; margin: 1rem 0;">
+        $h^\star(\mathbf{K}) = \arg\max_h \; J\!\bigl(\pi^\star(h;\,\mathbf{K})\bigr)$
+      </p>
+      <p>
+        where $\pi^\star(h;\,\mathbf{K})$ denotes the converged policy under gains
+        $\mathbf{K}$ and hyperparameters $h$.
+        This ensures each gain configuration is evaluated at its <strong>best
+        achievable performance</strong>, allowing us to determine whether RL can
+        discover successful behaviors regardless of gain settings.
+      </p>
+      <p style="margin-top: 0.75rem;">
+        In our experiments, RL policies achieved comparable final performance
+        across compliant, critically damped, and stiff settings&mdash;given
+        appropriate environment shaping, RL discovers successful policies
+        <strong>across all four gain corners</strong>.
+      </p>
+      <p style="margin-top: 1rem; font-size: 0.9rem; color: #666; font-style: italic;">
+        Click a dot on the gain grid to load the RL policy trained under
+        that stiffness/damping configuration. The robot runs
+        live in your browser via MuJoCo WASM + ONNX inference.
+      </p>
+    </div>
+    <div class="lp-slide-right">
+      <div class="policy-grid-widget" id="rl-policy-grid">
+        <div class="pgw-float" id="rl-pgw-float">
+          <div class="pgw-float-title">PD GAINS</div>
+          <canvas id="rl-pgw-canvas" width="300" height="300"></canvas>
+          <div class="pgw-gain-vals">
+            <span>kp <b id="rl-pgw-kp-val">&mdash;</b></span>
+            <span>kd <b id="rl-pgw-kd-val">&mdash;</b></span>
+          </div>
+        </div>
+        <iframe id="rl-pgw-iframe" src="" allow="autoplay"></iframe>
+        <div class="pgw-placeholder" id="rl-pgw-placeholder">
+          Click a dot on the grid to load an RL policy&hellip;
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Page 2: Optimization Landscape + Shapeability Widget -->
+  <div class="lp-page" data-split="40">
+    <div class="lp-slide-left">
+      <h3>Optimization Landscape</h3>
+      <p>
+        Beyond solution existence, we investigate whether certain gain regimes
+        make hyperparameter optimization easier. We consider gain regimes
+        advantageous if they yield large, continuous regions of successful
+        hyperparameters that are easily discoverable via optimization.
+      </p>
+      <p style="margin-top: 0.75rem;">
+        To investigate how gain settings modulate the shape of this successful
+        region, we record success rates across the hyperparameter landscape
+        during 50 sequential trials per gain setting.
+        The gain setting clearly modulates the optimization landscape, but
+        <strong>no regime is consistently easier to optimize</strong> across tasks.
+      </p>
+      <p style="margin-top: 1rem; font-size: 0.9rem; color: #666; font-style: italic;">
+        Click a dot on the gain grid to watch the sequential Optuna search
+        explore the action-scale space. Green rings mark solutions with &gt;95% success rate.
+      </p>
+    </div>
+    <div class="lp-slide-right v-center">
+      <iframe
+        data-src="static/assets/shapeability_widget.html"
+        style="width:100%; height:55vh; border:none; background:#fff;"
+        allow="autoplay"
+      ></iframe>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,143 @@
+<!-- ════════════════════════════════════════════════════════════
+     Learning Poll → Behavior Cloning Findings (Slide Version)
+     Each .lp-slide becomes its own deck slide.
+       data-layout="full"   → full-width scrollable slide
+       data-layout="headed" → two-panel headed slide
+       data-layout="headed-paged" → headed slide with swappable panel pages
+     ════════════════════════════════════════════════════════════ -->
+
+<!-- ── BC Slide: Persistent heading, two pages of panels ── -->
+<div class="lp-slide" data-layout="headed-paged" data-width="65" data-gap="2rem">
+  <div class="lp-slide-heading">
+    <section class="section">
+      <h2>BC prefers Compliant and Damped Controllers.</h2>
+    </section>
+  </div>
+
+  <!-- Page 1: Introduction + Dataset Method -->
+  <div class="lp-page" data-split="48">
+    <div class="lp-slide-left">
+      <p>
+        Our experiments across multiple manipulation tasks show that behavior cloning
+        is <strong>highly sensitive</strong> to the choice of controller gains. Investigating this relationship
+        starts with generating datasets with different gain settings.
+
+      <h3 style="margin-top: 1.5rem;">Generating Gain-Dependent Demonstrations</h3>
+
+      <p style="margin-top: 1rem">
+        Behavior cloning distills a dataset of state-action pairs $\mathcal{D}(s, a)$ into a predictive policy $\pi(a|s)$.
+        When using position targets as the action representation, the low-level controller gains $\mathbf{K}$
+        (stiffness $\mathbf{K}_p$ and damping $\mathbf{K}_d$) implicitly affect this learning process
+        by altering the underlying state transition dynamics $p(s'|s, a)$.
+        Understanding this relationship requires multiple datasets collected under multiple gain configurations:
+      </p>
+      <p style="text-align: center; font-size: 1.1em; margin: 1rem 0;">
+        $\mathcal{D}(s, a; \mathbf{K})$
+      </p>
+
+      <p style="margin-bottom: 1rem;">
+        <strong>Desired Attributes.</strong>
+        The key property we need is for datasets to share a common <strong>gain-invariant state distribution</strong> $p^{\star}(s)$
+        (the robot follows the same motion) while exhibiting distinct action distributions $p(a; \mathbf{K})$ induced by each gain configuration.
+        This isolation is critical: if both states and actions varied with gains, we couldn't determine whether
+        learning differences stem from the action distribution or from seeing different robot behaviors.
+      </p>
+      <p style="text-align: center; font-size: 1.1em; margin: 0 0 1rem;">
+        same $p^{\star}(s)$, &nbsp; different $p(a; \mathbf{K})$
+      </p>
+
+      <details class="slide-detail">
+        <summary>Can't we just collect separately for each gain?</summary>
+        <div class="slide-detail-body">
+          <p>
+            A naive approach of collecting separate demonstrations under each gain setting fails:
+            the resulting datasets would differ in <em>both</em> state and action distributions due to different closed-loop dynamics
+            and inherent stochasticity in the collection process.
+            What we prefer instead is a method that produces <strong>nearly identical state trajectories</strong>
+            across gain settings while varying only the actions represented as position targets.
+          </p>
+        </div>
+      </details>
+
+      <p style="margin-bottom: 1rem;">
+        <strong>Torque-to-Position Retargeting (TPR).</strong>
+        We achieve this through a two-stage procedure.
+        First, we generate demonstration trajectories for each task at high frequency (500Hz) using <em>torque</em> commands
+        as the gain-agnostic action representation. We then apply a position-command-retargeting method
+        to convert these torque trajectories into position targets for arbitrary $(\mathbf{K}_p, \mathbf{K}_d)$ settings:
+      </p>
+      <p style="text-align: center; font-size: 1.1em; margin: 0 0 1rem;">
+        $\mathbf{q}_{\text{des}}(t) = \mathbf{q}(t) + \mathbf{K}_p^{-1}\left(\boldsymbol{\tau}(t) + \mathbf{K}_d \dot{\mathbf{q}}(t)\right)$
+      </p>
+      <p>
+        where $\boldsymbol{\tau}(t)$, $\mathbf{q}(t)$ and $\dot{\mathbf{q}}(t)$ are the torque command,
+        joint position, and joint velocity from the original 500Hz torque control demonstration, respectively.
+        For each gain configuration, we replay the retargeted position commands at the desired policy frequency (50Hz)
+        using zeroth-order holding and save only the successful rollouts.
+      </p>
+    </div>
+    <div class="lp-slide-right v-center">
+      <p style="font-size: 0.9rem; color: #555;">
+        The visualization shows how the same robot trajectory looks under different gain configurations.
+        The <strong>state trajectories</strong> remain nearly identical,
+        while the <strong>position targets</strong> (the actions) change dramatically with gain settings.
+      </p>
+
+      <div class="sim-tabs" id="bc-sim-tabs">
+        <div class="sim-tab-bar">
+          <button class="sim-tab-btn active" data-scene="xmls/scene_handover.xml" data-traj="datasets/handover/ep0-19.json">Bimanual Handover</button>
+          <button class="sim-tab-btn" data-scene="xmls/franka_emika_panda/scene_dishrack.xml" data-traj="datasets/dishrack/ep0-19.json">Dish Rack Loading</button>
+          <button class="sim-tab-btn" data-scene="xmls/franka_emika_panda/scene_dishrack_unload.xml" data-traj="datasets/dishrack-unload/ep0-19.json">Dish Rack Unloading</button>
+          <button class="sim-tab-btn" data-scene="xmls/franka_emika_panda/scene_dishwasher_open.xml" data-traj="datasets/dishwasher/ep0-19.json">Dishwasher Opening</button>
+          <button class="sim-tab-btn" data-scene="xmls/franka_emika_panda/scene_mughang.xml" data-traj="datasets/mug-hang/ep0-19.json">Mug Hanging</button>
+        </div>
+        <div class="sim-tab-viewport">
+          <div class="sim-tab-placeholder">Loading…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Page 2: Training Results + Live Policies -->
+  <div class="lp-page" data-split="50">
+    <div class="lp-slide-left">
+      <h3>Gain-Dependent Training</h3>
+      <p style="margin-bottom: 0.75rem; margin-top: 1rem">
+        With datasets $\mathcal{D}(s, a; \mathbf{K})$ in hand, we directly measure how gains affect both learnability and performance.
+        The heatmap encodes <strong>task success rate</strong> for each $(\mathbf{K}_p, \mathbf{K}_d)$ configuration (darker = higher success),
+        while clicking a cell loads its <strong>training loss curve</strong>.
+      </p>
+      <ol style="margin: 0 0 1rem 1.25rem;">
+        <li style="margin-bottom: 0.5rem;"><strong>Compliant, overdamped gains win.</strong> The upper-left region (low $\mathbf{K}_p$, high $\mathbf{K}_d$) consistently achieves the highest success rates.</li>
+        <li><strong>Lower training loss ≠ better policy.</strong> Stiff gains yield <em>lower</em> training loss yet <em>worse</em> task performance.</li>
+      </ol>
+
+      <iframe data-src="static/assets/training_heatmap_widget.html" style="width:100%; height:45vh; border:none;"></iframe>
+    </div>
+    <div class="lp-slide-right">
+      <h3>Checkout Live BC Policy Rollouts</h3>
+      <p style="margin-bottom: 0.75rem; margin-top: 1rem;">
+        Explore how controller gains affect both the <em>training data</em> and the <em>learned policy</em>.
+        Switch between viewing gain-dependent trajectories and running the trained BC policies live.
+      </p>
+
+      <div class="pgw-task-tabs" id="pgw-task-tabs">
+        <button class="pgw-task-btn active" data-task="handover">Handover</button>
+        <button class="pgw-task-btn" data-task="dishwasher">Dishwasher</button>
+      </div>
+
+      <div class="policy-grid-widget" id="bc-policy-grid">
+        <div class="pgw-float" id="pgw-float">
+          <div class="pgw-float-title">PD GAINS</div>
+          <canvas id="pgw-canvas" width="300" height="300"></canvas>
+          <div class="pgw-gain-vals">
+            <span>kp <b id="pgw-kp-val">—</b></span>
+            <span>kd <b id="pgw-kd-val">—</b></span>
+          </div>
+        </div>
+        <iframe id="pgw-iframe" src="" allow="autoplay"></iframe>
+        <div class="pgw-placeholder" id="pgw-placeholder">Click a dot on the grid to load a policy…</div>
+      </div>
+    </div>
+  </div>
+</div>

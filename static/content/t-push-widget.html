@@ -1,0 +1,754 @@
+<!-- ════════════════════════════════════════════════════════════
+     T-Push Interactive Widget
+     Self-contained embeddable simulation matching project style.
+     ════════════════════════════════════════════════════════════ -->
+
+<div class="tpush-widget">
+  <style>
+    .tpush-widget {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
+      background: #f0f2f5;
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    .tpush-widget .tpush-row {
+      display: flex;
+      gap: 0;
+      align-items: center;
+    }
+
+    .tpush-widget .tpush-sim-wrap {
+      position: relative;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .tpush-widget canvas#sim {
+      display: block;
+    }
+
+    .tpush-widget .tpush-cmd-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 10px 0 0;
+      gap: 4px;
+    }
+
+    .tpush-widget canvas#cmd {
+      display: block;
+      cursor: crosshair;
+      touch-action: none;
+      border: 1px solid #d0d0d4;
+      border-radius: 4px;
+    }
+
+    .tpush-widget .tpush-cmd-label {
+      font-size: 0.65rem;
+      color: #999;
+      text-align: center;
+    }
+
+    .tpush-widget .tpush-hud {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 0.7rem;
+      color: #888;
+      line-height: 1.7;
+      pointer-events: none;
+    }
+    .tpush-widget .tpush-hud .val { color: #1a1a1a; font-weight: 500; }
+
+    .tpush-widget .tpush-controls {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      display: flex;
+      gap: 6px;
+    }
+    .tpush-widget .tpush-controls button {
+      font-family: 'Inter', -apple-system, sans-serif;
+      font-size: 0.75rem;
+      font-weight: 500;
+      padding: 0.4rem 0.85rem;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.9);
+      color: #1a1a1a;
+      cursor: pointer;
+      transition: border-color .15s, color .15s;
+    }
+    .tpush-widget .tpush-controls button:hover {
+      border-color: #1a1a1a;
+    }
+
+    .tpush-widget .tpush-legend {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      font-size: 0.7rem;
+      color: #888;
+      line-height: 1.8;
+      pointer-events: none;
+    }
+    .tpush-widget .tpush-legend .dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      margin-right: 5px;
+      vertical-align: middle;
+    }
+
+    .tpush-widget .tpush-hint {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 0.7rem;
+      color: #999;
+      pointer-events: none;
+    }
+
+    .tpush-widget .success-banner {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0);
+      font-family: 'Inter', -apple-system, sans-serif;
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #16a34a;
+      pointer-events: none;
+      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      z-index: 20;
+    }
+    .tpush-widget .success-banner.show {
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    .tpush-widget .tpush-sliders {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 20px;
+      padding: 10px 14px;
+      background: #fff;
+      border-top: 1px solid #e0e0e0;
+    }
+    .tpush-widget .tpush-slider-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .tpush-widget .tpush-slider-row label {
+      font-size: 0.75rem;
+      color: #777;
+      min-width: 110px;
+      text-align: right;
+    }
+    .tpush-widget .tpush-slider-row input[type=range] {
+      flex: 1;
+      accent-color: #3b82f6;
+      height: 4px;
+    }
+    .tpush-widget .tpush-slider-row .sval {
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 0.7rem;
+      color: #1a1a1a;
+      min-width: 48px;
+      text-align: left;
+    }
+    @media (max-width: 640px) {
+      .tpush-widget .tpush-sliders {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+
+  <div class="tpush-row" id="simRow">
+    <div class="tpush-sim-wrap">
+      <canvas id="sim"></canvas>
+
+      <div class="tpush-hud" id="hud">
+        Pos Error: <span class="val" id="posErr">--</span><br/>
+        Ang Error: <span class="val" id="angErr">--</span>&deg;<br/>
+        Force: <span class="val" id="springF">--</span> N<br/>
+        <br/>
+        K<sub>p</sub>: <span class="val" id="kpVal">--</span> &nbsp;
+        K<sub>d</sub>: <span class="val" id="kdVal">--</span>
+      </div>
+
+      <div class="tpush-legend">
+        <span class="dot" style="background:#16a34a;opacity:0.55"></span>Target (you)<br/>
+        <span class="dot" style="background:#3b82f6"></span>Pusher<br/>
+        <span class="dot" style="background:#ea580c;border-radius:2px;width:10px;height:6px"></span>T-object<br/>
+        <span class="dot" style="background:rgba(22,163,74,0.2);border-radius:2px;width:10px;height:6px"></span>Goal pose
+      </div>
+
+      <div class="tpush-hint">drag pad or WASD</div>
+
+      <div class="tpush-controls">
+        <button onclick="resetSim()">Reset</button>
+        <button onclick="randomGoal()">New Goal</button>
+        <button onclick="toggleOverlay(this)">Hide Overlay</button>
+      </div>
+
+      <div class="success-banner" id="successBanner">&#10003; Goal Reached!</div>
+    </div>
+
+    <div class="tpush-cmd-wrap">
+      <canvas id="cmd"></canvas>
+      <div class="tpush-cmd-label">command pad</div>
+    </div>
+  </div>
+
+  <div class="tpush-sliders">
+    <div class="tpush-slider-row">
+      <label>Stiffness K<sub>p</sub></label>
+      <input type="range" id="kpSlider" min="100" max="15000" step="100" value="2000">
+      <span class="sval" id="kpSliderVal"></span>
+    </div>
+    <div class="tpush-slider-row">
+      <label>Damping K<sub>d</sub></label>
+      <input type="range" id="kdSlider" min="10" max="500" step="10" value="120">
+      <span class="sval" id="kdSliderVal"></span>
+    </div>
+    <div class="tpush-slider-row">
+      <label>Surface Friction</label>
+      <input type="range" id="fricSlider" min="0.5" max="80" step="0.5" value="16">
+      <span class="sval" id="fricSliderVal"></span>
+    </div>
+    <div class="tpush-slider-row">
+      <label>Torsional Friction</label>
+      <input type="range" id="rotSlider" min="0.5" max="120" step="0.5" value="32">
+      <span class="sval" id="rotSliderVal"></span>
+    </div>
+    <div class="tpush-slider-row">
+      <label>Magnification</label>
+      <input type="range" id="magSlider" min="0" max="20" step="0.1" value="1">
+      <span class="sval" id="magSliderVal"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+
+// ───────────────────────── SETUP ─────────────────────────
+const canvas = document.getElementById('sim');
+const ctx = canvas.getContext('2d');
+const cmdCanvas = document.getElementById('cmd');
+const cmdCtx = cmdCanvas.getContext('2d');
+let magnify = 1.0;
+let cmdTouchPt = null;
+let showOverlay = true;
+
+function resize() {
+  const row = document.getElementById('simRow');
+  const maxW = Math.min(row.parentElement.clientWidth, 860);
+  const gap = 12;
+  const aspect = 0.65;
+  const cmdFrac = 0.28;
+  const cmdW = Math.round(maxW * cmdFrac);
+  const simW = maxW - cmdW - gap;
+  const simH = Math.min(Math.round(simW * aspect), 520);
+  const actualAspect = simH / simW;
+  const cmdH = Math.round(cmdW * actualAspect);
+  canvas.width = simW;
+  canvas.height = simH;
+  cmdCanvas.width = cmdW;
+  cmdCanvas.height = cmdH;
+}
+resize();
+window.addEventListener('resize', resize);
+
+const W = () => canvas.width;
+const H = () => canvas.height;
+
+// ───────────────────────── PHYSICS CONFIG ─────────────────────────
+const DT = 1 / 120;
+const SUBSTEPS = 4;
+const PUSHER_RADIUS = 20;
+const PUSHER_MASS = 2.0;
+
+let kpGain = 2000;
+let kdGain = 120;
+
+const T_VERT_W = 30, T_VERT_H = 80;
+const T_HORZ_W = 90, T_HORZ_H = 25;
+const T_MASS = 5.0;
+const T_INERTIA = T_MASS * (T_VERT_H * T_VERT_H + T_HORZ_W * T_HORZ_W) / 12;
+let tFriction = 16.0;
+let tRotFric = 32.0;
+
+const WASD_SPEED = 5;
+const keys = { w: false, a: false, s: false, d: false };
+
+// ───────────────────────── STATE ─────────────────────────
+let target = { x: 0, y: 0 };
+let pusher = { x: 0, y: 0, vx: 0, vy: 0 };
+let tObj = { x: 0, y: 0, angle: 0, vx: 0, vy: 0, omega: 0 };
+let goal = { x: 0, y: 0, angle: 0 };
+let springForce = 0;
+let successShown = false;
+let successTimer = 0;
+
+function initState() {
+  const cx = W() / 2, cy = H() / 2;
+  target.x = cx - 120; target.y = cy + 60;
+  pusher.x = cx - 120; pusher.y = cy + 60;
+  pusher.vx = 0; pusher.vy = 0;
+  tObj.x = cx; tObj.y = cy;
+  tObj.angle = 0; tObj.vx = 0; tObj.vy = 0; tObj.omega = 0;
+  randomGoalInternal();
+  successShown = false;
+  document.getElementById('successBanner').classList.remove('show');
+}
+
+function randomGoalInternal() {
+  const margin = 100;
+  goal.x = margin + Math.random() * (W() - 2 * margin);
+  goal.y = margin + Math.random() * (H() - 2 * margin);
+  goal.angle = (Math.random() - 0.5) * Math.PI * 1.5;
+}
+
+// ───────────────────────── T-SHAPE GEOMETRY ─────────────────────────
+function getTRects() {
+  const c = Math.cos(tObj.angle), s = Math.sin(tObj.angle);
+  function toWorld(lx, ly) {
+    return { x: tObj.x + c * lx - s * ly, y: tObj.y + s * lx + c * ly };
+  }
+  const vhw = T_VERT_W / 2, vhh = T_VERT_H / 2;
+  const vert = [
+    toWorld(-vhw, -vhh), toWorld(vhw, -vhh),
+    toWorld(vhw, vhh), toWorld(-vhw, vhh)
+  ];
+  const hy = -vhh;
+  const hhw = T_HORZ_W / 2, hhh = T_HORZ_H / 2;
+  const horz = [
+    toWorld(-hhw, hy - hhh), toWorld(hhw, hy - hhh),
+    toWorld(hhw, hy + hhh), toWorld(-hhw, hy + hhh)
+  ];
+  return [vert, horz];
+}
+
+// ───────────────────────── COLLISION ──────────────────────
+function circlePolyCollision(cx, cy, r, verts) {
+  let minDist = Infinity;
+  let bestNx = 0, bestNy = 0, bestCx = 0, bestCy = 0;
+  const n = verts.length;
+  for (let i = 0; i < n; i++) {
+    const a = verts[i], b = verts[(i + 1) % n];
+    const ex = b.x - a.x, ey = b.y - a.y;
+    const len = Math.sqrt(ex * ex + ey * ey);
+    if (len < 1e-8) continue;
+    let t = ((cx - a.x) * ex + (cy - a.y) * ey) / (len * len);
+    t = Math.max(0, Math.min(1, t));
+    const closestX = a.x + t * ex;
+    const closestY = a.y + t * ey;
+    const dx = cx - closestX, dy = cy - closestY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < minDist) {
+      minDist = dist;
+      if (dist > 1e-8) { bestNx = dx / dist; bestNy = dy / dist; }
+      else { bestNx = -ey / len; bestNy = ex / len; }
+      bestCx = closestX; bestCy = closestY;
+    }
+  }
+  if (minDist < r) {
+    return { depth: r - minDist, nx: bestNx, ny: bestNy, cx: bestCx, cy: bestCy };
+  }
+  return null;
+}
+
+// ───────────────────────── PHYSICS STEP ─────────────────────────
+function physicsStep(dt) {
+  const fx = kpGain * (target.x - pusher.x) - kdGain * pusher.vx;
+  const fy = kpGain * (target.y - pusher.y) - kdGain * pusher.vy;
+  springForce = Math.sqrt(fx * fx + fy * fy);
+
+  pusher.vx += (fx / PUSHER_MASS) * dt;
+  pusher.vy += (fy / PUSHER_MASS) * dt;
+  pusher.x += pusher.vx * dt;
+  pusher.y += pusher.vy * dt;
+
+  tObj.vx -= tFriction * tObj.vx * dt;
+  tObj.vy -= tFriction * tObj.vy * dt;
+  tObj.omega -= tRotFric * tObj.omega * dt;
+
+  const rects = getTRects();
+  for (const rect of rects) {
+    const col = circlePolyCollision(pusher.x, pusher.y, PUSHER_RADIUS, rect);
+    if (!col) continue;
+    const { depth, nx, ny, cx: contactX, cy: contactY } = col;
+
+    pusher.x += nx * depth * 0.5;
+    pusher.y += ny * depth * 0.5;
+    tObj.x -= nx * depth * 0.5;
+    tObj.y -= ny * depth * 0.5;
+
+    const rx = contactX - tObj.x, ry = contactY - tObj.y;
+    const tVelX = tObj.vx - tObj.omega * ry;
+    const tVelY = tObj.vy + tObj.omega * rx;
+    const relVx = pusher.vx - tVelX;
+    const relVy = pusher.vy - tVelY;
+    const relVn = relVx * nx + relVy * ny;
+    if (relVn > 0) continue;
+
+    const e = 0.2;
+    const rCrossN = rx * ny - ry * nx;
+    const invMassSum = 1 / PUSHER_MASS + 1 / T_MASS + rCrossN * rCrossN / T_INERTIA;
+    const j = -(1 + e) * relVn / invMassSum;
+
+    pusher.vx += j * nx / PUSHER_MASS;
+    pusher.vy += j * ny / PUSHER_MASS;
+    tObj.vx -= j * nx / T_MASS;
+    tObj.vy -= j * ny / T_MASS;
+    tObj.omega -= (rx * (j * ny) - ry * (j * nx)) / T_INERTIA;
+
+    const tx = -ny, ty = nx;
+    const relVt = relVx * tx + relVy * ty;
+    const mu = 0.4;
+    let jt = -relVt / invMassSum;
+    jt = Math.max(-mu * Math.abs(j), Math.min(mu * Math.abs(j), jt));
+
+    pusher.vx += jt * tx / PUSHER_MASS;
+    pusher.vy += jt * ty / PUSHER_MASS;
+    tObj.vx -= jt * tx / T_MASS;
+    tObj.vy -= jt * ty / T_MASS;
+    tObj.omega -= (rx * (jt * ty) - ry * (jt * tx)) / T_INERTIA;
+  }
+
+  tObj.x += tObj.vx * dt;
+  tObj.y += tObj.vy * dt;
+  tObj.angle += tObj.omega * dt;
+
+  pusher.x = Math.max(PUSHER_RADIUS, Math.min(W() - PUSHER_RADIUS, pusher.x));
+  pusher.y = Math.max(PUSHER_RADIUS, Math.min(H() - PUSHER_RADIUS, pusher.y));
+
+  const tBound = T_HORZ_W * 0.6;
+  if (tObj.x < tBound) { tObj.x = tBound; tObj.vx *= -0.3; }
+  if (tObj.x > W() - tBound) { tObj.x = W() - tBound; tObj.vx *= -0.3; }
+  if (tObj.y < tBound) { tObj.y = tBound; tObj.vy *= -0.3; }
+  if (tObj.y > H() - tBound) { tObj.y = H() - tBound; tObj.vy *= -0.3; }
+}
+
+// ───────────────────────── DRAWING HELPERS ─────────────────────────
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+// ───────────────────────── HUD ─────────────────────────
+function updateHUD() {
+  const posErr = Math.sqrt((tObj.x - goal.x) ** 2 + (tObj.y - goal.y) ** 2);
+  let angErr = ((tObj.angle - goal.angle) % (Math.PI * 2) + Math.PI * 3) % (Math.PI * 2) - Math.PI;
+  angErr = Math.abs(angErr) * 180 / Math.PI;
+
+  document.getElementById('posErr').textContent = posErr.toFixed(1) + ' px';
+  document.getElementById('angErr').textContent = angErr.toFixed(1);
+  document.getElementById('springF').textContent = springForce.toFixed(0);
+  document.getElementById('kpVal').textContent = kpGain;
+  document.getElementById('kdVal').textContent = kdGain;
+
+  if (posErr < 15 && angErr < 8) {
+    if (!successShown) {
+      successShown = true;
+      successTimer = performance.now();
+      document.getElementById('successBanner').classList.add('show');
+      randomGoalInternal();
+    }
+  } else {
+    if (successShown && performance.now() - successTimer > 1200) {
+      successShown = false;
+      document.getElementById('successBanner').classList.remove('show');
+    }
+  }
+}
+
+// ───────────────────────── INPUT (command pad) ─────────────────────────
+let mouseDown = false;
+
+function setTargetFromCmd(ex, ey) {
+  const rect = cmdCanvas.getBoundingClientRect();
+  const scaleX = cmdCanvas.width / rect.width;
+  const scaleY = cmdCanvas.height / rect.height;
+  const localX = (ex - rect.left) * scaleX;
+  const localY = (ey - rect.top) * scaleY;
+  cmdTouchPt = { x: localX, y: localY };
+
+  // Normalize to [-1, 1]: edges of cmd pad map to ±1
+  const normX = (localX / cmdCanvas.width - 0.5) * 2;
+  const normY = (localY / cmdCanvas.height - 0.5) * 2;
+
+  // At magnify=1, cmd pad corners = sim canvas corners
+  // No clamping: magnify > 1 intentionally places target outside visible area
+  target.x = W() / 2 + normX * (W() / 2) * magnify;
+  target.y = H() / 2 + normY * (H() / 2) * magnify;
+}
+
+cmdCanvas.addEventListener('mousedown', (e) => { mouseDown = true; setTargetFromCmd(e.clientX, e.clientY); });
+cmdCanvas.addEventListener('mousemove', (e) => { if (mouseDown) setTargetFromCmd(e.clientX, e.clientY); });
+window.addEventListener('mouseup', () => { mouseDown = false; cmdTouchPt = null; });
+
+cmdCanvas.addEventListener('touchstart', (e) => {
+  e.preventDefault(); mouseDown = true;
+  setTargetFromCmd(e.touches[0].clientX, e.touches[0].clientY);
+});
+cmdCanvas.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  if (mouseDown) setTargetFromCmd(e.touches[0].clientX, e.touches[0].clientY);
+});
+cmdCanvas.addEventListener('touchend', () => { mouseDown = false; cmdTouchPt = null; });
+
+// ───────────────────────── WASD INPUT ─────────────────────────
+window.addEventListener('keydown', (e) => {
+  const k = e.key.toLowerCase();
+  if (k in keys) { keys[k] = true; e.preventDefault(); }
+});
+window.addEventListener('keyup', (e) => {
+  const k = e.key.toLowerCase();
+  if (k in keys) keys[k] = false;
+});
+
+function updateWASD() {
+  const speed = WASD_SPEED * magnify;
+  if (keys.a) target.x -= speed;
+  if (keys.d) target.x += speed;
+  if (keys.w) target.y -= speed;
+  if (keys.s) target.y += speed;
+}
+
+// ───────────────────────── SLIDER SYNC ─────────────────────────
+function initSliders() {
+  const sliders = {
+    kpSlider:   { get: () => kpGain,   set: v => { kpGain = v; } },
+    kdSlider:   { get: () => kdGain,   set: v => { kdGain = v; } },
+    fricSlider: { get: () => tFriction, set: v => { tFriction = v; } },
+    rotSlider:  { get: () => tRotFric,  set: v => { tRotFric = v; } },
+    magSlider:  { get: () => magnify,   set: v => { magnify = v; } },
+  };
+  for (const [id, cfg] of Object.entries(sliders)) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    el.value = cfg.get();
+    const valEl = document.getElementById(id + 'Val');
+    el.addEventListener('input', () => {
+      cfg.set(parseFloat(el.value));
+      if (valEl) valEl.textContent = el.value;
+    });
+    if (valEl) valEl.textContent = el.value;
+  }
+}
+
+// ───────────────────────── CONTROLS ─────────────────────────
+window.resetSim = initState;
+window.randomGoal = function() { randomGoalInternal(); successShown = false; document.getElementById('successBanner').classList.remove('show'); };
+window.toggleOverlay = function(btn) { showOverlay = !showOverlay; btn.textContent = showOverlay ? 'Hide Overlay' : 'Show Overlay'; };
+
+// ───────────────────────── DRAWING ─────────────────────────
+function drawTShape(x, y, angle, color, alpha, lineWidth) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = color;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lineWidth || 0;
+  const vhw = T_VERT_W / 2, vhh = T_VERT_H / 2;
+  const r = 4;
+  roundRect(-vhw, -vhh, T_VERT_W, T_VERT_H, r);
+  ctx.fill();
+  if (lineWidth) ctx.stroke();
+  const hy = -vhh;
+  const hhw = T_HORZ_W / 2, hhh = T_HORZ_H / 2;
+  roundRect(-hhw, hy - hhh, T_HORZ_W, T_HORZ_H, r);
+  ctx.fill();
+  if (lineWidth) ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(0, 0, 3, 0, Math.PI * 2);
+  ctx.fillStyle = alpha > 0.5 ? '#1a1a1a' : color;
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(0, -vhh - hhh - 6);
+  ctx.lineTo(-5, -vhh - hhh + 2);
+  ctx.lineTo(5, -vhh - hhh + 2);
+  ctx.closePath();
+  ctx.fillStyle = alpha > 0.5 ? 'rgba(0,0,0,0.45)' : color;
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+function drawGrid() {
+  ctx.strokeStyle = '#e4e4e8';
+  ctx.lineWidth = 1;
+  const step = 40;
+  for (let x = 0; x < W(); x += step) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H()); ctx.stroke();
+  }
+  for (let y = 0; y < H(); y += step) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W(), y); ctx.stroke();
+  }
+}
+
+function drawSpringLine() {
+  const dx = pusher.x - target.x, dy = pusher.y - target.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist < 2) return;
+  ctx.save();
+  ctx.setLineDash([4, 6]);
+  ctx.strokeStyle = 'rgba(59, 130, 246, 0.35)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(target.x, target.y);
+  ctx.lineTo(pusher.x, pusher.y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W(), H());
+  ctx.fillStyle = '#f0f2f5';
+  ctx.fillRect(0, 0, W(), H());
+  drawGrid();
+  drawTShape(goal.x, goal.y, goal.angle, '#16a34a', 0.2, 2);
+  if (showOverlay) drawSpringLine();
+  drawTShape(tObj.x, tObj.y, tObj.angle, '#ea580c', 0.9, 0);
+
+  if (showOverlay) {
+    ctx.beginPath();
+    ctx.arc(target.x, target.y, PUSHER_RADIUS, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(22, 163, 74, 0.55)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.beginPath();
+    ctx.arc(target.x, target.y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(22, 163, 74, 0.7)';
+    ctx.fill();
+  }
+
+  const forceIntensity = Math.min(1, springForce / 3000);
+  const pusherColor = `rgba(${59 + 100 * forceIntensity}, ${130 - 50 * forceIntensity}, 246, 0.85)`;
+  ctx.beginPath();
+  ctx.arc(pusher.x, pusher.y, PUSHER_RADIUS, 0, Math.PI * 2);
+  ctx.fillStyle = pusherColor;
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  if (showOverlay) {
+    const glow = ctx.createRadialGradient(pusher.x, pusher.y, PUSHER_RADIUS * 0.5, pusher.x, pusher.y, PUSHER_RADIUS * 2);
+    glow.addColorStop(0, `rgba(59, 130, 246, ${0.08 + forceIntensity * 0.12})`);
+    glow.addColorStop( 1, 'rgba(59, 130, 246, 0)');
+    ctx.beginPath();
+    ctx.arc(pusher.x, pusher.y, PUSHER_RADIUS * 2, 0, Math.PI * 2);
+    ctx.fillStyle = glow;
+    ctx.fill();
+
+    if (springForce > 50) {
+      const fx = kpGain * (target.x - pusher.x) - kdGain * pusher.vx;
+      const fy = kpGain * (target.y - pusher.y) - kdGain * pusher.vy;
+      const fLen = Math.sqrt(fx * fx + fy * fy);
+      const scale = Math.min(40, fLen / 80);
+      const fnx = fx / fLen, fny = fy / fLen;
+      ctx.beginPath();
+      ctx.moveTo(pusher.x, pusher.y);
+      ctx.lineTo(pusher.x + fnx * scale, pusher.y + fny * scale);
+      ctx.strokeStyle = 'rgba(202, 138, 4, 0.6)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }
+}
+
+// ───────────────────────── COMMAND PAD DRAWING ─────────────────────────
+function drawCommandPanel() {
+  const cw = cmdCanvas.width, ch = cmdCanvas.height;
+  const cx = cw / 2, cy = ch / 2;
+  cmdCtx.clearRect(0, 0, cw, ch);
+  cmdCtx.fillStyle = '#f8f9fa';
+  cmdCtx.fillRect(0, 0, cw, ch);
+
+  // Grid (matching sim grid scaled down)
+  cmdCtx.strokeStyle = 'rgba(0,0,0,0.06)';
+  cmdCtx.lineWidth = 1;
+  const step = 20;
+  for (let x = 0; x < cw; x += step) {
+    cmdCtx.beginPath(); cmdCtx.moveTo(x, 0); cmdCtx.lineTo(x, ch); cmdCtx.stroke();
+  }
+  for (let y = 0; y < ch; y += step) {
+    cmdCtx.beginPath(); cmdCtx.moveTo(0, y); cmdCtx.lineTo(cw, y); cmdCtx.stroke();
+  }
+
+  // Crosshair at center
+  cmdCtx.strokeStyle = 'rgba(0,0,0,0.15)';
+  cmdCtx.setLineDash([6, 4]);
+  cmdCtx.beginPath(); cmdCtx.moveTo(cx, 0); cmdCtx.lineTo(cx, ch); cmdCtx.stroke();
+  cmdCtx.beginPath(); cmdCtx.moveTo(0, cy); cmdCtx.lineTo(cw, cy); cmdCtx.stroke();
+  cmdCtx.setLineDash([]);
+
+  // Effective area rectangle: portion of pad that maps to visible sim
+  // At magnify=1 it's the full pad; at magnify=2 it's the inner half
+  if (magnify > 1) {
+    const effW = cw / magnify;
+    const effH = ch / magnify;
+    cmdCtx.setLineDash([4, 4]);
+    cmdCtx.strokeStyle = 'rgba(59,130,246,0.3)';
+    cmdCtx.lineWidth = 1;
+    cmdCtx.strokeRect(cx - effW / 2, cy - effH / 2, effW, effH);
+    cmdCtx.setLineDash([]);
+  }
+
+  // Center dot
+  cmdCtx.beginPath();
+  cmdCtx.arc(cx, cy, 3, 0, Math.PI * 2);
+  cmdCtx.fillStyle = 'rgba(0,0,0,0.2)';
+  cmdCtx.fill();
+
+  // Touch point
+  if (cmdTouchPt) {
+    cmdCtx.beginPath();
+    cmdCtx.arc(cmdTouchPt.x, cmdTouchPt.y, 8, 0, Math.PI * 2);
+    cmdCtx.fillStyle = 'rgba(59,130,246,0.5)';
+    cmdCtx.fill();
+    cmdCtx.strokeStyle = 'rgba(59,130,246,0.15)';
+    cmdCtx.lineWidth = 12;
+    cmdCtx.stroke();
+  }
+}
+
+// ───────────────────────── MAIN LOOP ─────────────────────────
+function loop() {
+  updateWASD();
+  for (let i = 0; i < SUBSTEPS; i++) {
+    physicsStep(DT / SUBSTEPS);
+  }
+  draw();
+  drawCommandPanel();
+  updateHUD();
+  requestAnimationFrame(loop);
+}
+
+initState();
+initSliders();
+loop();
+
+</script>
