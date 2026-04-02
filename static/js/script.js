@@ -995,6 +995,7 @@ function initPolicyGrid() {
     dishwasher: {
       scene: 'xmls/franka_emika_panda/scene_dishwasher_open.xml',
       base: 'models/dishwasher_open_2f85',
+      cam: 'camx=-0.955&camy=1.096&camz=-0.552&tgtx=0.158&tgty=0.449&tgtz=0.220',
       dots: [
         { kp: 32,   kd: 2,   folder: 'K32D2M10',     nx: 0, ny: 0 },
         { kp: 1024, kd: 2,   folder: 'K1024D2M10',   nx: 1, ny: 0 },
@@ -1016,7 +1017,7 @@ function initPolicyGrid() {
     }
   };
 
-  let currentTask = 'handover';
+  let currentTask = 'dishwasher';
   let DOTS = TASKS[currentTask].dots;
 
   // Corner colors matching the trajectory viewer palette
@@ -1137,7 +1138,8 @@ function initPolicyGrid() {
       // First time or task changed: load the full iframe (scene + policy)
       iframe.src = 'static/assets/mujoco_policy.html?scene=' + task.scene
         + '&policy=' + policyUrl + '&config=' + configUrl + '&autorun=1'
-        + '&gainColor=' + encodeURIComponent(color);
+        + '&gainColor=' + encodeURIComponent(color)
+        + (task.cam ? '&' + task.cam : '');
       iframeLoaded = true;
       currentScene = task.scene;
     } else {

@@ -68,28 +68,9 @@
     display: block;
   }
 
-  .sysid-axis-label {
-    font-size: 16px;
-    font-style: italic;
-    color: #333;
-    position: absolute;
-  }
-
-  .sysid-axis-label-kp {
-    bottom: -24px;
-    left: 50%;
-    transform: translateX(-50%);
-  }
-
-  .sysid-axis-label-kd {
-    top: 50%;
-    left: -30px;
-    transform: rotate(-90deg) translateX(-50%);
-    transform-origin: center center;
-  }
 
   .sysid-sub-caption {
-    font-size: 12px;
+    font-size: 14px;
     color: #555;
     text-align: left;
     padding: 6px 16px 8px;
@@ -211,8 +192,6 @@
     <div class="sysid-grid-container">
       <div class="sysid-grid-wrap">
         <canvas id="sysidGrid" class="sysid-grid-canvas"></canvas>
-        <span class="sysid-axis-label sysid-axis-label-kp">K<sub>p</sub></span>
-        <span class="sysid-axis-label sysid-axis-label-kd">K<sub>d</sub></span>
       </div>
       <div class="sysid-sub-caption" style="margin-top: 24px;"><b>Sysid Error.</b> Darker blue = lower error. Click any cell to load its response curves.</div>
     </div>
@@ -285,10 +264,7 @@
   fetch(INDEX_URL)
     .then(r => r.json())
     .then(data => {
-      // Heatmap values are stored as np.log — convert back
-      for (let i = 0; i < data.heatmap.length; i++)
-        for (let j = 0; j < data.heatmap[i].length; j++)
-          if (data.heatmap[i][j] !== null) data.heatmap[i][j] = Math.exp(data.heatmap[i][j]);
+      // Heatmap values are stored as np.log — keep in log scale for coloring
       allData = data;
       initSize();
       drawGrid();
@@ -321,8 +297,12 @@
 
     if (allData) {
       const cellW = 38, cellH = 32;
-      gridCanvas.width = allData.kps.length * cellW;
-      gridCanvas.height = allData.kds.length * cellH;
+      const gridOffsetX = 8;
+      const gridOffsetTop = 30;
+      const gridOffsetY = 22;
+      const labelSpace = 40;
+      gridCanvas.width = gridOffsetX + allData.kps.length * cellW + labelSpace;
+      gridCanvas.height = gridOffsetTop + allData.kds.length * cellH + gridOffsetY;
       gridCanvas.style.width = gridCanvas.width + 'px';
       gridCanvas.style.height = gridCanvas.height + 'px';
     }
@@ -468,6 +448,9 @@
     if (!allData) return;
     const kps = allData.kps, kds = allData.kds, heatmap = allData.heatmap;
     const cellW = 38, cellH = 32;
+    const ox = 8, oy = 30;
+    const gridW = kps.length * cellW;
+    const gridH = kds.length * cellH;
 
     gridCtx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
 
@@ -480,8 +463,8 @@
 
     for (let i = 0; i < kds.length; i++) {
       for (let j = 0; j < kps.length; j++) {
-        const displayRow = kds.length - 1 - i;  // flip: low Kd at bottom
-        const x = j * cellW, y = displayRow * cellH;
+        const displayRow = kds.length - 1 - i;
+        const x = ox + j * cellW, y = oy + displayRow * cellH;
         const value = heatmap[i][j];
 
         if (value !== null) {
@@ -507,7 +490,7 @@
         gridCtx.lineWidth = 1;
         gridCtx.strokeRect(x, y, cellW, cellH);
 
-        if (selectedCell && selectedCell.row === i && selectedCell.col === j) {  // y already uses displayRow
+        if (selectedCell && selectedCell.row === i && selectedCell.col === j) {
           gridCtx.strokeStyle = `rgb(${COLOR_SIM[0]},${COLOR_SIM[1]},${COLOR_SIM[2]})`;
           gridCtx.lineWidth = 3;
           gridCtx.strokeRect(x + 1.5, y + 1.5, cellW - 3, cellH - 3);
@@ -515,19 +498,52 @@
       }
     }
 
-    // Axis tick labels
-    gridCtx.fillStyle = '#333';
-    gridCtx.font = '11px -apple-system, BlinkMacSystemFont, sans-serif';
-    gridCtx.textAlign = 'center';
-    gridCtx.textBaseline = 'top';
-    for (let j = 0; j < kps.length; j++)
-      gridCtx.fillText(kps[j], j * cellW + cellW / 2, gridCanvas.height + 4);
-    gridCtx.textAlign = 'right';
-    gridCtx.textBaseline = 'middle';
-    for (let i = 0; i < kds.length; i++) {
-      const displayRow = kds.length - 1 - i;
-      gridCtx.fillText(kds[i], -6, displayRow * cellH + cellH / 2);
+    // Draw axis lines with arrows
+    const axisColor = '#333';
+    const arrowSize = 6;
+    gridCtx.strokeStyle = axisColor;
+    gridCtx.fillStyle = axisColor;
+    gridCtx.lineWidth = 1.5;
+
+    // X-axis (arrow right for increasing Kp)
+    const xAxisY = oy + gridH + 1;
+    gridCtx.beginPath();
+    gridCtx.moveTo(ox, xAxisY);
+    gridCtx.lineTo(ox + gridW + 12, xAxisY);
+    gridCtx.stroke();
+    gridCtx.beginPath();
+    gridCtx.moveTo(ox + gridW + 12, xAxisY);
+    gridCtx.lineTo(ox + gridW + 12 - arrowSize, xAxisY - arrowSize);
+    gridCtx.lineTo(ox + gridW + 12 - arrowSize, xAxisY + arrowSize);
+    gridCtx.closePath();
+    gridCtx.fill();
+
+    // Y-axis (arrow up for increasing Kd)
+    const yAxisX = ox - 1;
+    gridCtx.beginPath();
+    gridCtx.moveTo(yAxisX, oy + gridH);
+    gridCtx.lineTo(yAxisX, 4);
+    gridCtx.stroke();
+    gridCtx.beginPath();
+    gridCtx.moveTo(yAxisX, 4);
+    gridCtx.lineTo(yAxisX - arrowSize, 4 + arrowSize);
+    gridCtx.lineTo(yAxisX + arrowSize, 4 + arrowSize);
+    gridCtx.closePath();
+    gridCtx.fill();
+
+    // Axis labels (bold K + subscript)
+    function drawAxisLabel(ctx, sub, lx, ly) {
+      ctx.fillStyle = axisColor;
+      ctx.textBaseline = 'alphabetic';
+      ctx.textAlign = 'left';
+      ctx.font = 'bold 15px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillText('K', lx, ly);
+      const kW = ctx.measureText('K').width;
+      ctx.font = '11px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillText(sub, lx + kW, ly + 4);
     }
+    drawAxisLabel(gridCtx, 'p', ox + gridW + 16, xAxisY + 5);
+    drawAxisLabel(gridCtx, 'd', yAxisX + 6, 16);
   }
 
   function drawChart() {
@@ -647,6 +663,7 @@
 
     // Y label
     chartCtx.save();
+    chartCtx.font = '13px -apple-system, BlinkMacSystemFont, sans-serif';
     chartCtx.translate(10, plotY + plotH / 2);
     chartCtx.rotate(-Math.PI / 2);
     chartCtx.textAlign = 'center';
@@ -687,27 +704,50 @@
 
     // In-plot legend (top-right)
     const legX = plotX + plotW - 8, legY = plotY + 8;
-    chartCtx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
-    chartCtx.textAlign = 'right';
-    chartCtx.textBaseline = 'middle';
+    const legFont = '13px -apple-system, BlinkMacSystemFont, sans-serif';
+    chartCtx.font = legFont;
     const items = [
       { label: 'Real', color: COLOR_REAL, dash: false },
       { label: 'Sim',  color: COLOR_SIM,  dash: false },
       { label: 'Desired', color: COLOR_QDES, dash: true },
     ];
+    const legLineW = 24;
+    const legGap = 8;
+    const legRowH = 20;
+    const legPadX = 10;
+    const legPadY = 8;
+    let maxTW = 0;
+    for (const it of items) {
+      const tw = chartCtx.measureText(it.label).width;
+      if (tw > maxTW) maxTW = tw;
+    }
+    const legW = legPadX * 2 + legLineW + legGap + maxTW;
+    const legH = legPadY * 2 + legRowH * items.length - 4;
+    const lx = legX - legW;
+    const ly = legY;
+    chartCtx.fillStyle = 'rgba(255,255,255,0.92)';
+    chartCtx.strokeStyle = '#ccc';
+    chartCtx.lineWidth = 1;
+    chartCtx.beginPath();
+    chartCtx.roundRect(lx, ly, legW, legH, 4);
+    chartCtx.fill();
+    chartCtx.stroke();
     for (let li = 0; li < items.length; li++) {
-      const iy = legY + li * 14;
+      const iy = ly + legPadY + 10 + li * legRowH;
       const c = items[li].color;
       chartCtx.strokeStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
-      chartCtx.lineWidth = 2;
-      chartCtx.setLineDash(items[li].dash ? [4, 2] : []);
+      chartCtx.lineWidth = 2.5;
+      chartCtx.setLineDash(items[li].dash ? [5, 3] : []);
       chartCtx.beginPath();
-      chartCtx.moveTo(legX - 48, iy);
-      chartCtx.lineTo(legX - 30, iy);
+      chartCtx.moveTo(lx + legPadX, iy);
+      chartCtx.lineTo(lx + legPadX + legLineW, iy);
       chartCtx.stroke();
       chartCtx.setLineDash([]);
-      chartCtx.fillStyle = '#555';
-      chartCtx.fillText(items[li].label, legX, iy);
+      chartCtx.fillStyle = '#333';
+      chartCtx.font = legFont;
+      chartCtx.textAlign = 'left';
+      chartCtx.textBaseline = 'middle';
+      chartCtx.fillText(items[li].label, lx + legPadX + legLineW + legGap, iy);
     }
   }
 
@@ -762,6 +802,7 @@
 
     // Y label
     chartCtx.save();
+    chartCtx.font = '13px -apple-system, BlinkMacSystemFont, sans-serif';
     chartCtx.translate(10, plotY + plotH / 2);
     chartCtx.rotate(-Math.PI / 2);
     chartCtx.textAlign = 'center';
@@ -806,10 +847,11 @@
   function getGridCell(e) {
     if (!allData) return null;
     const rect = gridCanvas.getBoundingClientRect();
-    const col = Math.floor((e.clientX - rect.left) / 38);
-    const displayRow = Math.floor((e.clientY - rect.top) / 32);
+    const ox = 8, oy = 30; // must match drawGrid offsets
+    const col = Math.floor((e.clientX - rect.left - ox) / 38);
+    const displayRow = Math.floor((e.clientY - rect.top - oy) / 32);
     if (col < 0 || col >= allData.kps.length || displayRow < 0 || displayRow >= allData.kds.length) return null;
-    const row = allData.kds.length - 1 - displayRow;  // flip back to data row
+    const row = allData.kds.length - 1 - displayRow;
     return { row, col };
   }
 

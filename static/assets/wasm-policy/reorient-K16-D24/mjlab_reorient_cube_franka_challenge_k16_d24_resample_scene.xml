@@ -1,0 +1,310 @@
+<mujoco model="web_scene">
+  <compiler angle="radian" meshdir="assets/" />
+  <size nkey="2" />
+  <visual>
+    <global azimuth="135" elevation="-25" />
+    <headlight ambient="0.3 0.3 0.3" diffuse="0.6 0.6 0.6" specular="0 0 0" />
+  </visual>
+  <statistic meansize="0.03" extent="2" />
+  <default>
+    <default class="robot/main">
+      <default class="robot/fr3">
+        <joint armature="0.195" damping="0.21" frictionloss="1.137" />
+        <site size="0.001 0.005 0.005" group="4" rgba="0.5 0.5 0.5 0.3" />
+        <general biastype="affine" biasprm="0 -1" />
+        <default class="robot/visual">
+          <geom type="mesh" contype="0" conaffinity="0" group="2" />
+        </default>
+        <default class="robot/collision">
+          <geom type="mesh" group="3" />
+        </default>
+      </default>
+      <default class="robot/2f85">
+        <mesh scale="0.001 0.001 0.001" />
+        <general biastype="affine" />
+        <default class="robot/driver">
+          <joint solreflimit="0.005" solimplimit="0.95 0.99" range="0 0.9" armature="0.005" damping="0.1" />
+        </default>
+        <default class="robot/follower">
+          <joint solreflimit="0.005" solimplimit="0.95 0.99" range="-0.872664 0.9" armature="0.001" />
+        </default>
+        <default class="robot/spring_link">
+          <joint springref="2.62" stiffness="0.05" range="-0.296706 0.9" armature="0.001" damping="0.00125" />
+        </default>
+        <default class="robot/coupler">
+          <joint solreflimit="0.005" solimplimit="0.95 0.99" range="-1.57 0" armature="0.001" />
+        </default>
+        <default class="robot/2f85_visual">
+          <geom type="mesh" contype="0" conaffinity="0" group="2" material="2f85_black" />
+        </default>
+        <default class="robot/2f85_collision">
+          <geom type="mesh" group="3" />
+          <default class="robot/pad_box1">
+            <geom size="0.002 0.011 0.009375" type="box" priority="1" friction="0.7" solref="0.004" solimp="0.95 0.99" rgba="0.55 0.55 0.55 1" />
+          </default>
+          <default class="robot/pad_box2">
+            <geom size="0.002 0.011 0.009375" type="box" priority="1" friction="0.6" solref="0.004" solimp="0.95 0.99" rgba="0.45 0.45 0.45 1" />
+          </default>
+        </default>
+      </default>
+    </default>
+    <default class="cube/main">
+      <default class="cube/cube">
+        <geom conaffinity="2" friction="0.3 0.05" />
+      </default>
+    </default>
+    <default class="target_cube/main" />
+  </default>
+  <asset>
+    <texture type="cube" colorspace="linear" name="cube/cube" fileright="reorientation_cube_textures/fileright.png" fileleft="reorientation_cube_textures/fileleft.png" fileup="reorientation_cube_textures/fileup.png" filedown="reorientation_cube_textures/filedown.png" filefront="reorientation_cube_textures/filefront.png" fileback="reorientation_cube_textures/fileback.png" />
+    <texture type="cube" colorspace="linear" name="cube/graycube" fileright="reorientation_cube_textures/grayright.png" fileleft="reorientation_cube_textures/grayleft.png" fileup="reorientation_cube_textures/grayup.png" filedown="reorientation_cube_textures/graydown.png" filefront="reorientation_cube_textures/grayfront.png" fileback="reorientation_cube_textures/grayback.png" />
+    <texture type="2d" colorspace="linear" name="cube/dexcube" file="reorientation_cube_textures/cube/dex_cube.png" />
+    <texture type="2d" colorspace="linear" name="target_cube/dexcube_target" file="reorientation_cube_textures/target_cube/dex_cube.png" />
+    <material name="robot/metal" rgba="0.58 0.58 0.58 1" />
+    <material name="robot/silicone" rgba="0.1882 0.1882 0.1882 1" />
+    <material name="robot/2f85_black" rgba="0.149 0.149 0.149 1" />
+    <material name="robot/black" rgba="0.2 0.2 0.2 1" />
+    <material name="robot/white" />
+    <material name="robot/red" rgba="1 0.072272 0.039546 1" />
+    <material name="robot/gray" rgba="0.863156 0.863156 0.863157 1" />
+    <material name="robot/button_green" rgba="0.102241 0.571125 0.102242 1" />
+    <material name="robot/button_red" rgba="0.520996 0.008023 0.013702 1" />
+    <material name="robot/button_blue" rgba="0.024157 0.445201 0.737911 1" />
+    <material name="cube/cube" texture="cube/cube" />
+    <material name="cube/graycube" texture="cube/graycube" />
+    <material name="cube/dexcube" texture="cube/dexcube" />
+    <material name="target_cube/dexcube_target" texture="target_cube/dexcube_target" rgba="1 1 1 0.3" />
+    <mesh name="robot/base" file="robot/base.stl" />
+    <mesh name="robot/base_coupling" file="robot/base_coupling.stl" />
+    <mesh name="robot/c-a01-85-open" file="robot/c-a01-85-open.stl" />
+    <mesh name="robot/driver" file="robot/driver.stl" />
+    <mesh name="robot/coupler" file="robot/coupler.stl" />
+    <mesh name="robot/spring_link" file="robot/spring_link.stl" />
+    <mesh name="robot/follower" file="robot/follower.stl" />
+    <mesh name="robot/tongue" file="robot/tongue.stl" />
+    <mesh name="robot/link0_0" file="robot/link0_0.obj" />
+    <mesh name="robot/link0_1" file="robot/link0_1.obj" />
+    <mesh name="robot/link0_2" file="robot/link0_2.obj" />
+    <mesh name="robot/link0_3" file="robot/link0_3.obj" />
+    <mesh name="robot/link0_4" file="robot/link0_4.obj" />
+    <mesh name="robot/link0_5" file="robot/link0_5.obj" />
+    <mesh name="robot/link0_6" file="robot/link0_6.obj" />
+    <mesh name="robot/link1" file="robot/link1.obj" />
+    <mesh name="robot/link2" file="robot/link2.obj" />
+    <mesh name="robot/link3_0" file="robot/link3_0.obj" />
+    <mesh name="robot/link3_1" file="robot/link3_1.obj" />
+    <mesh name="robot/link4_0" file="robot/link4_0.obj" />
+    <mesh name="robot/link4_1" file="robot/link4_1.obj" />
+    <mesh name="robot/link5_0" file="robot/link5_0.obj" />
+    <mesh name="robot/link5_1" file="robot/link5_1.obj" />
+    <mesh name="robot/link5_2" file="robot/link5_2.obj" />
+    <mesh name="robot/link6_0" file="robot/link6_0.obj" />
+    <mesh name="robot/link6_1" file="robot/link6_1.obj" />
+    <mesh name="robot/link6_2" file="robot/link6_2.obj" />
+    <mesh name="robot/link6_3" file="robot/link6_3.obj" />
+    <mesh name="robot/link6_4" file="robot/link6_4.obj" />
+    <mesh name="robot/link6_5" file="robot/link6_5.obj" />
+    <mesh name="robot/link6_6" file="robot/link6_6.obj" />
+    <mesh name="robot/link6_7" file="robot/link6_7.obj" />
+    <mesh name="robot/link7_0" file="robot/link7_0.obj" />
+    <mesh name="robot/link7_1" file="robot/link7_1.obj" />
+    <mesh name="robot/link7_2" file="robot/link7_2.obj" />
+    <mesh name="robot/link7_3" file="robot/link7_3.obj" />
+    <mesh name="robot/link0_coll" file="robot/link0.stl" />
+    <mesh name="robot/link1_coll" file="robot/link1.stl" />
+    <mesh name="robot/link2_coll" file="robot/link2.stl" />
+    <mesh name="robot/link3_coll" file="robot/link3.stl" />
+    <mesh name="robot/link4_coll" file="robot/link4.stl" />
+    <mesh name="robot/link5_coll" file="robot/link5.stl" />
+    <mesh name="robot/link6_coll" file="robot/link6.stl" />
+    <mesh name="robot/link7_coll" file="robot/link7.stl" />
+    <mesh name="cube/cube_mesh" file="cube/dex_cube.obj" scale="0.06 0.06 0.06" />
+    <mesh name="target_cube/target_cube_mesh" file="target_cube/dex_cube.obj" scale="0.06 0.06 0.06" />
+  </asset>
+  <worldbody>
+    <geom name="floor" size="50 50 0.1" type="plane" rgba="0.85 0.85 0.85 1" />
+    <light pos="0 0 3" dir="0 0 -1" />
+    <body name="robot/mocap_base" mocap="true">
+      <body name="robot/fr3_base" childclass="robot/fr3">
+        <body name="robot/fr3_link0" gravcomp="1">
+          <geom class="robot/visual" material="robot/black" mesh="robot/link0_0" />
+          <geom class="robot/visual" material="robot/white" mesh="robot/link0_1" />
+          <geom class="robot/visual" material="robot/white" mesh="robot/link0_2" />
+          <geom class="robot/visual" material="robot/white" mesh="robot/link0_3" />
+          <geom class="robot/visual" material="robot/white" mesh="robot/link0_4" />
+          <geom class="robot/visual" material="robot/red" mesh="robot/link0_5" />
+          <geom class="robot/visual" material="robot/black" mesh="robot/link0_6" />
+          <geom name="robot/fr3_link0_collision" class="robot/collision" contype="0" conaffinity="0" mesh="robot/link0_coll" />
+          <body name="robot/fr3_link1" pos="0 0 0.333" gravcomp="1">
+            <inertial pos="4.128e-07 -0.0181251 -0.0386036" quat="0.998098 -0.0605364 0.00380499 0.0110109" mass="2.92747" diaginertia="0.0239286 0.0227246 0.00610634" />
+            <joint name="robot/fr3_joint1" pos="0 0 0" axis="0 0 1" range="-2.7437 2.7437" actuatorfrcrange="-87 87" armature="0.234776" damping="0.619255" frictionloss="0.762963" />
+            <geom name="robot/fr3_link1_collision" class="robot/collision" contype="0" conaffinity="0" mesh="robot/link1_coll" />
+            <geom class="robot/visual" material="robot/white" mesh="robot/link1" />
+            <body name="robot/fr3_link2" quat="0.707107 -0.707107 0 0" gravcomp="1">
+              <inertial pos="0.00318289 -0.0743222 0.00881461" quat="0.502599 0.584437 -0.465998 0.434366" mass="2.93554" diaginertia="0.0629567 0.0411924 0.0246371" />
+              <joint name="robot/fr3_joint2" pos="0 0 0" axis="0 0 1" range="-1.7837 1.7837" actuatorfrcrange="-87 87" armature="0.0632765" damping="0.153843" frictionloss="0.801454" />
+              <geom class="robot/visual" material="robot/white" mesh="robot/link2" />
+              <geom name="robot/fr3_link2_collision" class="robot/collision" contype="0" conaffinity="0" mesh="robot/link2_coll" />
+              <body name="robot/fr3_link3" pos="0 -0.316 0" quat="0.707107 0.707107 0 0" gravcomp="1">
+                <inertial pos="0.0407016 -0.00482006 -0.0289731" quat="0.921025 -0.244161 0.155272 0.260745" mass="2.2449" diaginertia="0.0267409 0.0189869 0.0171587" />
+                <joint name="robot/fr3_joint3" pos="0 0 0" axis="0 0 1" range="-2.9007 2.9007" actuatorfrcrange="-87 87" armature="0.365037" damping="0.792489" frictionloss="0.529014" />
+                <geom class="robot/visual" material="robot/white" mesh="robot/link3_0" />
+                <geom class="robot/visual" material="robot/black" mesh="robot/link3_1" />
+                <geom name="robot/fr3_link3_collision" class="robot/collision" contype="0" conaffinity="0" mesh="robot/link3_coll" />
+                <body name="robot/fr3_link4" pos="0.0825 0 0" quat="0.707107 0.707107 0 0" gravcomp="1">
+                  <inertial pos="-0.0459101 0.0630493 -0.00851879" quat="0.438018 0.803311 0.00937812 0.403414" mass="2.6156" diaginertia="0.05139 0.0372717 0.0160047" />
+                  <joint name="robot/fr3_joint4" pos="0 0 0" axis="0 0 1" range="-3.0421 -0.1518" actuatorfrcrange="-87 87" armature="0.0392327" damping="0.166814" frictionloss="1.20877" />
+                  <geom class="robot/visual" material="robot/white" mesh="robot/link4_0" />
+                  <geom class="robot/visual" material="robot/black" mesh="robot/link4_1" />
+                  <geom name="robot/fr3_link4_collision" class="robot/collision" contype="0" conaffinity="0" mesh="robot/link4_coll" />
+                  <body name="robot/fr3_link5" pos="-0.0825 0.384 0" quat="0.707107 -0.707107 0 0" gravcomp="1">
+                    <inertial pos="-0.00160396 0.0292536 -0.0972966" quat="0.919031 0.125604 0.0751531 -0.366003" mass="2.32712" diaginertia="0.0579335 0.0449144 0.0130634" />
+                    <joint name="robot/fr3_joint5" pos="0 0 0" axis="0 0 1" range="-2.8065 2.8065" actuatorfrcrange="-12 12" armature="0.336037" damping="0.223073" frictionloss="1.95851" />
+                    <geom class="robot/visual" material="robot/white" mesh="robot/link5_0" />
+                    <geom class="robot/visual" material="robot/white" mesh="robot/link5_1" />
+                    <geom class="robot/visual" material="robot/black" mesh="robot/link5_2" />
+                    <geom name="robot/fr3_link5_collision" class="robot/collision" contype="0" conaffinity="0" mesh="robot/link5_coll" />
+                    <body name="robot/fr3_link6" quat="0.707107 0.707107 0 0" gravcomp="1">
+                      <inertial pos="0.0597131 -0.0410295 -0.0101693" quat="0.621301 0.552665 0.510011 0.220081" mass="1.81704" diaginertia="0.0175039 0.0161123 0.00193529" />
+                      <joint name="robot/fr3_joint6" pos="0 0 0" axis="0 0 1" range="0.5445 4.5169" actuatorfrcrange="-12 12" armature="0.45732" damping="0.262721" frictionloss="0.524331" />
+                      <geom class="robot/visual" material="robot/button_green" mesh="robot/link6_0" />
+                      <geom class="robot/visual" material="robot/white" mesh="robot/link6_1" />
+                      <geom class="robot/visual" material="robot/white" mesh="robot/link6_2" />
+                      <geom class="robot/visual" material="robot/gray" mesh="robot/link6_3" />
+                      <geom class="robot/visual" material="robot/button_red" mesh="robot/link6_4" />
+                      <geom class="robot/visual" material="robot/white" mesh="robot/link6_5" />
+                      <geom class="robot/visual" material="robot/black" mesh="robot/link6_6" />
+                      <geom class="robot/visual" material="robot/button_blue" mesh="robot/link6_7" />
+                      <geom name="robot/fr3_link6_collision" class="robot/collision" contype="0" conaffinity="0" mesh="robot/link6_coll" />
+                      <body name="robot/fr3_link7" pos="0.088 0 0" quat="0.707107 0.707107 0 0" gravcomp="1">
+                        <inertial pos="0.00452258 0.00862619 -0.0161633" quat="0.727579 0.0978688 -0.24906 0.63168" mass="0.627143" diaginertia="0.000223836 0.000223642 5.64132e-07" />
+                        <joint name="robot/fr3_joint7" pos="0 0 0" axis="0 0 1" range="-3.0159 3.0159" actuatorfrcrange="-12 12" armature="0.338058" damping="0.212145" frictionloss="0.776476" />
+                        <geom class="robot/visual" material="robot/black" mesh="robot/link7_0" />
+                        <geom class="robot/visual" material="robot/white" mesh="robot/link7_1" />
+                        <geom class="robot/visual" material="robot/white" mesh="robot/link7_2" />
+                        <geom class="robot/visual" material="robot/black" mesh="robot/link7_3" />
+                        <geom name="robot/fr3_link7_collision" class="robot/collision" contype="0" conaffinity="0" mesh="robot/link7_coll" />
+                        <body name="robot/base" childclass="robot/2f85" pos="0 0 0.107" gravcomp="1">
+                          <inertial pos="0 -2.70394e-05 0.0354675" quat="0.999999 -0.00152849 0 0" mass="0.777441" diaginertia="0.000260285 0.000225381 0.000152708" />
+                          <geom class="robot/2f85_visual" pos="0 0 0.0108" quat="0 0 0 1" material="robot/2f85_black" mesh="robot/base" />
+                          <geom class="robot/2f85_visual" pos="0 0 0.004" quat="0.707107 -0.707107 0 0" material="robot/2f85_black" mesh="robot/base_coupling" />
+                          <geom class="robot/2f85_visual" pos="0 0 0.0108" quat="1 0 0 0" material="robot/metal" mesh="robot/c-a01-85-open" />
+                          <geom class="robot/collision" mesh="robot/base" />
+                          <site name="robot/attachment_site" pos="0 0 0.15" size="0.01" group="1" rgba="1 0 0 1" />
+                          <body name="robot/left_driver" pos="-0.0306011 0.00475 0.0657045" quat="0.707107 -0.707107 0 0" gravcomp="1">
+                            <inertial pos="0 0.0177547 0.00107314" quat="0.681301 0.732003 0 0" mass="0.00899563" diaginertia="1.72352e-06 1.60906e-06 3.22006e-07" />
+                            <joint name="robot/left_driver_joint" class="robot/driver" pos="0 0 0" axis="0 0 1" />
+                            <geom class="robot/2f85_visual" pos="0.0306011 0.0549045 -0.0047" quat="0.707107 0.707107 0 0" material="robot/metal" mesh="robot/driver" />
+                            <geom class="robot/2f85_collision" pos="0.0306011 0.0549045 -0.0047" quat="0.707107 0.707107 0 0" mesh="robot/driver" />
+                            <body name="robot/left_coupler" pos="-0.0314249 0.00453223 -0.0102" quat="0 0 0 1" gravcomp="1">
+                              <inertial pos="0 0.00301209 0.0232175" quat="0.705636 -0.0455904 0.0455904 0.705636" mass="0.0140974" diaginertia="4.16206e-06 3.52216e-06 8.88131e-07" />
+                              <geom class="robot/2f85_visual" pos="-0.062026 -0.0503723 0.0055" quat="0.707107 -0.707107 0 0" material="robot/2f85_black" mesh="robot/coupler" />
+                              <geom class="robot/2f85_collision" pos="-0.062026 -0.0503723 0.0055" quat="0.707107 -0.707107 0 0" mesh="robot/coupler" />
+                            </body>
+                          </body>
+                          <body name="robot/left_spring_link" pos="-0.0127 -0.012 0.07222" quat="0.707107 -0.707107 0 0" gravcomp="1">
+                            <inertial pos="-8.65005e-09 0.0181624 0.0212658" quat="0.663403 -0.244737 0.244737 0.663403" mass="0.0221642" diaginertia="8.96853e-06 6.71733e-06 2.63931e-06" />
+                            <joint name="robot/left_spring_link_joint" class="robot/spring_link" pos="0 0 0" axis="0 0 1" springref="2.62" />
+                            <geom class="robot/2f85_visual" pos="0.0127 0.06142 0.01205" quat="0.707107 0.707107 0 0" material="robot/2f85_black" mesh="robot/spring_link" />
+                            <geom class="robot/2f85_collision" pos="0.0127 0.06142 0.01205" quat="0.707107 0.707107 0 0" mesh="robot/spring_link" />
+                            <body name="robot/left_follower" pos="-0.0382079 -0.0425003 0.00295" quat="0 -1 -1.90231e-05 0" gravcomp="1">
+                              <inertial pos="0 -0.011046 0.0124786" quat="0.986437 0.164143 0 0" mass="0.0125222" diaginertia="2.67415e-06 2.4559e-06 6.02031e-07" />
+                              <joint name="robot/left_follower" class="robot/follower" pos="0 0 0" axis="0 0 1" />
+                              <geom class="robot/2f85_visual" pos="0.0509079 -0.10392 -0.0091" quat="0.707107 -0.707107 0 0" material="robot/2f85_black" mesh="robot/follower" />
+                              <geom class="robot/2f85_visual" pos="0.0509079 -0.10392 -0.0091" quat="0.707107 -0.707107 0 0" material="robot/metal" mesh="robot/tongue" />
+                              <geom name="robot/left_follower_geom" class="robot/2f85_collision" pos="0.0509079 -0.10392 -0.0091" quat="0.707107 -0.707107 0 0" contype="0" conaffinity="0" mesh="robot/follower" />
+                              <geom name="robot/left_tongue_geom" class="robot/2f85_collision" pos="0.0509079 -0.10392 -0.0091" quat="0.707107 -0.707107 0 0" contype="0" conaffinity="0" mesh="robot/tongue" />
+                              <body name="robot/left_pad" pos="-0.0377897 -0.103916 -0.0091" quat="0.707107 -0.707107 0 0" gravcomp="1">
+                                <geom name="robot/left_pad1" class="robot/pad_box1" pos="0.043258 0 0.12" condim="6" friction="1 0.005 0.0005" solref="0.01" mass="1e-06" />
+                                <geom name="robot/left_pad2" class="robot/pad_box2" pos="0.043258 0 0.13875" condim="6" friction="1 0.005 0.0005" solref="0.01" mass="1e-06" />
+                              </body>
+                            </body>
+                          </body>
+                          <body name="robot/right_driver" pos="0.0306011 -0.00475 0.0657045" quat="0 0 -0.707107 0.707107" gravcomp="1">
+                            <inertial pos="2.96931e-12 0.0177547 0.00107314" quat="0.681301 0.732003 0 0" mass="0.00899563" diaginertia="1.72352e-06 1.60906e-06 3.22006e-07" />
+                            <joint name="robot/right_driver_joint" class="robot/driver" pos="0 0 0" axis="0 0 1" />
+                            <geom class="robot/2f85_visual" pos="0.0306011 0.0549045 -0.0047" quat="0.707107 0.707107 0 0" material="robot/metal" mesh="robot/driver" />
+                            <geom class="robot/2f85_collision" pos="0.0306011 0.0549045 -0.0047" quat="0.707107 0.707107 0 0" mesh="robot/driver" />
+                            <body name="robot/right_coupler" pos="-0.0314249 0.00453223 -0.0102" quat="0 0 0 1" gravcomp="1">
+                              <inertial pos="0 0.00301209 0.0232175" quat="0.705636 -0.0455904 0.0455904 0.705636" mass="0.0140974" diaginertia="4.16206e-06 3.52216e-06 8.88131e-07" />
+                              <geom class="robot/2f85_visual" pos="-0.062026 -0.0503723 0.0055" quat="0.707107 -0.707107 0 0" material="robot/2f85_black" mesh="robot/coupler" />
+                              <geom class="robot/2f85_collision" pos="-0.062026 -0.0503723 0.0055" quat="0.707107 -0.707107 0 0" mesh="robot/coupler" />
+                            </body>
+                          </body>
+                          <body name="robot/right_spring_link" pos="0.0127 0.012 0.07222" quat="0 0 -0.707107 0.707107" gravcomp="1">
+                            <inertial pos="-8.65005e-09 0.0181624 0.0212658" quat="0.663403 -0.244737 0.244737 0.663403" mass="0.0221642" diaginertia="8.96853e-06 6.71733e-06 2.63931e-06" />
+                            <joint name="robot/right_spring_link_joint" class="robot/spring_link" pos="0 0 0" axis="0 0 1" springref="2.62" />
+                            <geom class="robot/2f85_visual" pos="0.0127 0.06142 0.01205" quat="0.707107 0.707107 0 0" material="robot/2f85_black" mesh="robot/spring_link" />
+                            <geom class="robot/2f85_collision" pos="0.0127 0.06142 0.01205" quat="0.707107 0.707107 0 0" mesh="robot/spring_link" />
+                            <body name="robot/right_follower" pos="-0.0382079 -0.0425003 0.00295" quat="0 -1 0 0" gravcomp="1">
+                              <inertial pos="0 -0.011046 0.0124786" quat="0.986437 0.164143 0 0" mass="0.0125222" diaginertia="2.67415e-06 2.4559e-06 6.02031e-07" />
+                              <joint name="robot/right_follower_joint" class="robot/follower" pos="0 0 0" axis="0 0 1" />
+                              <geom class="robot/2f85_visual" pos="0.0509079 -0.10392 -0.0091" quat="0.707107 -0.707107 0 0" material="robot/metal" mesh="robot/tongue" />
+                              <geom class="robot/2f85_visual" pos="0.0509079 -0.10392 -0.0091" quat="0.707107 -0.707107 0 0" material="robot/2f85_black" mesh="robot/follower" />
+                              <geom name="robot/right_tongue_geom" class="robot/2f85_collision" pos="0.0509079 -0.10392 -0.0091" quat="0.707107 -0.707107 0 0" contype="0" conaffinity="0" mesh="robot/tongue" />
+                              <geom name="robot/right_follower_geom" class="robot/2f85_collision" pos="0.0509079 -0.10392 -0.0091" quat="0.707107 -0.707107 0 0" contype="0" conaffinity="0" mesh="robot/follower" />
+                              <body name="robot/right_pad" pos="-0.0377897 -0.103916 -0.0091" quat="0.707107 -0.707107 0 0" gravcomp="1">
+                                <geom name="robot/right_pad1" class="robot/pad_box1" pos="0.043258 0 0.12" condim="6" friction="1 0.005 0.0005" solref="0.01" mass="1e-06" />
+                                <geom name="robot/right_pad2" class="robot/pad_box2" pos="0.043258 0 0.13875" condim="6" friction="1 0.005 0.0005" solref="0.01" mass="1e-06" />
+                              </body>
+                            </body>
+                          </body>
+                        </body>
+                      </body>
+                    </body>
+                  </body>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+    <light pos="0 0 2" dir="0 0 -1" type="directional" diffuse="0.8 0.8 0.8" specular="0.1 0.1 0.1" />
+    <body name="cube/cube" childclass="cube/cube" pos="0.3 0 0.3">
+      <joint name="cube/floating_base_joint" type="free" />
+      <geom type="mesh" contype="0" conaffinity="0" group="2" density="0" material="cube/dexcube" mesh="cube/cube_mesh" />
+      <geom name="cube/cube" size="0.06 0.06 0.06" type="box" group="3" mass="0.1" />
+      <site name="cube/cube_center" pos="0 0 0" group="4" />
+    </body>
+    <body name="target_cube/target_cube" pos="0.3 0 0.2" gravcomp="1">
+      <inertial pos="0 0 0" mass="0.001" diaginertia="1e-08 1e-08 1e-08" />
+      <joint name="target_cube/floating_base_joint" type="free" />
+      <geom type="mesh" contype="0" conaffinity="0" group="2" material="target_cube/dexcube_target" mesh="target_cube/target_cube_mesh" />
+    </body>
+  </worldbody>
+  <contact>
+    <exclude body1="robot/fr3_link0" body2="robot/fr3_link1" />
+    <exclude body1="robot/base" body2="robot/left_driver" />
+    <exclude body1="robot/base" body2="robot/left_spring_link" />
+    <exclude body1="robot/base" body2="robot/right_driver" />
+    <exclude body1="robot/base" body2="robot/right_spring_link" />
+    <exclude body1="robot/left_coupler" body2="robot/left_follower" />
+    <exclude body1="robot/right_coupler" body2="robot/right_follower" />
+  </contact>
+  <equality>
+    <connect body1="robot/right_follower" body2="robot/right_coupler" anchor="-0.0179014 -0.00651468 0.0044" solref="0.005" solimp="0.95 0.99" />
+    <connect body1="robot/left_follower" body2="robot/left_coupler" anchor="-0.0179014 -0.00651468 0.0044" solref="0.005" solimp="0.95 0.99" />
+    <joint joint1="robot/right_driver_joint" joint2="robot/left_driver_joint" polycoef="0 1 0 0 0" solref="0.005" solimp="0.95 0.99" />
+  </equality>
+  <tendon>
+    <fixed name="robot/split">
+      <joint joint="robot/right_driver_joint" coef="0.485" />
+      <joint joint="robot/left_driver_joint" coef="0.485" />
+    </fixed>
+  </tendon>
+  <actuator>
+    <general name="robot/fr3_joint1" joint="robot/fr3_joint1" ctrllimited="false" forcelimited="true" forcerange="-87 87" biastype="affine" gainprm="17.3089" biasprm="0 -17.3089 -33.769" />
+    <general name="robot/fr3_joint2" joint="robot/fr3_joint2" ctrllimited="false" forcelimited="true" forcerange="-87 87" biastype="affine" gainprm="13.7855" biasprm="0 -13.7855 -21.5527" />
+    <general name="robot/fr3_joint3" joint="robot/fr3_joint3" ctrllimited="false" forcelimited="true" forcerange="-87 87" biastype="affine" gainprm="15.4569" biasprm="0 -15.4569 -27.3219" />
+    <general name="robot/fr3_joint4" joint="robot/fr3_joint4" ctrllimited="false" forcelimited="true" forcerange="-87 87" biastype="affine" gainprm="25.8864" biasprm="0 -25.8864 -47.5751" />
+    <general name="robot/fr3_joint5" joint="robot/fr3_joint5" ctrllimited="false" forcelimited="true" forcerange="-12 12" biastype="affine" gainprm="14.0283" biasprm="0 -14.0283 -1.92271" />
+    <general name="robot/fr3_joint6" joint="robot/fr3_joint6" ctrllimited="false" forcelimited="true" forcerange="-12 12" biastype="affine" gainprm="13.7895" biasprm="0 -13.7895 -22.8506" />
+    <general name="robot/fr3_joint7" joint="robot/fr3_joint7" ctrllimited="false" forcelimited="true" forcerange="-12 12" biastype="affine" gainprm="23.2284" biasprm="0 -23.2284 -36.5879" />
+    <general name="robot/left_driver_joint" joint="robot/left_driver_joint" ctrllimited="false" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="100" biasprm="0 -100 -10" />
+  </actuator>
+  <keyframe>
+    <key name="init_state" qpos="0 0 0 -1.57079 0 1.57079 -0.7853 0.3 0 0.06 1 0 0 0 0.3 0 0.06 1 0 0 0 0 0 0 0 0 0" ctrl="0 0 0 -1.57079 0 1.57079 -0.7853 0" />
+    <key name="robot/init_state" qpos="0 -0.785 0 -2.356 0 1.571 0.785 0 0 0 0 0 0 0.3 0 0.3 1 0 0 0 0.3 0 0.2 1 0 0 0" ctrl="0 -0.785 0 -2.356 0 1.571 0.785 0" />
+  </keyframe>
+</mujoco>

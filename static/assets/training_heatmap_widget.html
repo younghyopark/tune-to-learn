@@ -113,24 +113,6 @@
     display: block;
   }
   
-  .heatmap-axis-label {
-    font-size: 18px;
-    font-style: italic;
-    color: #333;
-    position: absolute;
-  }
-  
-  .heatmap-axis-label-kp {
-    bottom: -24px;
-    left: 250px; /* Position under right edge of grid (7 cols * 38px ≈ 266px) */
-  }
-  
-  .heatmap-axis-label-kd {
-    top: -8px;
-    left: -30px;
-    transform: rotate(-90deg);
-    transform-origin: center center;
-  }
 
   .heatmap-bottom-bar {
     display: flex;
@@ -233,14 +215,12 @@
     <div class="heatmap-grid-container">
       <div class="heatmap-grid-wrap">
         <canvas id="heatmapGrid" class="heatmap-grid-canvas"></canvas>
-        <span class="heatmap-axis-label heatmap-axis-label-kp">K<sub>p</sub></span>
-        <span class="heatmap-axis-label heatmap-axis-label-kd">K<sub>d</sub></span>
       </div>
       <div class="heatmap-sub-caption" style="margin-top: 28px;"><b>Task Success Rate.</b> Darker cells indicate higher rollout success. The best-performing region (upper-left, low K<sub>p</sub>) coincides with <i>higher</i> training loss.</div>
     </div>
   </div>
   <div class="heatmap-bottom-bar">
-    <span class="heatmap-info">Selected: <span class="heatmap-info-value" id="selectedInfo">None</span></span>
+    <span class="heatmap-info"><span class="heatmap-info-value" id="selectedInfo"></span></span>
     <label class="heatmap-toggle">
       <span>Log Scale</span>
       <span class="heatmap-toggle-switch">
@@ -427,8 +407,11 @@
       const kps = heatmapData.kps;
       const kds = heatmapData.kds;
       const labelSpace = 55; // Space for "Best"/"Worst" labels on right
-      gridCanvas.width = kps.length * cellW + labelSpace;
-      gridCanvas.height = kds.length * cellH;
+      const gridOffsetX = 8; // Left margin for axis line
+      const gridOffsetTop = 30; // Top margin for Kd arrow + label
+      const gridOffsetY = 22; // Bottom margin for axis line + Kp label
+      gridCanvas.width = gridOffsetX + kps.length * cellW + labelSpace;
+      gridCanvas.height = gridOffsetTop + kds.length * cellH + gridOffsetY;
       gridCanvas.style.width = gridCanvas.width + 'px';
       gridCanvas.style.height = gridCanvas.height + 'px';
     }
@@ -474,114 +457,149 @@
   
   function drawGrid() {
     if (!heatmapData) return;
-    
+
     const kps = heatmapData.kps;
     const kds = heatmapData.kds;
     const validation = heatmapData.validation;
     const cellW = 38, cellH = 32;
-    
+    const ox = 8; // grid offset X (left margin for axis line)
+    const oy = 30; // grid offset Y (top margin for Kd arrow + label)
+    const gridW = kps.length * cellW;
+    const gridH = kds.length * cellH;
+
     gridCtx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
-    
+
     let maxVal = 0;
     for (let i = 0; i < kds.length; i++) {
       for (let j = 0; j < kps.length; j++) {
         if (validation[i][j] > maxVal) maxVal = validation[i][j];
       }
     }
-    
+
     for (let i = 0; i < kds.length; i++) {
       const displayRow = kds.length - 1 - i;
       for (let j = 0; j < kps.length; j++) {
-        const x = j * cellW;
-        const y = displayRow * cellH;
+        const x = ox + j * cellW;
+        const y = oy + displayRow * cellH;
         const value = validation[i][j];
-        
+
         gridCtx.fillStyle = getHeatmapColor(value, maxVal);
         gridCtx.fillRect(x, y, cellW, cellH);
-        
+
         gridCtx.strokeStyle = '#fff';
         gridCtx.lineWidth = 1;
         gridCtx.strokeRect(x, y, cellW, cellH);
-        
+
         gridCtx.fillStyle = value > maxVal * 0.5 ? '#fff' : '#333';
         gridCtx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif';
         gridCtx.textAlign = 'center';
         gridCtx.textBaseline = 'middle';
         gridCtx.fillText(value.toFixed(2), x + cellW / 2, y + cellH / 2);
-        
+
         const selIdx = selectedCells.findIndex(s => s.row === i && s.col === j);
         if (selIdx >= 0) {
           const color = CURVE_COLORS[selIdx % CURVE_COLORS.length];
           const isAnimating = (selIdx === animatingCurveIdx);
-          
+
           if (isAnimating) {
-            // Currently animating - draw thick pulsing border
             const pulseWidth = 4 + 2 * Math.sin(pulsePhase * 2);
             gridCtx.strokeStyle = `rgb(${color[0]},${color[1]},${color[2]})`;
             gridCtx.lineWidth = pulseWidth;
             gridCtx.strokeRect(x + 2, y + 2, cellW - 4, cellH - 4);
-            // Add outer glow
             gridCtx.strokeStyle = `rgba(${color[0]},${color[1]},${color[2]},0.4)`;
             gridCtx.lineWidth = 8;
             gridCtx.strokeRect(x, y, cellW, cellH);
           } else if (animatingCurveIdx < 0 || selIdx < animatingCurveIdx) {
-            // Already drawn or no animation - normal border
             gridCtx.strokeStyle = `rgb(${color[0]},${color[1]},${color[2]})`;
             gridCtx.lineWidth = 3;
             gridCtx.strokeRect(x + 1.5, y + 1.5, cellW - 3, cellH - 3);
           }
-          // If selIdx > animatingCurveIdx, don't draw border yet (pending)
         }
       }
     }
-    
-    gridCtx.fillStyle = '#333';
-    gridCtx.font = '11px -apple-system, BlinkMacSystemFont, sans-serif';
-    
-    gridCtx.textAlign = 'center';
-    gridCtx.textBaseline = 'top';
-    for (let j = 0; j < kps.length; j++) {
-      const x = j * cellW + cellW / 2;
-      gridCtx.fillText(kps[j], x, gridCanvas.height + 4);
-    }
-    
-    gridCtx.textAlign = 'right';
-    gridCtx.textBaseline = 'middle';
-    for (let i = 0; i < kds.length; i++) {
-      const displayRow = kds.length - 1 - i;
-      const y = displayRow * cellH + cellH / 2;
-      gridCtx.fillText(kds[i], -6, y);
-    }
 
-    // Draw "Best" / "Worst" labels with arrows for auto-selected cells
+    // (tick labels removed — axis arrows + Kp/Kd labels suffice)
+
+    // Draw axis lines with arrows
+    const axisColor = '#333';
+    const arrowSize = 6;
+    gridCtx.strokeStyle = axisColor;
+    gridCtx.fillStyle = axisColor;
+    gridCtx.lineWidth = 1.5;
+
+    // X-axis line (below grid, arrow pointing right for increasing Kp)
+    const xAxisY = oy + gridH + 1;
+    gridCtx.beginPath();
+    gridCtx.moveTo(ox, xAxisY);
+    gridCtx.lineTo(ox + gridW + 12, xAxisY);
+    gridCtx.stroke();
+    // Arrowhead pointing right
+    gridCtx.beginPath();
+    gridCtx.moveTo(ox + gridW + 12, xAxisY);
+    gridCtx.lineTo(ox + gridW + 12 - arrowSize, xAxisY - arrowSize);
+    gridCtx.lineTo(ox + gridW + 12 - arrowSize, xAxisY + arrowSize);
+    gridCtx.closePath();
+    gridCtx.fill();
+
+    // Y-axis line (left of grid, arrow pointing up for increasing Kd)
+    const yAxisX = ox - 1;
+    gridCtx.beginPath();
+    gridCtx.moveTo(yAxisX, oy + gridH);
+    gridCtx.lineTo(yAxisX, 4);
+    gridCtx.stroke();
+    // Arrowhead pointing up
+    gridCtx.beginPath();
+    gridCtx.moveTo(yAxisX, 4);
+    gridCtx.lineTo(yAxisX - arrowSize, 4 + arrowSize);
+    gridCtx.lineTo(yAxisX + arrowSize, 4 + arrowSize);
+    gridCtx.closePath();
+    gridCtx.fill();
+
+    // Draw axis labels (bold K + subscript p/d) near arrow tips
+    function drawAxisLabel(ctx, sub, x, y) {
+      ctx.fillStyle = axisColor;
+      ctx.textBaseline = 'alphabetic';
+      ctx.textAlign = 'left';
+      ctx.font = 'bold 15px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillText('K', x, y);
+      const kW = ctx.measureText('K').width;
+      ctx.font = '11px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillText(sub, x + kW, y + 4);
+    }
+    drawAxisLabel(gridCtx, 'p', ox + gridW + 16, xAxisY + 5);
+    drawAxisLabel(gridCtx, 'd', yAxisX + 6, 16);
+
+    // Draw "Best" / "Worst" / "Selected" labels with arrows
     if (selectedCells.length > 0) {
-      const labels = ['Best', 'Worst'];
-      const gridW = kps.length * cellW; // Actual grid width without label space
-      
+      const labels = ['Best', 'Worst', 'Selected'];
+
       selectedCells.forEach((cell, idx) => {
-        // Only draw label if cell has started or finished animating
         if (animatingCurveIdx >= 0 && idx > animatingCurveIdx) return;
-        
+
         const color = CURVE_COLORS[idx % CURVE_COLORS.length];
         const displayRow = kds.length - 1 - cell.row;
-        const cellX = cell.col * cellW;
-        const cellY = displayRow * cellH;
+        const cellX = ox + cell.col * cellW;
+        const cellY = oy + displayRow * cellH;
         const cellCenterY = cellY + cellH / 2;
-        
-        // Position label to the right of the grid
-        const labelX = gridW + 15;
-        const arrowStartX = gridW + 8;
+
+        // Pulse fill for user-selected cell (index 2)
+        if (idx === 2) {
+          const pulseAlpha = 0.15 + 0.15 * Math.sin(pulsePhase * 2);
+          gridCtx.fillStyle = `rgba(255,255,255,${pulseAlpha})`;
+          gridCtx.fillRect(cellX, cellY, cellW, cellH);
+        }
+
+        const labelX = ox + gridW + 15;
+        const arrowStartX = ox + gridW + 8;
         const arrowEndX = cellX + cellW + 3;
-        
-        // Draw arrow line
+
         gridCtx.strokeStyle = `rgb(${color[0]},${color[1]},${color[2]})`;
         gridCtx.lineWidth = 2;
         gridCtx.beginPath();
         gridCtx.moveTo(arrowStartX, cellCenterY);
         gridCtx.lineTo(arrowEndX, cellCenterY);
         gridCtx.stroke();
-        
-        // Draw arrowhead pointing left (toward cell)
+
         gridCtx.fillStyle = `rgb(${color[0]},${color[1]},${color[2]})`;
         gridCtx.beginPath();
         gridCtx.moveTo(arrowEndX, cellCenterY);
@@ -589,8 +607,7 @@
         gridCtx.lineTo(arrowEndX + 8, cellCenterY + 5);
         gridCtx.closePath();
         gridCtx.fill();
-        
-        // Draw label text
+
         gridCtx.font = 'bold 12px -apple-system, BlinkMacSystemFont, sans-serif';
         gridCtx.textAlign = 'left';
         gridCtx.textBaseline = 'middle';
@@ -603,9 +620,9 @@
       const hintRow = 5;
       const hintCol = 1;
       const displayRow = kds.length - 1 - hintRow;
-      const x = hintCol * cellW + cellW / 2;
-      const y = displayRow * cellH + cellH / 2;
-      
+      const x = ox + hintCol * cellW + cellW / 2;
+      const y = oy + displayRow * cellH + cellH / 2;
+
       const pulseR = 20 + 5 * Math.sin(pulsePhase);
       const pulseAlpha = 0.4 + 0.3 * Math.sin(pulsePhase);
       gridCtx.beginPath();
@@ -807,10 +824,20 @@
     const legPadX = 10;
     const legPadY = 8;
     
+    const curveLabels = ['Best Policy', 'Worst Policy', 'Selected'];
     let maxTextW = 0;
-    for (const curve of visibleCurves) {
-      const text = `K${curve.kp} D${curve.kd}`;
-      const tw = chartCtx.measureText(text).width;
+    for (let ci = 0; ci < visibleCurves.length; ci++) {
+      const oi = curves.indexOf(visibleCurves[ci]);
+      let tw;
+      if (oi <= 1) {
+        const bp = oi === 0 ? 'Best' : 'Worst';
+        chartCtx.font = `bold ${legFont}`;
+        tw = chartCtx.measureText(bp).width;
+        chartCtx.font = legFont;
+        tw += chartCtx.measureText(' Policy').width;
+      } else {
+        tw = chartCtx.measureText(curveLabels[oi] || '').width;
+      }
       if (tw > maxTextW) maxTextW = tw;
     }
     
@@ -843,7 +870,19 @@
       
       chartCtx.fillStyle = '#333';
       chartCtx.textAlign = 'left';
-      chartCtx.fillText(`K${curve.kp} D${curve.kd}`, legX + legPadX + legLineW + legGap, rowY + 4);
+      const textX = legX + legPadX + legLineW + legGap;
+      if (origIdx <= 1) {
+        // "Best" / "Worst" bold, then " Policy" normal
+        const boldPart = origIdx === 0 ? 'Best' : 'Worst';
+        chartCtx.font = `bold ${legFont}`;
+        chartCtx.fillText(boldPart, textX, rowY + 4);
+        const bw = chartCtx.measureText(boldPart).width;
+        chartCtx.font = legFont;
+        chartCtx.fillText(' Policy', textX + bw, rowY + 4);
+      } else {
+        chartCtx.font = legFont;
+        chartCtx.fillText(curveLabels[origIdx] || '', textX, rowY + 4);
+      }
     });
     
     if (animatingCurveIdx >= 0 && animatingCurveIdx < curves.length) {
@@ -878,20 +917,20 @@
   }
   
   function updateInfo() {
-    if (selectedCells.length === 0) {
-      selectedInfo.textContent = 'None';
-    } else {
-      const labels = selectedCells.map(c => `K${c.kp} D${c.kd}`);
-      selectedInfo.textContent = labels.join(', ');
-    }
+    selectedInfo.textContent = '';
   }
   
   function startPulse() {
+    if (pulseAnimId) return;
     function tick() {
-      if (hasInteracted) return;
-      pulsePhase += 0.07;
+      pulsePhase += 0.05;
       drawGrid();
-      pulseAnimId = requestAnimationFrame(tick);
+      // Keep pulsing if pre-interaction hint or user-selected cell exists
+      if (!hasInteracted || selectedCells.length > 2) {
+        pulseAnimId = requestAnimationFrame(tick);
+      } else {
+        pulseAnimId = null;
+      }
     }
     pulseAnimId = requestAnimationFrame(tick);
   }
@@ -899,27 +938,28 @@
   function stopPulse() {
     if (!hasInteracted) {
       hasInteracted = true;
-      if (pulseAnimId) cancelAnimationFrame(pulseAnimId);
     }
   }
   
   function getGridCell(e) {
     if (!heatmapData) return null;
-    
+
     const rect = gridCanvas.getBoundingClientRect();
     const cellW = 38, cellH = 32;
+    const ox = 8; // must match drawGrid offset
     const kps = heatmapData.kps;
     const kds = heatmapData.kds;
-    
-    const px = e.clientX - rect.left;
-    const py = e.clientY - rect.top;
-    
+
+    const oy = 30; // must match drawGrid offset
+    const px = e.clientX - rect.left - ox;
+    const py = e.clientY - rect.top - oy;
+
     const col = Math.floor(px / cellW);
     const displayRow = Math.floor(py / cellH);
     const row = kds.length - 1 - displayRow;
-    
+
     if (col < 0 || col >= kps.length || row < 0 || row >= kds.length) return null;
-    
+
     return { row, col, kp: kps[col], kd: kds[row] };
   }
   
@@ -927,25 +967,29 @@
     stopPulse();
     const cell = getGridCell(e);
     if (!cell) return;
-    
+
     if (animFrameId) cancelAnimationFrame(animFrameId);
     pendingAnimations = [];
-    
-    const idx = selectedCells.findIndex(s => s.row === cell.row && s.col === cell.col);
-    if (idx >= 0) {
-      selectedCells.splice(idx, 1);
+
+    // Check if clicking the already-selected user cell (index 2) to deselect
+    const userCell = selectedCells[2];
+    if (userCell && userCell.row === cell.row && userCell.col === cell.col) {
+      selectedCells.length = 2; // remove user selection, keep best/worst
       animatingCurveIdx = -1;
     } else {
+      // Replace user selection (keep best/worst at indices 0,1)
+      selectedCells.length = 2;
       selectedCells.push(cell);
-      animatingCurveIdx = selectedCells.length - 1;
+      animatingCurveIdx = 2;
       currentAnimIndex = 0;
     }
-    
+
     render();
+    if (selectedCells.length > 2) startPulse();
   });
   
   clearBtn.addEventListener('click', () => {
-    selectedCells = [];
+    selectedCells.length = 2; // keep best/worst
     if (animFrameId) cancelAnimationFrame(animFrameId);
     animatingCurveIdx = -1;
     currentAnimIndex = 0;

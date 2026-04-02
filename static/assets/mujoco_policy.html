@@ -914,7 +914,7 @@ function pdStep(sim, action, config) {
 
     viewer.mujoco.mj_step(viewer.mjModel, viewer.mjData);
     if (typeof window._dbgStepCount === 'undefined') window._dbgStepCount = 0;
-    if (++window._dbgStepCount % 10 === 0) console.log('policy_widget | mujoco physics stepping', window._dbgStepCount);
+    // if (++window._dbgStepCount % 10 === 0) console.log('policy_widget | mujoco physics stepping', window._dbgStepCount);
   }
 }
 
@@ -1406,6 +1406,13 @@ const viewer_instance = new MuJoCoViewer(document.getElementById('container'), {
       overlayEl.classList.add('hidden');
       document.getElementById('help-btn').style.display = 'block';
       viewer = viewer_instance;
+      window._viewer = viewer_instance;
+      // Log camera on orbit end — check iframe console, orbit to desired view
+      viewer_instance.controls.addEventListener('end', () => {
+        const p = viewer_instance.camera.position;
+        const t = viewer_instance.controls.target;
+        console.log(`Camera: camx=${p.x.toFixed(3)}&camy=${p.y.toFixed(3)}&camz=${p.z.toFixed(3)}&tgtx=${t.x.toFixed(3)}&tgty=${t.y.toFixed(3)}&tgtz=${t.z.toFixed(3)}`);
+      });
 
       // Help button toggle
       (function() {

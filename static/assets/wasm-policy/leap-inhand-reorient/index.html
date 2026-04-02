@@ -1,0 +1,392 @@
+<!--
+  MuJoCo Policy Playback Viewer
+
+  Runs a trained ONNX policy in the browser via MuJoCo WASM + onnxruntime-web.
+
+  Parameters:
+    scene  – path to MuJoCo XML (required)
+    policy – path to ONNX policy file (required)
+    config – path to policy_config.json (required)
+    bg     – background hex color without # (default: f0f2f5)
+
+  Keyboard controls:
+    W/S    – forward/backward velocity
+    A/D    – left/right velocity
+    Q/E    – turn left/right
+    Space  – stop (zero command)
+    R      – reset simulation
+
+  When idle (no keys pressed), a random velocity command is sampled
+  automatically so the robot walks on its own.
+
+  Example:
+    mujoco_policy.html?scene=g1_scene.xml&policy=policy.onnx&config=policy_config.json
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MuJoCo Policy Viewer</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #f0f2f5; }
+  #container { width: 100%; height: 100%; position: relative; }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  #loading-overlay {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: #f0f2f5; color: #555;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    z-index: 100; transition: opacity 0.5s;
+  }
+  #loading-overlay.hidden { opacity: 0; pointer-events: none; }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid rgba(0,0,0,0.08);
+    border-top-color: #7c8cf8;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: 14px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loading-status { font-size: 13px; opacity: 0.6; }
+
+  #controls {
+    position: absolute; bottom: 10px; right: 10px;
+    display: flex; gap: 6px; z-index: 10;
+  }
+  .ctrl-btn {
+    background: rgba(255,255,255,0.88);
+    backdrop-filter: blur(8px);
+    color: #555; border: 1px solid rgba(0,0,0,0.08);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    font-size: 12px; padding: 6px 12px; border-radius: 6px;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .ctrl-btn:hover { background: rgba(255,255,255,1); }
+
+  #command-display {
+    position: absolute; top: 10px; left: 10px;
+    background: rgba(0,0,0,0.6); color: #fff;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 12px; padding: 10px 14px; border-radius: 8px;
+    z-index: 10; line-height: 1.6;
+    min-width: 180px;
+  }
+  #command-display .label { color: #aaa; }
+  #command-display .value { color: #7cf87c; font-weight: bold; }
+  #mode-indicator {
+    margin-top: 6px; padding-top: 6px;
+    border-top: 1px solid rgba(255,255,255,0.15);
+    font-size: 10px;
+  }
+  #mode-indicator .mode-auto { color: #7ca8f8; }
+  #mode-indicator .mode-manual { color: #f8c87c; }
+
+  #hint-overlay {
+    position: absolute; bottom: 10px; left: 10px;
+    color: rgba(100,100,120,0.5);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    font-size: 11px; z-index: 10; pointer-events: none;
+    transition: opacity 0.5s;
+  }
+
+  #legend {
+    position: absolute; top: 10px; right: 10px;
+    background: rgba(0,0,0,0.5); color: #fff;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 10px; padding: 8px 12px; border-radius: 8px;
+    z-index: 10; line-height: 1.8;
+  }
+  .legend-dot {
+    display: inline-block; width: 8px; height: 8px;
+    border-radius: 50%; margin-right: 5px; vertical-align: middle;
+  }
+
+</style>
+</head>
+<body>
+
+<div id="container">
+  <div id="loading-overlay">
+    <div class="spinner"></div>
+    <div id="loading-status">Loading…</div>
+  </div>
+
+  <div id="command-display" style="display:none">
+    <div><span class="label">vx: </span><span class="value" id="cmd-vx">0.00</span> m/s</div>
+    <div><span class="label">vy: </span><span class="value" id="cmd-vy">0.00</span> m/s</div>
+    <div><span class="label">wz: </span><span class="value" id="cmd-wz">0.00</span> rad/s</div>
+    <div id="mode-indicator">
+      <span class="mode-auto" id="mode-text">AUTO</span>
+      <span style="color:#888"> · WASD: move · QE: turn · Space: stop</span>
+    </div>
+  </div>
+
+  <div id="legend" style="display:none">
+    <div><span class="legend-dot" style="background:#3344aa"></span>Cmd vel</div>
+    <div><span class="legend-dot" style="background:#00aaff"></span>Actual vel</div>
+    <div><span class="legend-dot" style="background:#33aa33"></span>Cmd yaw</div>
+    <div><span class="legend-dot" style="background:#00ff66"></span>Actual yaw</div>
+  </div>
+
+  <div id="controls">
+    <button class="ctrl-btn" id="play-btn">▶ Play</button>
+    <button class="ctrl-btn" id="reset-btn">↻ Reset</button>
+    <button class="ctrl-btn" id="realtime-btn">1x</button>
+  </div>
+
+  <div id="hint-overlay">Right-click: orbit · Scroll: zoom</div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/",
+    "onnxruntime-web": "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/ort.min.mjs"
+  }
+}
+</script>
+
+<script type="module">
+import { MuJoCoViewer } from './js/mujoco_viewer.js';
+import { PolicyRunner } from './js/policy_runner.js';
+
+// ── Parse URL params ──────────────────────────────────
+const params = new URLSearchParams(window.location.search);
+const scenePath = params.get('scene');
+const policyPath = params.get('policy');
+const configPath = params.get('config');
+
+const statusEl = document.getElementById('loading-status');
+
+if (!scenePath || !policyPath || !configPath) {
+  statusEl.textContent =
+    'Missing parameters. Usage: ?scene=g1_scene.xml&policy=policy.onnx&config=policy_config.json';
+  throw new Error('Missing required URL parameters');
+}
+
+const bgColor = '#' + (params.get('bg') || 'f0f2f5');
+
+// ── Load config ───────────────────────────────────────
+statusEl.textContent = 'Loading config...';
+const configResponse = await fetch(configPath);
+const config = await configResponse.json();
+
+const isManipulation = config.task_type === 'manipulation';
+
+// ── Create viewer ─────────────────────────────────────
+const overlayEl = document.getElementById('loading-overlay');
+
+// Adjust camera for task type.
+const defaultCamPos = isManipulation ? [1.0, -0.8, 0.8] : [2.5, -1.5, 1.0];
+const defaultCamTarget = isManipulation ? [0.3, 0, 0.2] : [0, 0, 0.5];
+
+const viewer = new MuJoCoViewer(document.getElementById('container'), {
+  sceneXML: scenePath,
+  wasmURL: params.get('wasm') || 'dist/mujoco_wasm.js',
+  background: bgColor,
+  cameraPos: defaultCamPos,
+  cameraTarget: defaultCamTarget,
+  onStatus: (msg) => { statusEl.textContent = msg; },
+  onReady: () => {},
+});
+
+try {
+  await viewer.init();
+} catch (err) {
+  console.error('Viewer init failed:', err);
+  statusEl.textContent = 'Failed to load viewer: ' + err.message;
+  throw err;
+}
+
+// Enable camera tracking only for floating-base robots.
+if (!config.is_fixed_base) {
+  viewer.enableCameraTracking();
+}
+
+// ── Create policy runner ──────────────────────────────
+statusEl.textContent = 'Loading ONNX policy...';
+const runner = new PolicyRunner(viewer, config);
+
+try {
+  await runner.init(policyPath);
+} catch (err) {
+  console.error('Policy init failed:', err);
+  statusEl.textContent = 'Failed to load policy: ' + err.message;
+  throw err;
+}
+
+// Initialize visualizations (arrows for velocity, goal marker for manipulation).
+runner.initArrows();
+
+// Phase plots and constraint indicator disabled.
+
+overlayEl.classList.add('hidden');
+
+// Show velocity UI only for velocity tasks.
+if (!isManipulation) {
+  document.getElementById('command-display').style.display = 'block';
+  document.getElementById('legend').style.display = 'block';
+}
+
+// ── Auto-command state (velocity tasks) ──────────────
+let autoCommandMode = true;
+let autoTarget = [0.5, 0, 0]; // Start walking forward.
+let autoResampleTime = Date.now();
+let lastUserInputTime = 0;
+
+const AUTO_IDLE_MS = 2000; // 2s of no input → auto mode.
+const AUTO_RESAMPLE_MS = 4000; // Resample every 4s.
+
+function sampleAutoTarget() {
+  autoTarget = [
+    0.3 + Math.random() * 0.7,       // vx: [0.3, 1.0]
+    (Math.random() - 0.5) * 0.6,      // vy: [-0.3, 0.3]
+    (Math.random() - 0.5) * 0.6,      // wz: [-0.3, 0.3]
+  ];
+}
+
+// ── Keyboard controls ─────────────────────────────────
+const CMD_STEP = { vx: 0.3, vy: 0.2, wz: 0.15 };
+const CMD_MAX = { vx: 2.0, vy: 1.0, wz: 0.7 };
+const keysDown = new Set();
+
+const modeTextEl = document.getElementById('mode-text');
+
+function updateCommandFromKeys() {
+  if (isManipulation) return; // Manipulation uses its own command system.
+
+  const now = Date.now();
+  const cmd = runner.command;
+
+  // Switch to auto mode after idle.
+  if (!autoCommandMode && keysDown.size === 0 && now - lastUserInputTime > AUTO_IDLE_MS) {
+    autoCommandMode = true;
+    sampleAutoTarget();
+    autoResampleTime = now;
+    modeTextEl.textContent = 'AUTO';
+    modeTextEl.className = 'mode-auto';
+  }
+
+  if (autoCommandMode) {
+    // Resample periodically.
+    if (now - autoResampleTime > AUTO_RESAMPLE_MS) {
+      sampleAutoTarget();
+      autoResampleTime = now;
+    }
+    // Smoothly interpolate toward target.
+    const alpha = 0.03;
+    cmd[0] += (autoTarget[0] - cmd[0]) * alpha;
+    cmd[1] += (autoTarget[1] - cmd[1]) * alpha;
+    cmd[2] += (autoTarget[2] - cmd[2]) * alpha;
+  } else {
+    // Manual keyboard input.
+    let vx = 0, vy = 0, wz = 0;
+
+    if (keysDown.has('KeyW') || keysDown.has('ArrowUp'))    vx += CMD_STEP.vx;
+    if (keysDown.has('KeyS') || keysDown.has('ArrowDown'))  vx -= CMD_STEP.vx;
+    if (keysDown.has('KeyA') || keysDown.has('ArrowLeft'))  vy += CMD_STEP.vy;
+    if (keysDown.has('KeyD') || keysDown.has('ArrowRight')) vy -= CMD_STEP.vy;
+    if (keysDown.has('KeyQ')) wz += CMD_STEP.wz;
+    if (keysDown.has('KeyE')) wz -= CMD_STEP.wz;
+
+    const decay = 0.92;
+    cmd[0] = clamp(cmd[0] * decay + vx, -CMD_MAX.vx, CMD_MAX.vx);
+    cmd[1] = clamp(cmd[1] * decay + vy, -CMD_MAX.vy, CMD_MAX.vy);
+    cmd[2] = clamp(cmd[2] * decay + wz, -CMD_MAX.wz, CMD_MAX.wz);
+  }
+
+  // Update display.
+  document.getElementById('cmd-vx').textContent = cmd[0].toFixed(2);
+  document.getElementById('cmd-vy').textContent = cmd[1].toFixed(2);
+  document.getElementById('cmd-wz').textContent = cmd[2].toFixed(2);
+}
+
+function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'KeyR') {
+    runner.reset();
+    if (!isManipulation) {
+      autoCommandMode = true;
+      sampleAutoTarget();
+      autoResampleTime = Date.now();
+      modeTextEl.textContent = 'AUTO';
+      modeTextEl.className = 'mode-auto';
+      updateCommandFromKeys();
+    }
+    return;
+  }
+  if (isManipulation) return; // No velocity keyboard controls for manipulation.
+  if (e.code === 'Space') {
+    e.preventDefault();
+    runner.command.fill(0);
+    autoCommandMode = false;
+    lastUserInputTime = Date.now();
+    modeTextEl.textContent = 'MANUAL';
+    modeTextEl.className = 'mode-manual';
+    updateCommandFromKeys();
+    return;
+  }
+  keysDown.add(e.code);
+  autoCommandMode = false;
+  lastUserInputTime = Date.now();
+  modeTextEl.textContent = 'MANUAL';
+  modeTextEl.className = 'mode-manual';
+});
+
+window.addEventListener('keyup', (e) => {
+  keysDown.delete(e.code);
+});
+
+// Run command update at 30Hz (velocity tasks only).
+if (!isManipulation) {
+  setInterval(updateCommandFromKeys, 33);
+}
+
+// ── Button controls ───────────────────────────────────
+const playBtn = document.getElementById('play-btn');
+let isPlaying = false;
+
+playBtn.addEventListener('click', () => {
+  if (isPlaying) {
+    runner.stop();
+    playBtn.textContent = '▶ Play';
+  } else {
+    runner.start();
+    playBtn.textContent = '⏸ Pause';
+  }
+  isPlaying = !isPlaying;
+});
+
+document.getElementById('reset-btn').addEventListener('click', () => {
+  runner.reset();
+  if (!isManipulation) {
+    autoCommandMode = true;
+    sampleAutoTarget();
+    autoResampleTime = Date.now();
+    modeTextEl.textContent = 'AUTO';
+    modeTextEl.className = 'mode-auto';
+    updateCommandFromKeys();
+  }
+});
+
+const realtimeBtn = document.getElementById('realtime-btn');
+realtimeBtn.addEventListener('click', () => {
+  runner.realtime = !runner.realtime;
+  realtimeBtn.textContent = runner.realtime ? '1x' : 'Fast';
+});
+
+// Auto-start.
+runner.start();
+isPlaying = true;
+playBtn.textContent = '⏸ Pause';
+</script>
+</body>
+</html>

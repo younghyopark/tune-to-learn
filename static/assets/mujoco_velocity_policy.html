@@ -854,6 +854,61 @@ function drawWZBar() {
   ctx.stroke();
 }
 
+// ── Mouse/touch interaction on XY pad and WZ bar ────
+{
+  const xyCanvas = document.getElementById('xy-pad');
+  const wzCanvas = document.getElementById('wz-bar');
+  let xyDragging = false, wzDragging = false;
+
+  function switchToManual() {
+    autoCommandMode = false;
+    lastUserInputTime = Date.now();
+    modeTextEl.textContent = 'MANUAL';
+    modeTextEl.className = 'mode-badge manual';
+  }
+
+  function xyFromEvent(e) {
+    const rect = xyCanvas.getBoundingClientRect();
+    const W = rect.width;
+    const cx = W / 2, cy = W / 2, r = W / 2 - 2;
+    const mx = (e.clientX || e.touches[0].clientX) - rect.left;
+    const my = (e.clientY || e.touches[0].clientY) - rect.top;
+    runner.command[0] = clamp(((cy - my) / r) * CMD_MAX.vx, -CMD_MAX.vx, CMD_MAX.vx);
+    runner.command[1] = clamp(((mx - cx) / r) * CMD_MAX.vx, -CMD_MAX.vy, CMD_MAX.vy);
+    switchToManual();
+  }
+
+  function wzFromEvent(e) {
+    const rect = wzCanvas.getBoundingClientRect();
+    const padX = 6, trackW = rect.width - padX * 2;
+    const centerX = padX + trackW / 2;
+    const mx = (e.clientX || e.touches[0].clientX) - rect.left;
+    const frac = clamp((centerX - mx) / (trackW / 2), -1, 1);
+    runner.command[2] = frac * CMD_MAX.wz;
+    switchToManual();
+  }
+
+  xyCanvas.addEventListener('mousedown', (e) => { xyDragging = true; xyFromEvent(e); });
+  xyCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); xyDragging = true; xyFromEvent(e); });
+
+  wzCanvas.addEventListener('mousedown', (e) => { wzDragging = true; wzFromEvent(e); });
+  wzCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); wzDragging = true; wzFromEvent(e); });
+
+  window.addEventListener('mousemove', (e) => {
+    if (xyDragging) xyFromEvent(e);
+    if (wzDragging) wzFromEvent(e);
+  });
+  window.addEventListener('touchmove', (e) => {
+    if (xyDragging) xyFromEvent(e);
+    if (wzDragging) wzFromEvent(e);
+  });
+  window.addEventListener('mouseup', () => { xyDragging = false; wzDragging = false; });
+  window.addEventListener('touchend', () => { xyDragging = false; wzDragging = false; });
+
+  xyCanvas.style.cursor = 'pointer';
+  wzCanvas.style.cursor = 'pointer';
+}
+
 // ── Command update loop (30 Hz) ─────────────────────
 function updateCommand() {
   const now = Date.now();

@@ -1,0 +1,372 @@
+<!--
+  Animated Teleop User Study Heatmap Widget
+  Three heatmaps shown side by side with staggered saturation animation.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Teleop User Study Results</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  .tw-widget {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: #fff;
+    max-width: 960px;
+    margin: 0 auto;
+    user-select: none;
+  }
+
+  .tw-row {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 4px 0;
+    flex-wrap: nowrap;
+  }
+
+  .tw-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .tw-cell-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 3px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .tw-info-btn {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 1.5px solid #aaa;
+    background: none;
+    font-size: 10px;
+    font-weight: 700;
+    color: #888;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    flex-shrink: 0;
+    padding: 0;
+    line-height: 1;
+  }
+  .tw-info-btn:hover { border-color: #666; color: #555; }
+
+  .tw-tooltip {
+    display: none;
+    position: absolute;
+    top: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 400;
+    padding: 6px 10px;
+    border-radius: 5px;
+    white-space: nowrap;
+    z-index: 100;
+    pointer-events: none;
+    line-height: 1.4;
+  }
+  .tw-tooltip::after {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    margin-left: -4px;
+    border: 4px solid transparent;
+    border-bottom-color: #333;
+  }
+  .tw-info-btn:hover .tw-tooltip { display: block; }
+
+  .tw-cell canvas {
+    display: block;
+  }
+</style>
+</head>
+<body>
+<div class="tw-widget">
+  <div class="tw-row" id="row"></div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  const KPS = [16, 32, 64, 256, 512];
+  const KDS = [1, 4, 8, 12, 24];
+
+  const METRIC_ORDER = ['rating', 'time', 'success'];
+  const STAGGER_DELAY = 400; // ms between each heatmap starting
+
+  const METRICS = {
+    rating: {
+      title: 'User Rating',
+      tip: 'Subjective 1\u20135 control quality rating by operators',
+      data: [
+        [1.85, 2.40, 2.73, 2.38, 1.90],
+        [1.40, 2.23, 3.15, 3.06, 2.17],
+        [3.12, 3.68, 3.30, 2.43, 2.96],
+        [3.22, 3.83, 2.68, 3.07, 2.76],
+        [3.65, 3.49, 3.84, 3.15, 3.18],
+      ],
+      range: [1, 5],
+      format: v => v.toFixed(2),
+      cmap: [
+        [0.0,247,252,245],[0.125,229,245,224],[0.25,199,233,192],
+        [0.375,161,217,155],[0.5,116,196,118],[0.625,65,171,93],
+        [0.75,35,139,69],[0.875,0,109,44],[1.0,0,68,27],
+      ],
+    },
+    time: {
+      title: 'Completion Time (s)',
+      tip: 'Average seconds to complete the box-pushing task',
+      data: [
+        [32.2, 26.4, 26.1, 21.8, 22.7],
+        [23.7, 23.2, 19.7, 18.8, 19.0],
+        [25.1, 18.0, 18.9, 19.8, 19.0],
+        [22.4, 20.3, 20.0, 18.0, 17.5],
+        [19.8, 17.1, 18.9, 16.8, 17.8],
+      ],
+      range: [0, 35],
+      invert: true,
+      format: v => v.toFixed(1),
+      cmap: [
+        [0.0,255,245,235],[0.125,254,230,206],[0.25,253,208,162],
+        [0.375,253,174,107],[0.5,253,141,60],[0.625,241,105,19],
+        [0.75,217,72,1],[0.875,166,54,3],[1.0,127,39,4],
+      ],
+    },
+    success: {
+      title: 'Success Rate',
+      tip: 'Task completion rate across 500 trials',
+      data: [
+        [0.72, 0.82, 0.91, 0.80, 0.65],
+        [0.64, 0.77, 0.88, 0.88, 0.79],
+        [0.90, 0.94, 0.78, 0.72, 0.78],
+        [0.88, 0.94, 0.78, 0.79, 0.72],
+        [0.88, 0.85, 0.93, 0.73, 0.67],
+      ],
+      range: [0, 1],
+      format: v => Math.round(v * 100) + '%',
+      cmap: [
+        [0.0,255,245,240],[0.125,254,224,210],[0.25,252,187,161],
+        [0.375,252,146,114],[0.5,251,106,74],[0.625,239,59,44],
+        [0.75,203,24,29],[0.875,165,15,21],[1.0,103,0,13],
+      ],
+    },
+  };
+
+  function interpColor(cmap, t) {
+    t = Math.max(0, Math.min(1, t));
+    let i = 0;
+    while (i < cmap.length - 2 && cmap[i + 1][0] < t) i++;
+    const [t0, r0, g0, b0] = cmap[i];
+    const [t1, r1, g1, b1] = cmap[i + 1];
+    const f = t1 > t0 ? (t - t0) / (t1 - t0) : 0;
+    return [
+      Math.round(r0 + (r1 - r0) * f),
+      Math.round(g0 + (g1 - g0) * f),
+      Math.round(b0 + (b1 - b0) * f),
+    ];
+  }
+
+  // Build DOM: 3 canvases side by side
+  const row = document.getElementById('row');
+  const canvases = {};
+
+  METRIC_ORDER.forEach(key => {
+    const m = METRICS[key];
+    const cell = document.createElement('div');
+    cell.className = 'tw-cell';
+    const title = document.createElement('div');
+    title.className = 'tw-cell-title';
+    title.innerHTML = m.title + ' <button class="tw-info-btn">?<span class="tw-tooltip">' + m.tip + '</span></button>';
+    const canvas = document.createElement('canvas');
+    cell.appendChild(title);
+    cell.appendChild(canvas);
+    row.appendChild(cell);
+    canvases[key] = canvas;
+  });
+
+  const cellW = 42, cellH = 30;
+  const padL = 8, padB = 34, padT = 20, padR = 20;
+  const cols = KPS.length, rows = KDS.length;
+  const gridW = cols * cellW, gridH = rows * cellH;
+
+  // Pre-size all canvases once
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const W = padL + gridW + padR;
+  const H = padT + gridH + padB;
+  METRIC_ORDER.forEach(key => {
+    const c = canvases[key];
+    c.width = W * dpr;
+    c.height = H * dpr;
+    c.style.width = W + 'px';
+    c.style.height = H + 'px';
+  });
+
+  function drawHeatmap(key, progress) {
+    const m = METRICS[key];
+    const canvas = canvases[key];
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+
+    const [vMin, vMax] = m.range;
+    const ease = t => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+    const p = ease(progress);
+
+    // Cells
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const displayRow = rows - 1 - r;
+        const x = padL + c * cellW;
+        const y = padT + displayRow * cellH;
+        const val = m.data[r][c];
+        let t = (val - vMin) / (vMax - vMin);
+        if (m.invert) t = 1 - t;
+
+        const animT = t * p;
+        const [cr, cg, cb] = interpColor(m.cmap, animT);
+        ctx.fillStyle = `rgb(${cr},${cg},${cb})`;
+        ctx.fillRect(x, y, cellW, cellH);
+
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x, y, cellW, cellH);
+
+        const textAlpha = Math.min(1, p * 2);
+        const lum = 0.299 * cr + 0.587 * cg + 0.114 * cb;
+        ctx.fillStyle = lum < 160 ? `rgba(255,255,255,${textAlpha})` : `rgba(0,0,0,${textAlpha * 0.8})`;
+        ctx.font = 'bold 10px -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const animVal = vMin + (val - vMin) * p;
+        const displayVal = p > 0.95 ? val : animVal;
+        ctx.fillText(m.format(displayVal), x + cellW / 2, y + cellH / 2);
+      }
+    }
+
+    // Axis lines with arrows
+    const axisColor = '#333';
+    const arrowSize = 5;
+    ctx.strokeStyle = axisColor;
+    ctx.fillStyle = axisColor;
+    ctx.lineWidth = 1.5;
+
+    const xAxisY = padT + gridH + 1;
+    ctx.beginPath(); ctx.moveTo(padL, xAxisY); ctx.lineTo(padL + gridW + 10, xAxisY); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(padL + gridW + 10, xAxisY);
+    ctx.lineTo(padL + gridW + 10 - arrowSize, xAxisY - arrowSize);
+    ctx.lineTo(padL + gridW + 10 - arrowSize, xAxisY + arrowSize);
+    ctx.closePath(); ctx.fill();
+
+    const yAxisX = padL - 1;
+    ctx.beginPath(); ctx.moveTo(yAxisX, padT + gridH); ctx.lineTo(yAxisX, 4); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(yAxisX, 4);
+    ctx.lineTo(yAxisX - arrowSize, 4 + arrowSize);
+    ctx.lineTo(yAxisX + arrowSize, 4 + arrowSize);
+    ctx.closePath(); ctx.fill();
+
+    // Axis labels (bold K + subscript)
+    function drawAxisLabel(sub, lx, ly) {
+      ctx.fillStyle = axisColor;
+      ctx.textBaseline = 'alphabetic';
+      ctx.textAlign = 'left';
+      ctx.font = 'bold 12px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillText('K', lx, ly);
+      const kW = ctx.measureText('K').width;
+      ctx.font = '9px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillText(sub, lx + kW, ly + 3);
+    }
+    drawAxisLabel('p', padL + gridW + 14, xAxisY + 5);
+    drawAxisLabel('d', yAxisX + 5, 14);
+
+    // Horizontal colorbar
+    const cbW = gridW * 0.7;
+    const cbH = 8;
+    const cbX = padL + (gridW - cbW) / 2;
+    const cbY = padT + gridH + 14;
+
+    for (let i = 0; i < cbW; i++) {
+      let t = i / cbW;
+      if (m.invert) t = 1 - t;
+      const animT = t * p;
+      const [cr, cg, cb] = interpColor(m.cmap, animT);
+      ctx.fillStyle = `rgb(${cr},${cg},${cb})`;
+      ctx.fillRect(cbX + i, cbY, 1, cbH);
+    }
+    ctx.strokeStyle = '#ccc';
+    ctx.lineWidth = 0.5;
+    ctx.strokeRect(cbX, cbY, cbW, cbH);
+
+    ctx.fillStyle = '#666';
+    ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const ticks = [0, 0.5, 1];
+    for (const frac of ticks) {
+      const v = vMin + frac * (vMax - vMin);
+      ctx.fillText(m.format(v), cbX + frac * cbW, cbY + cbH + 2);
+    }
+  }
+
+  // Animation state
+  const ANIM_DURATION = 1000;
+  let animRAF = null;
+  let animStart = 0;
+  let hasAnimated = false;
+
+  function startAnimation() {
+    if (animRAF) cancelAnimationFrame(animRAF);
+    animStart = performance.now();
+
+    function tick(now) {
+      let allDone = true;
+      METRIC_ORDER.forEach((key, idx) => {
+        const elapsed = now - animStart - idx * STAGGER_DELAY;
+        const progress = Math.max(0, Math.min(1, elapsed / ANIM_DURATION));
+        drawHeatmap(key, progress);
+        if (progress < 1) allDone = false;
+      });
+      if (!allDone) {
+        animRAF = requestAnimationFrame(tick);
+      } else {
+        animRAF = null;
+      }
+    }
+    animRAF = requestAnimationFrame(tick);
+  }
+
+  // Animate when scrolled into view
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting && !hasAnimated) {
+        hasAnimated = true;
+        startAnimation();
+      }
+    });
+  }, { threshold: 0.3 });
+  observer.observe(row);
+
+  // Initial draw (all at 0)
+  METRIC_ORDER.forEach(key => drawHeatmap(key, 0));
+})();
+</script>
+</body>
+</html>

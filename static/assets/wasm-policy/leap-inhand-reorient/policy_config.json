@@ -1,0 +1,208 @@
+{
+  "model_xml": "mjlab_inhand_reorient_cube_leap_scene.xml",
+  "onnx_file": "policy.onnx",
+  "timestep": 0.005,
+  "decimation": 4,
+  "num_joints": 16,
+  "num_actions": 16,
+  "qpos_joint_offset": 0,
+  "qvel_joint_offset": 0,
+  "joint_names": [
+    "if_mcp",
+    "if_rot",
+    "if_pip",
+    "if_dip",
+    "mf_mcp",
+    "mf_rot",
+    "mf_pip",
+    "mf_dip",
+    "rf_mcp",
+    "rf_rot",
+    "rf_pip",
+    "rf_dip",
+    "th_cmc",
+    "th_axl",
+    "th_mcp",
+    "th_ipl"
+  ],
+  "default_joint_pos": [
+    0.5,
+    0.0,
+    0.5,
+    0.5,
+    0.5,
+    0.0,
+    0.5,
+    0.5,
+    0.5,
+    0.0,
+    0.5,
+    0.5,
+    0.5,
+    0.5,
+    0.5,
+    0.0
+  ],
+  "action_default_pos": [
+    0.5,
+    0.0,
+    0.5,
+    0.5,
+    0.5,
+    0.0,
+    0.5,
+    0.5,
+    0.5,
+    0.0,
+    0.5,
+    0.5,
+    0.5,
+    0.5,
+    0.5,
+    0.0
+  ],
+  "action_scale": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+  ],
+  "observation_order": [
+    "joint_pos",
+    "joint_vel",
+    "cube_to_target_pos",
+    "cube_orientation_to_target"
+  ],
+  "observation_dims": [
+    16,
+    16,
+    3,
+    3
+  ],
+  "onnx_input_name": "obs",
+  "onnx_output_name": "actions",
+  "action_to_ctrl_map": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15
+  ],
+  "is_fixed_base": true,
+  "task_type": "manipulation",
+  "body_ids": {
+    "world": 0,
+    "robot/mocap_base": 1,
+    "robot/palm": 2,
+    "robot/if_bs": 3,
+    "robot/if_px": 4,
+    "robot/if_md": 5,
+    "robot/if_ds": 6,
+    "robot/mf_bs": 7,
+    "robot/mf_px": 8,
+    "robot/mf_md": 9,
+    "robot/mf_ds": 10,
+    "robot/rf_bs": 11,
+    "robot/rf_px": 12,
+    "robot/rf_md": 13,
+    "robot/rf_ds": 14,
+    "robot/th_mp": 15,
+    "robot/th_bs": 16,
+    "robot/th_px": 17,
+    "robot/th_ds": 18,
+    "cube/cube": 19,
+    "target_cube/target_cube": 20
+  },
+  "site_ids": {
+    "cube/cube_center": 0
+  },
+  "observation_term_params": {
+    "cube_to_target_pos": {
+      "object_name": "cube",
+      "command_name": "reorient_target"
+    },
+    "cube_orientation_to_target": {
+      "object_name": "cube",
+      "command_name": "reorient_target"
+    }
+  },
+  "command_config": {
+    "reorient_target": {
+      "type": "inhand_reorientation",
+      "entity_name": "cube",
+      "target_entity_name": "target_cube",
+      "spawn_pos": [
+        0.0,
+        0.02,
+        0.2
+      ],
+      "target_display_pos": [
+        0.0,
+        -0.12,
+        0.2
+      ],
+      "roll_choices": [
+        -1.5707963267948966,
+        0.0,
+        1.5707963267948966
+      ],
+      "pitch_choices": [
+        -1.5707963267948966,
+        0.0,
+        1.5707963267948966
+      ],
+      "full_orientation_prob": 1.0,
+      "min_yaw_distance": 0.5235987755982988,
+      "resample_on_success": true,
+      "position_threshold": 1000.0,
+      "orientation_threshold": 0.17453292519943295,
+      "sustained_success_duration": 0.1,
+      "resampling_time_range": [
+        5.0,
+        8.0
+      ],
+      "termination_z_threshold": 0.1,
+      "termination_max_speed": 5.0
+    }
+  },
+  "hardware_limits": null,
+  "entity_qpos_offsets": {
+    "robot": 0,
+    "cube": 16,
+    "target_cube": 23
+  },
+  "entity_qvel_offsets": {
+    "robot": 0,
+    "cube": 16,
+    "target_cube": 22
+  },
+  "observation_history_lengths": [
+    1,
+    1,
+    1,
+    1
+  ]
+}

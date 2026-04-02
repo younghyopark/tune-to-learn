@@ -1,0 +1,690 @@
+<!--
+  RL Manipulation Policy Widget (Tabbed: Lift Cube / Reorient Cube)
+
+  Self-contained widget with gain grid + WASM policy viewer iframe.
+  Embed with: <iframe src="rl_manipulation_widget.html" width="960" height="600"></iframe>
+
+  Dependencies: None (vanilla JS + Canvas)
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RL Manipulation Policies</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  .rlm-widget {
+    display: flex;
+    flex-direction: column;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: #fff;
+    max-width: 960px;
+    margin: 0 auto;
+    user-select: none;
+    -webkit-user-select: none;
+    height: 100vh;
+  }
+
+  .rlm-tab-bar {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid #e8e8e8;
+    padding: 0 12px;
+    background: #fafafa;
+  }
+
+  .rlm-tab-btn {
+    padding: 10px 20px;
+    border: none;
+    background: none;
+    font-size: 14px;
+    font-weight: 600;
+    color: #888;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    transition: color 0.15s, border-color 0.15s;
+  }
+
+  .rlm-tab-btn:hover { color: #555; }
+  .rlm-tab-btn.active {
+    color: #222;
+    border-bottom-color: #c0392b;
+  }
+
+  .rlm-main {
+    flex: 1;
+    display: flex;
+    position: relative;
+    min-height: 0;
+    background: #f0f2f5;
+  }
+
+  .rlm-grid-panel {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 30;
+    width: 160px;
+  }
+
+  .rlm-grid-title {
+    font-weight: 600;
+    font-size: 10px;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    color: #888;
+    margin-bottom: 4px;
+  }
+
+  .rlm-grid-canvas {
+    width: 100%;
+    aspect-ratio: 1;
+    display: block;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  .rlm-viewer {
+    flex: 1;
+    position: relative;
+  }
+
+  .rlm-viewer iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: block;
+  }
+
+  .rlm-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #999;
+    font-size: 14px;
+    pointer-events: none;
+  }
+
+  .rlm-placeholder.hidden { display: none; }
+
+  .rlm-chart-panel {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 20;
+    width: 220px;
+    background: none;
+    font-size: 11px;
+    color: #444;
+    padding: 8px;
+    user-select: none;
+  }
+
+  .rlm-chart-panel.hidden { display: none; }
+
+  .rlm-chart-header {
+    font-weight: 600;
+    font-size: 10px;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    color: #888;
+    margin-bottom: 4px;
+  }
+
+  .rlm-chart-canvas {
+    width: 100%;
+    height: 150px;
+    display: block;
+    border-radius: 4px;
+  }
+
+  .rlm-joint-btns {
+    display: flex;
+    gap: 2px;
+    justify-content: center;
+    margin-top: 4px;
+  }
+
+  .rlm-joint-btn {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    font-size: 9px;
+    padding: 2px 4px;
+    min-width: 20px;
+    height: 18px;
+    border: 1px solid rgba(0,0,0,0.12);
+    border-radius: 3px;
+    cursor: pointer;
+    background: transparent;
+    color: #888;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .rlm-joint-btn:hover { border-color: rgba(0,0,0,0.2); }
+  .rlm-joint-btn.active { border-color: transparent; color: #fff; }
+
+  .rlm-caption {
+    font-size: 14px;
+    color: #555;
+    padding: 8px 16px;
+    line-height: 1.5;
+    background: #fff;
+  }
+
+  .rlm-caption b { color: #222; }
+</style>
+</head>
+<body>
+<div class="rlm-widget">
+  <div class="rlm-tab-bar">
+    <button class="rlm-tab-btn active" data-task="locomotion">G1 Locomotion</button>
+    <button class="rlm-tab-btn" data-task="lift">Lift Cube</button>
+    <button class="rlm-tab-btn" data-task="reorient">Reorient Cube</button>
+  </div>
+  <div class="rlm-main">
+    <div class="rlm-grid-panel">
+      <div class="rlm-grid-title">PD Gains</div>
+      <canvas id="gainGrid" class="rlm-grid-canvas" width="300" height="300"></canvas>
+    </div>
+    <div class="rlm-viewer">
+      <iframe id="policyViewer" src="" allow="autoplay"></iframe>
+      <div class="rlm-placeholder" id="placeholder">
+        Click a dot on the gain grid to load an RL policy&hellip;
+      </div>
+    </div>
+    <div class="rlm-chart-panel hidden" id="chartPanel">
+      <div class="rlm-chart-header">Joint Response</div>
+      <canvas class="rlm-chart-canvas" id="jointChart"></canvas>
+      <div class="rlm-joint-btns" id="jointBtns"></div>
+    </div>
+  </div>
+  <div class="rlm-caption">
+    <b>Live RL Policy.</b> Each dot loads a policy trained under that gain setting, running live via MuJoCo WASM + ONNX inference.
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  // ── Task configurations ──
+  const TASKS = {
+    locomotion: {
+      viewer: 'mujoco_velocity_policy.html',
+      base: 'models/g1_velocity',
+      dots: [
+        { folder: 'LLmax', scene: 'g1_scene.xml', fx: 1/6, fy: 1/6 },
+        { folder: 'LHmax', scene: 'g1_scene.xml', fx: 1/6, fy: 5/6 },
+        { folder: 'HLmax', scene: 'g1_scene.xml', fx: 5/6, fy: 1/6 },
+        { folder: 'HHmax', scene: 'g1_scene.xml', fx: 5/6, fy: 5/6 },
+      ],
+    },
+    lift: {
+      dots: [
+        { folder: 'lift-K16-D2',   scene: 'mjlab_lift_cube_franka_k16_d2_scene.xml',   fx: 1/6, fy: 1/6 },
+        { folder: 'lift-K16-D24',  scene: 'mjlab_lift_cube_franka_k16_d24_scene.xml',  fx: 1/6, fy: 5/6 },
+        { folder: 'lift-K512-D2',  scene: 'mjlab_lift_cube_franka_k512_d2_scene.xml',  fx: 5/6, fy: 1/6 },
+        { folder: 'lift-K512-D24', scene: 'mjlab_lift_cube_franka_k512_d24_scene.xml', fx: 5/6, fy: 5/6 },
+      ],
+    },
+    reorient: {
+      dots: [
+        { folder: 'reorient-K16-D2',   scene: 'mjlab_reorient_cube_franka_challenge_k16_d2_resample_scene.xml',   fx: 1/6, fy: 1/6 },
+        { folder: 'reorient-K16-D24',  scene: 'mjlab_reorient_cube_franka_challenge_k16_d24_resample_scene.xml',  fx: 1/6, fy: 5/6 },
+        { folder: 'reorient-K512-D2',  scene: 'mjlab_reorient_cube_franka_challenge_k512_d2_resample_scene.xml',  fx: 5/6, fy: 1/6 },
+        { folder: 'reorient-K512-D24', scene: 'mjlab_reorient_cube_franka_challenge_k512_d24_resample_scene.xml', fx: 5/6, fy: 5/6 },
+      ],
+    },
+  };
+
+  // ── Corner colors (bilinear interpolation) ──
+  const GC_A = [140, 140, 140]; // low Kp, low Kd (gray)
+  const GC_B = [76, 114, 176];  // high Kp, low Kd (blue)
+  const GC_C = [196, 78, 82];   // low Kp, high Kd (red)
+  const GC_D = [129, 114, 178]; // high Kp, high Kd (purple)
+
+  function lerpC(a, b, t) {
+    return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+  }
+  function dotColor(fx, fy) {
+    const c = lerpC(lerpC(GC_A, GC_B, fx), lerpC(GC_C, GC_D, fx), fy);
+    return `rgb(${c.map(Math.round).join(',')})`;
+  }
+
+  // ── State ──
+  let currentTask = 'locomotion';
+  let activeIdx = -1;
+  let activeColor = '#c0392b';
+  let pulsePhase = 0;
+  let pulseRAF = null;
+
+  // ── Elements ──
+  const canvas = document.getElementById('gainGrid');
+  const iframe = document.getElementById('policyViewer');
+  const placeholder = document.getElementById('placeholder');
+  const ctx = canvas.getContext('2d');
+
+  // ── Grid drawing ──
+  const PAD = { top: 30, right: 18, bottom: 18, left: 18 };
+
+  function gridMetrics(S) {
+    const gs = Math.min(S - PAD.left - PAD.right, S - PAD.top - PAD.bottom);
+    return { gs, ox: PAD.left, oy: PAD.top };
+  }
+
+  function dotXY(dot, S) {
+    const { gs, ox, oy } = gridMetrics(S);
+    return { cx: ox + dot.fx * gs, cy: oy + (1 - dot.fy) * gs };
+  }
+
+  function draw() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const S = canvas.clientWidth;
+    if (S === 0) return;
+    canvas.width = S * dpr;
+    canvas.height = S * dpr;
+    ctx.scale(dpr, dpr);
+
+    const { gs, ox, oy } = gridMetrics(S);
+    ctx.clearRect(0, 0, S, S);
+
+    // Grid lines
+    ctx.strokeStyle = 'rgba(0,0,0,0.10)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 6; i++) {
+      const f = i / 6;
+      ctx.beginPath(); ctx.moveTo(ox + f * gs, oy); ctx.lineTo(ox + f * gs, oy + gs); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(ox, oy + f * gs); ctx.lineTo(ox + gs, oy + f * gs); ctx.stroke();
+    }
+
+    // Axis lines with arrows
+    const axisColor = '#333';
+    const arrowSize = 5;
+    ctx.strokeStyle = axisColor;
+    ctx.fillStyle = axisColor;
+    ctx.lineWidth = 1.5;
+
+    // X-axis
+    const xAxisY = oy + gs + 1;
+    ctx.beginPath(); ctx.moveTo(ox, xAxisY); ctx.lineTo(ox + gs + 8, xAxisY); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(ox + gs + 8, xAxisY);
+    ctx.lineTo(ox + gs + 8 - arrowSize, xAxisY - arrowSize);
+    ctx.lineTo(ox + gs + 8 - arrowSize, xAxisY + arrowSize);
+    ctx.closePath(); ctx.fill();
+
+    // Y-axis
+    const yAxisX = ox - 1;
+    ctx.beginPath(); ctx.moveTo(yAxisX, oy + gs); ctx.lineTo(yAxisX, 6); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(yAxisX, 6);
+    ctx.lineTo(yAxisX - arrowSize, 6 + arrowSize);
+    ctx.lineTo(yAxisX + arrowSize, 6 + arrowSize);
+    ctx.closePath(); ctx.fill();
+
+    // Axis labels (bold K + subscript)
+    function drawAxisLabel(sub, lx, ly) {
+      ctx.fillStyle = axisColor;
+      ctx.textBaseline = 'alphabetic';
+      ctx.textAlign = 'left';
+      ctx.font = 'bold 13px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillText('K', lx, ly);
+      const kW = ctx.measureText('K').width;
+      ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillText(sub, lx + kW, ly + 3);
+    }
+    drawAxisLabel('p', ox + gs + 12, xAxisY + 4);
+    drawAxisLabel('d', yAxisX + 5, 14);
+
+    // Dots
+    const dots = TASKS[currentTask].dots;
+    dots.forEach((dot, i) => {
+      const { cx, cy } = dotXY(dot, S);
+      const isActive = i === activeIdx;
+      const r = 9;
+
+      // Pulsing glow for active dot
+      if (isActive) {
+        const glowAlpha = 0.15 + 0.15 * Math.sin(pulsePhase * 2);
+        const glowR = r + 5 + 2 * Math.sin(pulsePhase * 2);
+        ctx.beginPath(); ctx.arc(cx, cy, glowR, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0,0,0,' + glowAlpha + ')';
+        ctx.fill();
+      }
+
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fillStyle = dotColor(dot.fx, dot.fy);
+      ctx.fill();
+
+      if (isActive) {
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+      } else {
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+        // White tint on inactive dots when one is selected
+        if (activeIdx >= 0) {
+          ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255,255,255,0.5)';
+          ctx.fill();
+        }
+      }
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.stroke();
+    });
+  }
+
+  // ── Pulse animation ──
+  function startPulse() {
+    if (pulseRAF) return;
+    function tick() {
+      if (activeIdx < 0) { pulseRAF = null; return; }
+      pulsePhase += 0.05;
+      draw();
+      pulseRAF = requestAnimationFrame(tick);
+    }
+    pulseRAF = requestAnimationFrame(tick);
+  }
+
+  // ── Dot selection ──
+  function selectDot(idx) {
+    if (idx === activeIdx) return;
+    activeIdx = idx;
+    placeholder.classList.add('hidden');
+    resetChart();
+    const dot = TASKS[currentTask].dots[idx];
+    activeColor = dotColor(dot.fx, dot.fy);
+
+    // Update button colors
+    document.querySelectorAll('.rlm-joint-btn.active').forEach(b => {
+      b.style.background = activeColor;
+      b.style.borderColor = activeColor;
+    });
+
+    const task = TASKS[currentTask];
+
+    if (task.viewer) {
+      // Velocity-style: use shared viewer with model paths as params
+      const prefix = task.base + '/' + dot.folder;
+      iframe.src = task.viewer
+        + '?scene=' + prefix + '/' + dot.scene
+        + '&policy=' + prefix + '/policy.onnx'
+        + '&config=' + prefix + '/policy_config.json'
+        + '&autorun=1'
+        + '&gainColor=' + encodeURIComponent(activeColor);
+    } else {
+      // Self-contained wasm-policy viewer
+      const base = 'wasm-policy/' + dot.folder;
+      iframe.src = base + '/index.html'
+        + '?scene=' + dot.scene
+        + '&policy=policy.onnx'
+        + '&config=policy_config.json'
+        + '&autorun=1'
+        + '&fast=1';
+    }
+
+    draw();
+    startPulse();
+  }
+
+  // ── Click handling ──
+  canvas.addEventListener('click', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const S = canvas.clientWidth;
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const dots = TASKS[currentTask].dots;
+    let best = -1, bestDist = Infinity;
+    dots.forEach((dot, i) => {
+      const { cx, cy } = dotXY(dot, S);
+      const dist = Math.hypot(mx - cx, my - cy);
+      if (dist < 22 && dist < bestDist) { best = i; bestDist = dist; }
+    });
+    if (best >= 0) selectDot(best);
+  });
+
+  // Cursor feedback
+  canvas.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const S = canvas.clientWidth;
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const dots = TASKS[currentTask].dots;
+    let hover = false;
+    dots.forEach((dot) => {
+      const { cx, cy } = dotXY(dot, S);
+      if (Math.hypot(mx - cx, my - cy) < 22) hover = true;
+    });
+    canvas.style.cursor = hover ? 'pointer' : 'default';
+  });
+
+  // ── Tab switching ──
+  document.querySelectorAll('.rlm-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const task = btn.dataset.task;
+      if (task === currentTask) return;
+      currentTask = task;
+      activeIdx = -1;
+      iframe.src = '';
+      placeholder.classList.remove('hidden');
+      if (pulseRAF) { cancelAnimationFrame(pulseRAF); pulseRAF = null; }
+
+      document.querySelectorAll('.rlm-tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      draw();
+      updateChartVisibility();
+      const numDots = TASKS[currentTask].dots.length;
+      selectDot(Math.floor(Math.random() * numDots));
+    });
+  });
+
+  // ── Joint Response Chart ──
+  const chartPanel = document.getElementById('chartPanel');
+  const chartCanvas = document.getElementById('jointChart');
+  const jointBtnsEl = document.getElementById('jointBtns');
+  const chartCtx = chartCanvas.getContext('2d');
+
+  let jointNames = [];
+  let selectedJoint = 0;
+  const CHART_WINDOW = 200; // frames to show
+  let qposHistory = [];     // ring buffer of arrays
+  let actionHistory = [];
+
+  function showChart(show) {
+    chartPanel.classList.toggle('hidden', !show);
+  }
+
+  function resetChart() {
+    qposHistory = [];
+    actionHistory = [];
+  }
+
+  function buildJointButtons(names) {
+    jointBtnsEl.innerHTML = '';
+    // For franka: show first 7 arm joints
+    const count = Math.min(names.length, 7);
+    const displayNames = names.slice(0, count).map((_, i) => 'J' + (i + 1));
+    for (let i = 0; i < count; i++) {
+      const btn = document.createElement('button');
+      btn.className = 'rlm-joint-btn' + (i === selectedJoint ? ' active' : '');
+      if (i === selectedJoint) {
+        btn.style.background = activeColor;
+        btn.style.borderColor = activeColor;
+      }
+      btn.textContent = displayNames[i];
+      btn.addEventListener('click', () => {
+        selectedJoint = i;
+        document.querySelectorAll('.rlm-joint-btn').forEach(b => {
+          b.classList.remove('active');
+          b.style.background = '';
+          b.style.borderColor = '';
+        });
+        btn.classList.add('active');
+        btn.style.background = activeColor;
+        btn.style.borderColor = activeColor;
+      });
+      jointBtnsEl.appendChild(btn);
+    }
+  }
+
+  function drawChart() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = chartCanvas.clientWidth;
+    const h = chartCanvas.clientHeight;
+    if (w === 0 || h === 0) return;
+    chartCanvas.width = w * dpr;
+    chartCanvas.height = h * dpr;
+    chartCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    chartCtx.clearRect(0, 0, w, h);
+
+    const n = qposHistory.length;
+    const si = selectedJoint;
+    const color = activeColor;
+    const padL = 38, padR = 6, padT = 20, padB = 8;
+    const pW = w - padL - padR;
+    const pH = h - padT - padB;
+
+    if (n < 2) {
+      chartCtx.fillStyle = 'rgba(0,0,0,0.2)';
+      chartCtx.font = '13px -apple-system, BlinkMacSystemFont, sans-serif';
+      chartCtx.textAlign = 'center';
+      chartCtx.fillText('Waiting for data\u2026', w / 2, h / 2);
+      return;
+    }
+
+    // Y range
+    let yMin = Infinity, yMax = -Infinity;
+    for (let i = 0; i < n; i++) {
+      const a = qposHistory[i][si] || 0;
+      const t = actionHistory[i] ? (actionHistory[i][si] || 0) : 0;
+      yMin = Math.min(yMin, a, t);
+      yMax = Math.max(yMax, a, t);
+    }
+    if (yMax - yMin < 0.3) {
+      const mid = (yMin + yMax) / 2;
+      yMin = mid - 0.15; yMax = mid + 0.15;
+    }
+    const yPad = (yMax - yMin) * 0.08;
+    yMin -= yPad; yMax += yPad;
+
+    const startIdx = CHART_WINDOW - n;
+    function xOf(i) { return padL + (i / (CHART_WINDOW - 1)) * pW; }
+    function yOf(v) { return padT + (1 - (v - yMin) / (yMax - yMin)) * pH; }
+
+    // Y-axis ticks
+    chartCtx.textAlign = 'right';
+    chartCtx.fillStyle = 'rgba(0,0,0,0.4)';
+    chartCtx.font = '11px -apple-system, BlinkMacSystemFont, sans-serif';
+    for (let t = 0; t <= 3; t++) {
+      const v = yMin + (t / 3) * (yMax - yMin);
+      const y = padT + (1 - t / 3) * pH;
+      chartCtx.fillText(v.toFixed(2), padL - 4, y + 4);
+      chartCtx.beginPath();
+      chartCtx.strokeStyle = 'rgba(0,0,0,0.06)';
+      chartCtx.lineWidth = 0.5;
+      chartCtx.moveTo(padL, y); chartCtx.lineTo(padL + pW, y);
+      chartCtx.stroke();
+    }
+
+    // Clip to plot area
+    chartCtx.save();
+    chartCtx.beginPath();
+    chartCtx.rect(padL, padT, pW, pH);
+    chartCtx.clip();
+
+    // Target — dashed
+    chartCtx.beginPath();
+    chartCtx.setLineDash([4, 3]);
+    chartCtx.strokeStyle = 'rgba(0,0,0,0.3)';
+    chartCtx.lineWidth = 1.5;
+    for (let i = 0; i < n; i++) {
+      const x = xOf(startIdx + i);
+      const y = yOf(actionHistory[i] ? (actionHistory[i][si] || 0) : 0);
+      i === 0 ? chartCtx.moveTo(x, y) : chartCtx.lineTo(x, y);
+    }
+    chartCtx.stroke();
+
+    // Actual — solid
+    chartCtx.beginPath();
+    chartCtx.setLineDash([]);
+    chartCtx.strokeStyle = color;
+    chartCtx.lineWidth = 2;
+    for (let i = 0; i < n; i++) {
+      const x = xOf(startIdx + i);
+      const y = yOf(qposHistory[i][si] || 0);
+      i === 0 ? chartCtx.moveTo(x, y) : chartCtx.lineTo(x, y);
+    }
+    chartCtx.stroke();
+
+    chartCtx.restore(); // remove clip
+
+    // Legend (canvas-drawn, matching velocity style)
+    chartCtx.font = '12px -apple-system, BlinkMacSystemFont, sans-serif';
+    chartCtx.textAlign = 'right';
+    chartCtx.fillStyle = color;
+    chartCtx.fillText('\u2014 actual', w - padR - 70, 15);
+    chartCtx.fillStyle = 'rgba(0,0,0,0.45)';
+    chartCtx.fillText('- - target', w - padR, 15);
+
+  }
+
+  // Chart animation loop
+  let chartRAF = null;
+  function startChartLoop() {
+    if (chartRAF) return;
+    function tick() {
+      drawChart();
+      chartRAF = requestAnimationFrame(tick);
+    }
+    chartRAF = requestAnimationFrame(tick);
+  }
+  function stopChartLoop() {
+    if (chartRAF) { cancelAnimationFrame(chartRAF); chartRAF = null; }
+  }
+
+  // Listen for joint data from iframe
+  window.addEventListener('message', (e) => {
+    if (e.data?.type === 'joint-config') {
+      jointNames = e.data.jointNames || [];
+      buildJointButtons(jointNames);
+    }
+    if (e.data?.type === 'joint-data') {
+      qposHistory.push(e.data.qpos);
+      actionHistory.push(e.data.action);
+      // Keep buffer bounded
+      if (qposHistory.length > CHART_WINDOW * 3) {
+        qposHistory = qposHistory.slice(-CHART_WINDOW * 2);
+        actionHistory = actionHistory.slice(-CHART_WINDOW * 2);
+      }
+    }
+  });
+
+  // Update selectDot to manage chart visibility
+  const _origSelectDot = selectDot;
+
+  // Show/hide chart based on task (manipulation tasks only)
+  function updateChartVisibility() {
+    const isManip = currentTask !== 'locomotion';
+    showChart(isManip);
+    if (isManip) {
+      resetChart();
+      startChartLoop();
+    } else {
+      stopChartLoop();
+    }
+  }
+
+  // ── Init ──
+  draw();
+  updateChartVisibility();
+  const numDots = TASKS[currentTask].dots.length;
+  selectDot(Math.floor(Math.random() * numDots));
+})();
+</script>
+</body>
+</html>

@@ -5,7 +5,14 @@
       "Bash(python3:*)",
       "Bash(ls:*)",
       "Bash({)",
-      "Bash(})"
+      "Bash(})",
+      "Bash(find:*)",
+      "Bash(for dir:*)",
+      "Bash(do echo:*)",
+      "Read(//Users/younghyo/src/tune-robots-to-learn.github.io/$dir/**)",
+      "Bash(done)",
+      "Bash(python script.py)",
+      "Bash(python script2.py)"
     ]
   }
 }

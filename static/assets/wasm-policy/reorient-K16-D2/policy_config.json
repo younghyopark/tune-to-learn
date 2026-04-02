@@ -1,0 +1,316 @@
+{
+  "model_xml": "mjlab_reorient_cube_franka_challenge_k16_d2_resample_scene.xml",
+  "onnx_file": "policy.onnx",
+  "timestep": 0.005,
+  "decimation": 4,
+  "num_joints": 13,
+  "num_actions": 7,
+  "qpos_joint_offset": 0,
+  "qvel_joint_offset": 0,
+  "joint_names": [
+    "fr3_joint1",
+    "fr3_joint2",
+    "fr3_joint3",
+    "fr3_joint4",
+    "fr3_joint5",
+    "fr3_joint6",
+    "fr3_joint7",
+    "left_driver_joint",
+    "left_spring_link_joint",
+    "left_follower",
+    "right_driver_joint",
+    "right_spring_link_joint",
+    "right_follower_joint"
+  ],
+  "default_joint_pos": [
+    0.0,
+    -0.785,
+    0.0,
+    -2.356,
+    0.0,
+    1.571,
+    0.785,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "action_default_pos": [
+    0.0,
+    -0.785,
+    0.0,
+    -2.356,
+    0.0,
+    1.571,
+    0.785
+  ],
+  "action_scale": [
+    0.7,
+    0.7,
+    0.7,
+    0.7,
+    0.7,
+    0.7,
+    0.7
+  ],
+  "observation_order": [
+    "joint_pos",
+    "joint_vel",
+    "ee_to_cube",
+    "cube_to_target_pos",
+    "cube_orientation_to_target"
+  ],
+  "observation_dims": [
+    13,
+    13,
+    3,
+    3,
+    3
+  ],
+  "onnx_input_name": "obs",
+  "onnx_output_name": "actions",
+  "action_to_ctrl_map": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "is_fixed_base": true,
+  "task_type": "manipulation",
+  "body_ids": {
+    "world": 0,
+    "robot/mocap_base": 1,
+    "robot/fr3_base": 2,
+    "robot/fr3_link0": 3,
+    "robot/fr3_link1": 4,
+    "robot/fr3_link2": 5,
+    "robot/fr3_link3": 6,
+    "robot/fr3_link4": 7,
+    "robot/fr3_link5": 8,
+    "robot/fr3_link6": 9,
+    "robot/fr3_link7": 10,
+    "robot/base": 11,
+    "robot/left_driver": 12,
+    "robot/left_coupler": 13,
+    "robot/left_spring_link": 14,
+    "robot/left_follower": 15,
+    "robot/left_pad": 16,
+    "robot/right_driver": 17,
+    "robot/right_coupler": 18,
+    "robot/right_spring_link": 19,
+    "robot/right_follower": 20,
+    "robot/right_pad": 21,
+    "cube/cube": 22,
+    "target_cube/target_cube": 23
+  },
+  "site_ids": {
+    "robot/attachment_site": 0,
+    "cube/cube_center": 1
+  },
+  "observation_term_params": {
+    "ee_to_cube": {
+      "object_name": "cube",
+      "entity_name": "robot",
+      "site_names": [
+        "attachment_site"
+      ]
+    },
+    "cube_to_target_pos": {
+      "object_name": "cube",
+      "command_name": "reorient_target"
+    },
+    "cube_orientation_to_target": {
+      "object_name": "cube",
+      "command_name": "reorient_target"
+    }
+  },
+  "command_config": {
+    "reorient_target": {
+      "type": "reorientation",
+      "entity_name": "cube",
+      "target_entity_name": "target_cube",
+      "target_pose": {
+        "x": 0.45,
+        "y": 0.0,
+        "z": 0.06,
+        "yaw": 0.0,
+        "x_range": [
+          -0.1,
+          0.1
+        ],
+        "y_range": [
+          -0.15,
+          0.15
+        ],
+        "yaw_range": [
+          -3.141592653589793,
+          3.141592653589793
+        ],
+        "roll_choices": [
+          -1.5707963267948966,
+          0.0,
+          1.5707963267948966
+        ],
+        "pitch_choices": [
+          -1.5707963267948966,
+          0.0,
+          1.5707963267948966
+        ],
+        "roll_pitch_prob": 1.0
+      },
+      "spawn_offset": {
+        "x": [
+          -0.1,
+          0.1
+        ],
+        "y": [
+          -0.2,
+          0.2
+        ],
+        "yaw": [
+          -3.141592653589793,
+          3.141592653589793
+        ],
+        "roll_choices": [
+          -1.5707963267948966,
+          0.0,
+          1.5707963267948966
+        ],
+        "pitch_choices": [
+          -1.5707963267948966,
+          0.0,
+          1.5707963267948966
+        ],
+        "roll_pitch_prob": 1.0,
+        "min_xy_distance": 0.05,
+        "min_yaw_distance": 0.5235987755982988
+      },
+      "resample_goal_only": true,
+      "resample_on_success": true,
+      "position_threshold": 0.03,
+      "orientation_threshold": 0.08726646259971647,
+      "sustained_success_duration": 0.1,
+      "resampling_time_range": [
+        4.0,
+        6.0
+      ]
+    }
+  },
+  "hardware_limits": {
+    "arm_joint_names": [
+      "fr3_joint1",
+      "fr3_joint2",
+      "fr3_joint3",
+      "fr3_joint4",
+      "fr3_joint5",
+      "fr3_joint6",
+      "fr3_joint7"
+    ],
+    "q_max": [
+      2.9007,
+      1.8361,
+      2.9007,
+      -0.1169,
+      2.8763,
+      4.6216,
+      3.0508
+    ],
+    "q_min": [
+      -2.9007,
+      -1.8361,
+      -2.9007,
+      -3.077,
+      -2.8763,
+      0.4398,
+      -3.0508
+    ],
+    "q_dot_max": [
+      2.62,
+      2.62,
+      2.62,
+      2.62,
+      5.26,
+      4.18,
+      5.26
+    ],
+    "q_ddot_max": [
+      10.0,
+      10.0,
+      10.0,
+      10.0,
+      10.0,
+      10.0,
+      10.0
+    ],
+    "tau_j_max": [
+      87.0,
+      87.0,
+      87.0,
+      87.0,
+      12.0,
+      12.0,
+      12.0
+    ],
+    "tau_dot_max": [
+      500.0,
+      500.0,
+      500.0,
+      500.0,
+      500.0,
+      500.0,
+      500.0
+    ],
+    "q_dot_offset": [
+      0.6599,
+      0.2517,
+      0.2,
+      0.3533,
+      0.5757,
+      0.4878,
+      0.4628
+    ],
+    "q_ddot_dec": [
+      6.0,
+      2.585,
+      3.5,
+      4.0,
+      17.0,
+      5.5,
+      17.0
+    ],
+    "arm_joint_indices": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ]
+  },
+  "fixed_ctrl": {
+    "7": 1.0
+  },
+  "entity_qpos_offsets": {
+    "robot": 0,
+    "cube": 13,
+    "target_cube": 20
+  },
+  "entity_qvel_offsets": {
+    "robot": 0,
+    "cube": 13,
+    "target_cube": 19
+  },
+  "observation_history_lengths": [
+    1,
+    1,
+    1,
+    1,
+    1
+  ]
+}

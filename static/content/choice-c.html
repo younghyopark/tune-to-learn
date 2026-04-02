@@ -25,11 +25,40 @@
     <div class="container">
       <p>
         A common justification for stiff controllers is that they make teleoperation feel more responsive and precise —
-        the robot tracks the operator's commands tightly, giving a sense of direct control.
-        But this reasoning conflates controller stiffness with operator experience.
+        the robot tracks the operator's commands tightly when using a stiff controller.
+        But teleoperation inevitably goes through a hardware channel that converts any user movements into position targets for the robot, 
+        and this channel can be tuned to compensate for the reduced responsiveness of compliant gains.
         A critical factor is the <strong>input mapping</strong> $\phi(\mathbf{u}, \mathbf{x}) \rightarrow \mathbf{x}_{\text{des}}$
         that translates user commands into position targets — it substantially modulates how the robot feels to the operator.
-        To ensure a fair comparison across gain settings, we allow each participant to calibrate $\phi$ for each gain configuration before evaluation,
+      </p>
+
+      <video
+        id="schematic-video"
+        src="static/assets/input_mapping_schematic.mp4"
+        muted
+        playsinline
+        preload="auto"
+        style="width:100%; max-width:800px; display:block; margin:0.5rem auto;"
+      ></video>
+      <script>
+        (function() {
+          const vid = document.getElementById('schematic-video');
+          const obs = new IntersectionObserver((entries) => {
+            entries.forEach(e => {
+              if (e.isIntersecting) {
+                vid.currentTime = 0;
+                vid.play();
+              } else {
+                vid.pause();
+              }
+            });
+          }, { threshold: 0.5 });
+          obs.observe(vid);
+        })();
+      </script>
+
+      <p>
+        To prove this point, we conducted a user study. To ensure a fair comparison across gain settings, we allow each participant to calibrate $\phi$ for each gain configuration before evaluation,
         yielding the gain-specific optimum:
       </p>
       <p style="text-align: center; font-size: 1.1em; margin: 0.25rem 0;">
@@ -48,6 +77,20 @@
         where $\alpha \in \mathbb{R}_0^+$ is a scaling factor and $\beta \in \{0, 1\}$ selects between the current robot pose or the previous target as the integration base.
         After calibration, participants performed a non-prehensile box pushing task with gain configurations randomly sampled and blindly presented.
         We recorded task completion time, success/failure, and subjective 1–5 control quality ratings across 500 trials.
+        This is the result. 
+      </p>
+
+
+    <!-- Teleop user study results (animated heatmaps) -->
+    <div class="widget-container" style="margin-top:1.5rem;">
+      <iframe
+        data-src="static/assets/teleop_heatmap_widget.html"
+        style="width:100%; height:240px; border:none; background:#fff;"
+      ></iframe>
+    </div>
+
+
+      <p>
         The results show that when each gain setting is evaluated with its own optimized input mapping,
         compliant and overdamped settings achieve <strong>comparable success rates</strong>, <strong>similar completion times</strong>,
         and <strong>high subjective ratings</strong> from operators.
@@ -56,10 +99,6 @@
         once the interface is properly calibrated, removing a major barrier to adopting gain settings
         that are far more favorable for downstream policy learning.
       </p>
-    </div>
-
-    <!-- Figure placeholder: teleop user study results (success rate, completion time, user rating heatmaps) -->
-    <div class="widget-container" style="margin-top:1.5rem;">
     </div>
 
   </div>

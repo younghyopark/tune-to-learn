@@ -1,0 +1,254 @@
+{
+  "model_xml": "mjlab_lift_cube_franka_hhmax_scene.xml",
+  "onnx_file": "policy.onnx",
+  "timestep": 0.005,
+  "decimation": 4,
+  "num_joints": 13,
+  "num_actions": 8,
+  "qpos_joint_offset": 0,
+  "qvel_joint_offset": 0,
+  "joint_names": [
+    "joint1",
+    "joint2",
+    "joint3",
+    "joint4",
+    "joint5",
+    "joint6",
+    "joint7",
+    "left_driver_joint",
+    "left_spring_link_joint",
+    "left_follower",
+    "right_driver_joint",
+    "right_spring_link_joint",
+    "right_follower_joint"
+  ],
+  "default_joint_pos": [
+    0.0,
+    -0.785,
+    0.0,
+    -2.356,
+    0.0,
+    1.571,
+    0.785,
+    0.45,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "action_default_pos": [
+    0.0,
+    -0.785,
+    0.0,
+    -2.356,
+    0.0,
+    1.571,
+    0.785,
+    0.45
+  ],
+  "action_scale": [
+    0.5,
+    0.5,
+    0.5,
+    0.5,
+    0.5,
+    0.5,
+    0.5,
+    0.225
+  ],
+  "observation_order": [
+    "joint_pos",
+    "joint_vel",
+    "ee_to_cube",
+    "cube_to_goal",
+    "actions"
+  ],
+  "observation_dims": [
+    13,
+    13,
+    3,
+    3,
+    8
+  ],
+  "onnx_input_name": "obs",
+  "onnx_output_name": "actions",
+  "action_to_ctrl_map": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "is_fixed_base": true,
+  "task_type": "manipulation",
+  "body_ids": {
+    "world": 0,
+    "robot/mocap_base": 1,
+    "robot/link0": 2,
+    "robot/link1": 3,
+    "robot/link2": 4,
+    "robot/link3": 5,
+    "robot/link4": 6,
+    "robot/link5": 7,
+    "robot/link6": 8,
+    "robot/link7": 9,
+    "robot/base": 10,
+    "robot/left_driver": 11,
+    "robot/left_coupler": 12,
+    "robot/left_spring_link": 13,
+    "robot/left_follower": 14,
+    "robot/left_pad": 15,
+    "robot/right_driver": 16,
+    "robot/right_coupler": 17,
+    "robot/right_spring_link": 18,
+    "robot/right_follower": 19,
+    "robot/right_pad": 20,
+    "cube/cube": 21
+  },
+  "site_ids": {
+    "robot/attachment_site": 0
+  },
+  "observation_term_params": {
+    "ee_to_cube": {
+      "object_name": "cube",
+      "entity_name": "robot",
+      "site_names": [
+        "attachment_site"
+      ]
+    },
+    "cube_to_goal": {
+      "object_name": "cube",
+      "command_name": "lift_height"
+    }
+  },
+  "command_config": {
+    "lift_height": {
+      "type": "lifting",
+      "entity_name": "cube",
+      "difficulty": "dynamic",
+      "target_position_range": {
+        "x": [
+          0.3,
+          0.5
+        ],
+        "y": [
+          -0.2,
+          0.2
+        ],
+        "z": [
+          0.2,
+          0.4
+        ]
+      },
+      "object_pose_range": {
+        "x": [
+          0.2,
+          0.4
+        ],
+        "y": [
+          -0.2,
+          0.2
+        ],
+        "z": [
+          0.02,
+          0.05
+        ],
+        "yaw": [
+          -3.14,
+          3.14
+        ]
+      },
+      "resampling_time_range": [
+        4.0,
+        4.0
+      ]
+    }
+  },
+  "hardware_limits": {
+    "arm_joint_names": [
+      "joint1",
+      "joint2",
+      "joint3",
+      "joint4",
+      "joint5",
+      "joint6",
+      "joint7"
+    ],
+    "q_max": [
+      2.9007,
+      1.8361,
+      2.9007,
+      -0.1169,
+      2.8763,
+      4.6216,
+      3.0508
+    ],
+    "q_min": [
+      -2.9007,
+      -1.8361,
+      -2.9007,
+      -3.077,
+      -2.8763,
+      0.4398,
+      -3.0508
+    ],
+    "q_dot_max": [
+      2.62,
+      2.62,
+      2.62,
+      2.62,
+      5.26,
+      4.18,
+      5.26
+    ],
+    "q_ddot_max": [
+      10.0,
+      10.0,
+      10.0,
+      10.0,
+      10.0,
+      10.0,
+      10.0
+    ],
+    "tau_j_max": [
+      87.0,
+      87.0,
+      87.0,
+      87.0,
+      12.0,
+      12.0,
+      12.0
+    ],
+    "q_dot_offset": [
+      0.6599,
+      0.2517,
+      0.2,
+      0.3533,
+      0.5757,
+      0.4878,
+      0.4628
+    ],
+    "q_ddot_dec": [
+      6.0,
+      2.585,
+      3.5,
+      4.0,
+      17.0,
+      5.5,
+      17.0
+    ],
+    "arm_joint_indices": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ]
+  }
+}

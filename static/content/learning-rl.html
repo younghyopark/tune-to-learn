@@ -30,44 +30,36 @@
     </div>
 
     <!-- Interactive RL Policy Grid (live WASM rollout) -->
-    <h3>Live RL Policies Across Gain Settings</h3>
+
+
+
+    <h3>Live RL Policies Across Tasks and Gain Settings</h3>
 
     <p>
-      Given appropriate environment shaping&mdash;tuning action scales, exploration,
-      and reward terms&mdash;RL discovers successful policies
-      <strong>across all four gain corners</strong>.
+      Given appropriate environment shaping&mdash;tuning action scales, exploration, etc&mdash;RL discovers successful policies
+      <strong>across all gain settings</strong>. 
       Each dot below loads a policy trained under that gain setting, running
       live in your browser via MuJoCo WASM + ONNX inference.
     </p>
 
     <p style="margin-top: 0.5rem; margin-bottom: 1rem; font-size: 0.9rem; color: #666; font-style: italic;">
-      Click a dot on the gain grid to load the RL policy trained under
-      that stiffness/damping configuration. The robot runs
-      live in your browser via MuJoCo WASM + ONNX inference.
-      Use WASD to steer, QE to turn, and Space to stop.
+      <!-- RL discovers successful policies across all four gain corners for
+      locomotion, lift, and reorientation tasks. -->
+      Switch tasks using the tabs, and click a dot to load the policy
+      trained under that gain setting. Use WASD/QE to steer the locomotion policy.
     </p>
 
-    <div class="policy-grid-widget" id="rl-policy-grid">
-      <!-- Floating gain grid overlay -->
-      <div class="pgw-float" id="rl-pgw-float">
-        <div class="pgw-float-title">PD GAINS</div>
-        <canvas id="rl-pgw-canvas" width="300" height="300"></canvas>
-        <div class="pgw-gain-vals">
-          <span>kp <b id="rl-pgw-kp-val">&mdash;</b></span>
-          <span>kd <b id="rl-pgw-kd-val">&mdash;</b></span>
-        </div>
-      </div>
-      <!-- Viewer -->
-      <iframe id="rl-pgw-iframe" src="" allow="autoplay"></iframe>
-      <div class="pgw-placeholder" id="rl-pgw-placeholder">
-        Click a dot on the grid to load an RL policy&hellip;
-      </div>
-    </div>
+    <iframe
+      data-src="static/assets/rl_manipulation_widget.html?v=2"
+      style="width:100%; height:600px; border:none;"
+      allow="autoplay"
+    ></iframe>
+
   </div>
 
   <!-- ── Result V-B-II: RL Environment Shaping Landscape ──── -->
   <div class="container container-medium">
-    <h3>Gains modulate the optimization landscape.</h3>
+    <h3>Gains modulate the RL Hyperparameter Sensitivity.</h3>
     <div class="container">
       <p>
         Beyond solution existence, we investigate whether certain gain regimes
