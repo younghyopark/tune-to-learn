@@ -344,6 +344,31 @@ pre code { background: none; padding: 0; border: none; }
   border: 1px solid var(--border);
 }
 
+/* Replay button (top-right, outside content) */
+.replay-btn {
+  position: absolute;
+  top: -0.2rem;
+  right: -0.2rem;
+  padding: 0.3rem 0.9rem;
+  border-radius: 999px;
+  border: none;
+  background: rgba(0, 0, 0, 0.15);
+  color: rgba(0, 0, 0, 0.45);
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.replay-btn:hover {
+  background: rgba(0, 0, 0, 0.25);
+  color: rgba(0, 0, 0, 0.7);
+}
+.replay-btn i {
+  margin-right: 0.3rem;
+  font-size: 0.6rem;
+}
+
 /* ── Figures ───────────────────────────────────────────────── */
 .figure-full {
   margin: 1.25rem 0;
@@ -1054,6 +1079,144 @@ pre code { background: none; padding: 0; border: none; }
   border-bottom: 1px solid rgba(99, 102, 241, 0.08);
   padding: 1.5rem 0;
 }
+/* Poll section background pulse (before any selection) */
+/* Poll section — flowing gradient of all three option colors */
+@keyframes pollGradientFlow {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+#poll,
+#learning-poll {
+  position: relative;
+  overflow: hidden;
+}
+#poll {
+  background: linear-gradient(
+    135deg,
+    rgba(123, 63, 141, 0.14),
+    rgba(74, 127, 181, 0.14),
+    rgba(74, 122, 62, 0.14),
+    rgba(74, 127, 181, 0.14),
+    rgba(123, 63, 141, 0.14)
+  );
+  background-size: 300% 300%;
+  animation: pollGradientFlow 6s ease-in-out infinite;
+}
+#poll.poll-chosen {
+  animation: none;
+  background: transparent;
+}
+
+/* Learning poll section — flowing gradient */
+#learning-poll {
+  background: linear-gradient(
+    135deg,
+    rgba(217, 119, 6, 0.14),
+    rgba(13, 148, 136, 0.14),
+    rgba(99, 102, 241, 0.14),
+    rgba(13, 148, 136, 0.14),
+    rgba(217, 119, 6, 0.14)
+  );
+  background-size: 300% 300%;
+  animation: pollGradientFlow 6s ease-in-out infinite;
+}
+#learning-poll.lp-chosen {
+  animation: none;
+  background: transparent;
+}
+
+/* ── Color spill effect (expands from clicked card) ──────────── */
+@keyframes colorSpill {
+  0%   { transform: translate(-50%, -50%) scale(0); opacity: 0.6; }
+  60%  { opacity: 0.5; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 0.45; }
+}
+#poll::after,
+#learning-poll::after {
+  content: '';
+  position: absolute;
+  /* Size large enough to cover the section from any origin */
+  width: 200%;
+  height: 500%;
+  border-radius: 50%;
+  pointer-events: none;
+  top: var(--spill-y, 50%);
+  left: var(--spill-x, 50%);
+  transform: translate(-50%, -50%) scale(0);
+  opacity: 0;
+  z-index: 0;
+}
+#poll.poll-chosen::after {
+  animation: colorSpill 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+#poll.poll-chosen-a::after { background: radial-gradient(circle, rgba(123, 63, 141, 0.35), rgba(123, 63, 141, 0.10) 70%); }
+#poll.poll-chosen-b::after { background: radial-gradient(circle, rgba(74, 127, 181, 0.35), rgba(74, 127, 181, 0.10) 70%); }
+#poll.poll-chosen-c::after { background: radial-gradient(circle, rgba(74, 122, 62, 0.35), rgba(74, 122, 62, 0.10) 70%); }
+
+#learning-poll.lp-chosen::after {
+  animation: colorSpill 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+#learning-poll.lp-chosen-bc::after       { background: radial-gradient(circle, rgba(217, 119, 6, 0.35), rgba(217, 119, 6, 0.10) 70%); }
+#learning-poll.lp-chosen-rl::after       { background: radial-gradient(circle, rgba(13, 148, 136, 0.35), rgba(13, 148, 136, 0.10) 70%); }
+#learning-poll.lp-chosen-sim2real::after { background: radial-gradient(circle, rgba(99, 102, 241, 0.35), rgba(99, 102, 241, 0.10) 70%); }
+
+/* Hover overlay — set via --hover-color JS variable, fades gently */
+#poll::before,
+#learning-poll::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--hover-color, transparent);
+  opacity: var(--hover-opacity, 0);
+  transition: opacity 0.6s ease, background 0.6s ease;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Keep poll content above the pseudo-elements */
+#poll > *,
+#learning-poll > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* "Take me to" jump button */
+.poll-jump-btn {
+  display: block;
+  margin: 1rem auto 0;
+  padding: 0.6rem 1.5rem;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1.5px solid rgba(0, 0, 0, 0.1);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.2s, opacity 0.3s;
+  opacity: 0;
+  z-index: 2;
+  position: relative;
+}
+.poll-jump-btn.visible {
+  opacity: 1;
+}
+.poll-jump-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+.poll-jump-btn em {
+  font-style: italic;
+}
+.poll-jump-btn i {
+  margin-left: 0.4rem;
+  font-size: 0.75rem;
+  opacity: 0.5;
+}
+
 .poll-box {
   text-align: center;
   padding: 0.5rem 0 0.5rem;
@@ -1098,12 +1261,14 @@ pre code { background: none; padding: 0; border: none; }
   padding: 1rem 1.25rem;
   width: 100%;
   cursor: pointer;
-  transition: border-color .2s, transform .15s, box-shadow .2s;
+  transition: border-color .4s ease, transform .15s, box-shadow .2s, background .4s ease;
   font-family: var(--font-sans);
   font-size: 1rem;
   line-height: 1.4;
   color: var(--text);
 }
+
+/* Card hover / selected states */
 .poll-card:hover {
   transform: translateY(-3px);
   box-shadow: 0 4px 16px rgba(0,0,0,.08);
@@ -1120,17 +1285,8 @@ pre code { background: none; padding: 0; border: none; }
 .poll-card[data-poll="c"].selected { border-color: #4a7a3e; }
 .poll-card[data-poll="d"]:hover,
 .poll-card[data-poll="d"].selected { border-color: #888; }
-
-/* Pulse hint animation on cards before any selection */
-@keyframes pollPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(0,0,0,.06); }
-  50%      { box-shadow: 0 0 0 8px rgba(0,0,0,.04); }
-}
-.poll-card:not(.selected) {
-  animation: pollPulse 2.5s ease-in-out infinite;
-}
 .poll-options.has-selection .poll-card:not(.selected) {
-  animation: none;
+  opacity: 0.5;
 }
 
 /* Avatar icon (matching the provided image) */
@@ -1365,13 +1521,16 @@ pre code { background: none; padding: 0; border: none; }
 .lp-title-rl       { color: #0d9488 !important; }
 .lp-title-sim2real  { color: #6366f1 !important; }
 
-/* Card border colors on hover/select */
-.lp-card[data-lp="bc"]:hover,
-.lp-card[data-lp="bc"].selected       { border-color: #d97706; }
-.lp-card[data-lp="rl"]:hover,
-.lp-card[data-lp="rl"].selected       { border-color: #0d9488; }
-.lp-card[data-lp="sim2real"]:hover,
-.lp-card[data-lp="sim2real"].selected { border-color: #6366f1; }
+
+
+/* Card border colors on hover */
+.lp-card[data-lp="bc"]:hover       { border-color: #d97706; }
+.lp-card[data-lp="rl"]:hover       { border-color: #0d9488; }
+.lp-card[data-lp="sim2real"]:hover { border-color: #6366f1; }
+/* Selected: colored border + subtle tinted background */
+.lp-card[data-lp="bc"].selected       { border-color: #d97706; background: rgba(217, 119, 6, 0.05); }
+.lp-card[data-lp="rl"].selected       { border-color: #0d9488; background: rgba(13, 148, 136, 0.05); }
+.lp-card[data-lp="sim2real"].selected { border-color: #6366f1; background: rgba(99, 102, 241, 0.05); }
 
 /* Response header colors */
 .lp-header-orange { color: #d97706; }

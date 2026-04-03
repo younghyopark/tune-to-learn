@@ -99,7 +99,7 @@
     <div style="display: flex; gap: 1rem; margin-top: 2rem;">
       <div style="flex: 1;">
         <div style="overflow: hidden; border-radius: 6px; aspect-ratio: 16/18;">
-          <video autoplay loop muted playsinline
+          <video id="good-sim2real" class="sync-video" data-sync-group="sim2real" autoplay loop muted playsinline
             style="width: 100%; object-fit: cover; object-position: center bottom; height: 100%; cursor: pointer;"
             onclick="this.muted=!this.muted"
             title="Click to unmute">
@@ -112,7 +112,7 @@
       </div>
       <div style="flex: 1;">
         <div style="overflow: hidden; border-radius: 6px; aspect-ratio: 16/18; position: relative;">
-          <video id="bad-sim2real" autoplay loop muted playsinline
+          <video id="bad-sim2real" class="sync-video" data-sync-group="sim2real" autoplay loop muted playsinline
             style="width: 100%; object-fit: cover; object-position: center bottom; height: 100%; cursor: pointer;"
             title="Click to unmute">
             <source src="static/videos/bad_sim2real.mp4" type="video/mp4">

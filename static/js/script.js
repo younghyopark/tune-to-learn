@@ -257,6 +257,65 @@ function initLazyVideos() {
   videos.forEach(v => observer.observe(v));
 }
 
+/* ── Replay buttons for non-looping videos ────────────────── */
+function initReplayButtons() {
+  document.querySelectorAll('.replay-video').forEach(function(vid) {
+    if (vid._replayInit) return;
+    vid._replayInit = true;
+    var btn = vid.parentElement.querySelector('.replay-btn');
+    if (!btn) return;
+    vid.addEventListener('ended', function() {
+      btn.style.display = 'block';
+    });
+    btn.addEventListener('click', function() {
+      vid.currentTime = 0;
+      vid.play();
+      btn.style.display = 'none';
+    });
+  });
+
+  // Iframe replay buttons — reload the iframe src
+  document.querySelectorAll('.replay-iframe-btn').forEach(function(btn) {
+    if (btn._replayInit) return;
+    btn._replayInit = true;
+    btn.addEventListener('click', function() {
+      var iframe = btn.parentElement.querySelector('.replay-iframe');
+      if (iframe && iframe.src) {
+        iframe.src = iframe.src;
+      }
+    });
+  });
+}
+
+/* ── Sync looping videos (restart together) ───────────────── */
+function initSyncVideos() {
+  var groups = {};
+  document.querySelectorAll('.sync-video').forEach(function(vid) {
+    if (vid._syncInit) return;
+    var group = vid.dataset.syncGroup;
+    if (!group) return;
+    if (!groups[group]) groups[group] = [];
+    groups[group].push(vid);
+  });
+  Object.keys(groups).forEach(function(group) {
+    var vids = groups[group];
+    if (vids.length < 2) return;
+    vids.forEach(function(vid) {
+      if (vid._syncInit) return;
+      vid._syncInit = true;
+      vid.addEventListener('ended', function() {
+        // When any video in the group loops, restart all from 0
+        vids.forEach(function(v) {
+          v.currentTime = 0;
+          v.play();
+        });
+      });
+      // Remove native loop — we handle it manually
+      vid.removeAttribute('loop');
+    });
+  });
+}
+
 /* ── Lazy-load iframes on scroll ───────────────────────────── */
 function initLazyIframes() {
   const iframes = document.querySelectorAll('iframe[data-src]');
@@ -478,24 +537,6 @@ function buildDynamicToc() {
   onScroll();
 }
 
-/* ── Poll URL Hash Routing ──────────────────────────────────── */
-function parsePollHash() {
-  var h = location.hash.replace(/^#/, '');
-  if (!h) return { choice: null, learn: null };
-  var parts = h.split('/');
-  return {
-    choice: /^[a-c]$/.test(parts[0]) ? parts[0] : null,
-    learn:  parts[1] && /^(bc|rl|sim2real)$/.test(parts[1]) ? parts[1] : null
-  };
-}
-
-function updatePollHash(choice, learn) {
-  var frag = '';
-  if (choice) { frag = choice; if (learn) frag += '/' + learn; }
-  var url = location.pathname + location.search + (frag ? '#' + frag : '');
-  history.replaceState(null, '', url);
-}
-
 /* ── Gain-Tuning Poll ───────────────────────────────────────── */
 function initPoll() {
   const cards = document.querySelectorAll('.poll-card[data-poll]');
@@ -509,11 +550,6 @@ function initPoll() {
   const contentCache = {};
 
   const CHOICE_ALL = ['a', 'b', 'c'];
-  const CHOICE_ALSO_LABELS = {
-    a: 'Some people don\u2019t tune gains at all. However...',
-    b: 'Some people also tune gains based on the task. However...',
-    c: 'Some people tune gains for the best teleop experience. However...'
-  };
 
   async function fetchChoiceHtml(key) {
     if (contentCache[key]) return contentCache[key];
@@ -534,26 +570,22 @@ function initPoll() {
     return html;
   }
 
-  async function loadContent(choice) {
-    if (!dynamicContainer) return;
+  var _contentLoaded = false;
 
-    const others = CHOICE_ALL.filter(k => k !== choice);
-    const ordered = [choice].concat(others);
+  /** Load all sections in default order (a, b, c). Only runs once. */
+  async function loadAllContent() {
+    if (_contentLoaded || !dynamicContainer) return;
+    _contentLoaded = true;
 
     try {
-      const htmls = await Promise.all(ordered.map(k => fetchChoiceHtml(k)));
+      const htmls = await Promise.all(CHOICE_ALL.map(k => fetchChoiceHtml(k)));
 
-      // Primary choice content
-      let combined = prepareChoiceHtml(htmls[0], ordered[0]);
-
-      // Non-selected choices with "also" labels
-      for (let i = 1; i < ordered.length; i++) {
-        const key = ordered[i];
-        combined += '<div class="choice-also-label">'
-          + CHOICE_ALSO_LABELS[key]
-          + '</div>'
-          + prepareChoiceHtml(htmls[i], key);
-      }
+      let combined = '';
+      CHOICE_ALL.forEach(function(key, i) {
+        combined += '<div id="gain-section-' + key + '" class="gain-section">'
+          + prepareChoiceHtml(htmls[i], key)
+          + '</div>';
+      });
 
       // Transition paragraph before learning-algorithm poll
       combined += '<section class="section" id="lp-transition">'
@@ -567,15 +599,15 @@ function initPoll() {
         + '</p>'
         + '</div></section>';
 
-      // One learning-poll placeholder at the very end
       combined += '<div class="learning-poll-placeholder"></div>';
 
       dynamicContainer.innerHTML = combined;
       reinitComponents();
     } catch (err) {
-      console.warn('Failed to load content for choice ' + choice, err);
+      console.warn('Failed to load gain content', err);
     }
   }
+
 
   // Re-init interactive components inside newly injected HTML
   async function reinitComponents() {
@@ -585,6 +617,7 @@ function initPoll() {
     initCopyButtons();
     initLazyVideos();
     initLazyIframes();
+    initReplayButtons();
     await loadLearningPollIntoPlaceholders();
     initSimTabs();
     buildDynamicToc();
@@ -599,55 +632,56 @@ function initPoll() {
     // Stop pulse on all cards
     if (optionsContainer) optionsContainer.classList.add('has-selection');
 
-    // Show reset button
-    if (resetBtn) resetBtn.classList.add('visible');
-
     // Show matching response
     responses.forEach(r => r.classList.remove('visible'));
     const target = document.getElementById('poll-response-' + choice);
     if (target) {
       target.classList.add('visible');
-      if (animate) {
-        setTimeout(() => {
-          target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }, 100);
-      }
     }
 
-    // Load the choice-specific content
-    loadContent(choice);
+    // Color spill from the clicked card
+    var pollEl = document.getElementById('poll');
+    if (pollEl && selected) {
+      // Remove old classes and force re-trigger animation
+      pollEl.className = pollEl.className.replace(/\bpoll-chosen[a-z-]*/g, '').trim();
+      // Set spill origin to center of clicked card relative to the section
+      var cardRect = selected.getBoundingClientRect();
+      var sectionRect = pollEl.getBoundingClientRect();
+      var spX = ((cardRect.left + cardRect.width / 2 - sectionRect.left) / sectionRect.width * 100);
+      var spY = ((cardRect.top + cardRect.height / 2 - sectionRect.top) / sectionRect.height * 100);
+      pollEl.style.setProperty('--spill-x', spX + '%');
+      pollEl.style.setProperty('--spill-y', spY + '%');
+      // Force reflow so animation restarts
+      void pollEl.offsetWidth;
+      pollEl.classList.add('poll-chosen', 'poll-chosen-' + choice);
+    }
 
-    // Update URL hash (preserve learning choice if set)
-    var hs = parsePollHash();
-    updatePollHash(choice, hs.learn);
-
-    // Show share button
-    var shareBtn = document.getElementById('poll-share-btn');
-    if (shareBtn) shareBtn.classList.add('visible');
+    // Show "take me to" button
+    var CHOICE_SECTION_LABELS = {
+      a: 'why default gains are a problem',
+      b: 'why task-based tuning falls short',
+      c: 'why teleop gains can mislead'
+    };
+    var existing = document.querySelector('.poll-jump-btn');
+    if (existing) existing.remove();
+    var jumpBtn = document.createElement('button');
+    jumpBtn.className = 'poll-jump-btn visible';
+    jumpBtn.innerHTML = 'Take me to: <em>' + CHOICE_SECTION_LABELS[choice] + '</em> <i class="fas fa-arrow-down"></i>';
+    jumpBtn.addEventListener('click', function() {
+      var sec = document.getElementById('gain-section-' + choice);
+      if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    var pollBox = document.querySelector('#poll .poll-box');
+    if (pollBox) pollBox.parentNode.insertBefore(jumpBtn, pollBox.nextSibling);
   }
 
-  function clearChoice() {
-    localStorage.removeItem('poll-choice');
-    localStorage.removeItem('lp-choice');
-    updatePollHash(null, null);
-    cards.forEach(c => c.classList.remove('selected'));
-    responses.forEach(r => r.classList.remove('visible'));
-    if (optionsContainer) optionsContainer.classList.remove('has-selection');
-    if (resetBtn) resetBtn.classList.remove('visible');
-    var shareBtn = document.getElementById('poll-share-btn');
-    if (shareBtn) shareBtn.classList.remove('visible');
-    if (dynamicContainer) dynamicContainer.innerHTML = '';
-    buildDynamicToc();
-  }
-
-  // Priority: URL hash > localStorage
-  var hashState = parsePollHash();
-  var savedChoice = hashState.choice || localStorage.getItem('poll-choice');
-  if (hashState.learn) localStorage.setItem('lp-choice', hashState.learn);
-  if (savedChoice) {
-    localStorage.setItem('poll-choice', savedChoice);
-    applyChoice(savedChoice, false);
-  }
+  // Load all content immediately (never gated), then restore any saved highlight
+  loadAllContent().then(function() {
+    var savedChoice = localStorage.getItem('poll-choice');
+    if (savedChoice) {
+      applyChoice(savedChoice, false);
+    }
+  });
 
   // Show live vote results and lock poll if user has already voted
   if (localStorage.getItem('poll-voted-gain')) {
@@ -655,6 +689,26 @@ function initPoll() {
     lockGainPoll();
   }
 
+
+  // Hover: gently tint section background with hovered card's color
+  var pollEl = document.getElementById('poll');
+  var CHOICE_HOVER_COLORS = {
+    a: 'rgba(123, 63, 141, 0.06)',
+    b: 'rgba(74, 127, 181, 0.06)',
+    c: 'rgba(74, 122, 62, 0.06)'
+  };
+  cards.forEach(card => {
+    card.addEventListener('mouseenter', function() {
+      if (pollEl.classList.contains('poll-chosen')) return;
+      pollEl.style.setProperty('--hover-color', CHOICE_HOVER_COLORS[card.getAttribute('data-poll')]);
+      pollEl.style.setProperty('--hover-opacity', '1');
+    });
+    card.addEventListener('mouseleave', function() {
+      pollEl.style.setProperty('--hover-opacity', '0');
+    });
+  });
+
+  // Click handlers for inline poll cards
   cards.forEach(card => {
     card.addEventListener('click', () => {
       if (localStorage.getItem('poll-voted-gain')) return;
@@ -684,21 +738,6 @@ function initPoll() {
       });
     });
   }
-
-  // React to browser back/forward changing the hash
-  window.addEventListener('hashchange', () => {
-    var h = location.hash.replace(/^#/, '');
-    // Ignore non-poll hashes (e.g. #abstract, #method from TOC clicks)
-    if (h && !/^[a-c](\/|$)/.test(h)) return;
-    var hs = parsePollHash();
-    if (hs.choice) {
-      localStorage.setItem('poll-choice', hs.choice);
-      if (hs.learn) localStorage.setItem('lp-choice', hs.learn);
-      applyChoice(hs.choice, false);
-    } else {
-      clearChoice();
-    }
-  });
 }
 
 /* ── Sticky Header ─────────────────────────────────────────── */
@@ -783,14 +822,13 @@ async function loadLearningPollIntoPlaceholders() {
     ph.dataset.lpLoaded = '1';
   });
 
-  // Restore saved choice if any
-  const saved = localStorage.getItem('lp-choice');
-  if (saved) {
-    applyLpChoice(saved, false);
-  } else {
-    // Rebuild TOC now that #learning-poll exists in the DOM
-    buildDynamicToc();
-  }
+  // Load all content immediately, then restore any saved highlight
+  loadAllLpContent().then(function() {
+    var saved = localStorage.getItem('lp-choice');
+    if (saved) {
+      applyLpChoice(saved, false);
+    }
+  });
 
   // Show live vote results and lock poll if user has already voted
   if (localStorage.getItem('poll-voted-learning')) {
@@ -800,20 +838,15 @@ async function loadLearningPollIntoPlaceholders() {
 }
 
 function applyLpChoice(choice, animate) {
-  // Save scroll position before making changes
-  const savedScrollY = window.scrollY;
-
   const allCards = document.querySelectorAll('.lp-card');
   const allResponses = document.querySelectorAll('.lp-response');
   const allOptions = document.querySelectorAll('.lp-options');
-  const allResets = document.querySelectorAll('.lp-reset');
 
   allCards.forEach(c => c.classList.remove('selected'));
   document.querySelectorAll('.lp-card[data-lp="' + choice + '"]')
     .forEach(c => c.classList.add('selected'));
 
   allOptions.forEach(o => o.classList.add('has-selection'));
-  allResets.forEach(r => r.classList.add('visible'));
 
   allResponses.forEach(r => r.classList.remove('visible'));
   document.querySelectorAll('#lp-response-' + choice)
@@ -821,14 +854,38 @@ function applyLpChoice(choice, animate) {
       r.classList.add('visible');
     });
 
-  // Load sub-content
-  loadLpContent(choice, savedScrollY);
+  // Color spill from the clicked card
+  var lpEl = document.getElementById('learning-poll');
+  var selectedLp = document.querySelector('.lp-card[data-lp="' + choice + '"]');
+  if (lpEl && selectedLp) {
+    lpEl.className = lpEl.className.replace(/\blp-chosen[a-z0-9-]*/g, '').trim();
+    var cardRect = selectedLp.getBoundingClientRect();
+    var sectionRect = lpEl.getBoundingClientRect();
+    var spX = ((cardRect.left + cardRect.width / 2 - sectionRect.left) / sectionRect.width * 100);
+    var spY = ((cardRect.top + cardRect.height / 2 - sectionRect.top) / sectionRect.height * 100);
+    lpEl.style.setProperty('--spill-x', spX + '%');
+    lpEl.style.setProperty('--spill-y', spY + '%');
+    void lpEl.offsetWidth;
+    lpEl.classList.add('lp-chosen', 'lp-chosen-' + choice);
+  }
 
-  // Update URL hash (preserve gain choice)
-  var hs = parsePollHash();
-  updatePollHash(hs.choice, choice);
-
-  window.scrollTo(0, savedScrollY);
+  // Show "take me to" button
+  var LP_SECTION_LABELS = {
+    bc:       'how gains affect Behavior Cloning',
+    rl:       'how gains affect RL',
+    sim2real: 'how gains affect Sim-to-Real'
+  };
+  var existing = document.querySelector('.lp-jump-btn');
+  if (existing) existing.remove();
+  var jumpBtn = document.createElement('button');
+  jumpBtn.className = 'poll-jump-btn lp-jump-btn visible';
+  jumpBtn.innerHTML = 'Take me to: <em>' + LP_SECTION_LABELS[choice] + '</em> <i class="fas fa-arrow-down"></i>';
+  jumpBtn.addEventListener('click', function() {
+    var sec = document.getElementById('lp-section-' + choice);
+    if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  var lpBox = document.querySelector('#learning-poll .poll-box');
+  if (lpBox) lpBox.parentNode.insertBefore(jumpBtn, lpBox.nextSibling);
 }
 
 const _lpContentCache = {};
@@ -855,33 +912,23 @@ async function fetchLpHtml(key) {
   return html;
 }
 
-async function loadLpContent(choice, savedScrollY) {
+var _lpContentLoaded = false;
+
+/** Load all learning sections in default order. Only runs once. */
+async function loadAllLpContent() {
   const containers = document.querySelectorAll('#lp-dynamic-content');
-  if (!containers.length) return;
+  if (!containers.length || _lpContentLoaded) return;
+  _lpContentLoaded = true;
 
-  const restoreScroll = () => {
-    if (savedScrollY !== undefined) {
-      window.scrollTo(0, savedScrollY);
-    }
-  };
-
-  // Determine order: user's choice first, then the rest
-  const others = LP_ALL.filter(k => k !== choice);
-  const ordered = [choice].concat(others);
-
-  // Fetch all three in parallel
   try {
-    const htmls = await Promise.all(ordered.map(k => fetchLpHtml(k)));
+    const htmls = await Promise.all(LP_ALL.map(k => fetchLpHtml(k)));
 
-    // Build combined HTML: primary choice as-is, others with a subtle label
-    let combined = htmls[0];
-    for (let i = 1; i < ordered.length; i++) {
-      const key = ordered[i];
-      combined += '<div class="lp-also-label">What if you relied on '
-        + LP_LABELS[key] + '?'
-        + '</div>'
-        + htmls[i];
-    }
+    let combined = '';
+    LP_ALL.forEach(function(key, i) {
+      combined += '<div id="lp-section-' + key + '" class="lp-section">'
+        + htmls[i]
+        + '</div>';
+    });
 
     containers.forEach(c => { c.innerHTML = combined; });
     rerenderMath();
@@ -890,12 +937,13 @@ async function loadLpContent(choice, savedScrollY) {
     initPolicyGrid();
     initRlPolicyGrid();
     initLazyIframes();
+    initSyncVideos();
     buildDynamicToc();
-    restoreScroll();
   } catch (err) {
-    console.warn('Failed to load learning content for ' + choice, err);
+    console.warn('Failed to load learning content', err);
   }
 }
+
 
 /** Initialise any .sim-tabs containers found in the DOM */
 function initSimTabs() {
@@ -1431,14 +1479,10 @@ function initRlPolicyGrid() {
 
 function clearLpChoice() {
   localStorage.removeItem('lp-choice');
-  var hs = parsePollHash();
-  updatePollHash(hs.choice, null);
   document.querySelectorAll('.lp-card').forEach(c => c.classList.remove('selected'));
   document.querySelectorAll('.lp-response').forEach(r => r.classList.remove('visible'));
   document.querySelectorAll('.lp-options').forEach(o => o.classList.remove('has-selection'));
   document.querySelectorAll('.lp-reset').forEach(r => r.classList.remove('visible'));
-  document.querySelectorAll('#lp-dynamic-content').forEach(c => { c.innerHTML = ''; });
-  buildDynamicToc();
 }
 
 function rerenderMath() {
@@ -1450,6 +1494,28 @@ function rerenderMath() {
   });
   if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise();
 }
+
+/* Delegated hover handlers for the learning poll */
+var LP_HOVER_COLORS = {
+  bc:       'rgba(217, 119, 6, 0.06)',
+  rl:       'rgba(13, 148, 136, 0.06)',
+  sim2real: 'rgba(99, 102, 241, 0.06)'
+};
+document.addEventListener('mouseover', (e) => {
+  var card = e.target.closest('.lp-card');
+  if (!card) return;
+  var lpEl = document.getElementById('learning-poll');
+  if (!lpEl || lpEl.classList.contains('lp-chosen')) return;
+  lpEl.style.setProperty('--hover-color', LP_HOVER_COLORS[card.dataset.lp]);
+  lpEl.style.setProperty('--hover-opacity', '1');
+});
+document.addEventListener('mouseout', (e) => {
+  var card = e.target.closest('.lp-card');
+  if (!card) return;
+  var lpEl = document.getElementById('learning-poll');
+  if (!lpEl) return;
+  lpEl.style.setProperty('--hover-opacity', '0');
+});
 
 /* Delegated click handlers for the learning poll */
 document.addEventListener('click', (e) => {

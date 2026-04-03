@@ -32,30 +32,17 @@
         that translates user commands into position targets — it substantially modulates how the robot feels to the operator.
       </p>
 
-      <video
-        id="schematic-video"
-        src="static/assets/input_mapping_schematic.mp4"
-        muted
-        playsinline
-        preload="auto"
-        style="width:100%; max-width:800px; display:block; margin:0.5rem auto;"
-      ></video>
-      <script>
-        (function() {
-          const vid = document.getElementById('schematic-video');
-          const obs = new IntersectionObserver((entries) => {
-            entries.forEach(e => {
-              if (e.isIntersecting) {
-                vid.currentTime = 0;
-                vid.play();
-              } else {
-                vid.pause();
-              }
-            });
-          }, { threshold: 0.5 });
-          obs.observe(vid);
-        })();
-      </script>
+      <div class="replay-video-wrap" style="max-width:800px; margin:0.5rem auto; position:relative; display:inline-block; width:100%;">
+        <video
+          class="media-video replay-video"
+          src="static/assets/input_mapping_schematic.mp4"
+          autoplay muted playsinline
+          style="width:100%; display:block; border:none;"
+        ></video>
+        <button class="replay-btn" title="Replay" style="display:none;">
+          <i class="fas fa-redo"></i>replay
+        </button>
+      </div>
 
       <p>
         To prove this point, we conducted a user study. To ensure a fair comparison across gain settings, we allow each participant to calibrate $\phi$ for each gain configuration before evaluation,
@@ -82,11 +69,15 @@
 
 
     <!-- Teleop user study results (animated heatmaps) -->
-    <div class="widget-container" style="margin-top:1.5rem;">
+    <div class="widget-container replay-iframe-wrap" style="margin-top:1.5rem; position:relative;">
       <iframe
+        class="replay-iframe"
         data-src="static/assets/teleop_heatmap_widget.html"
         style="width:100%; height:240px; border:none; background:#fff;"
       ></iframe>
+      <button class="replay-btn replay-iframe-btn" title="Replay">
+        <i class="fas fa-redo"></i>replay
+      </button>
     </div>
 
 

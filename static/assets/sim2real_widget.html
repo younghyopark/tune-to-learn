@@ -82,6 +82,23 @@
     font-weight: 600;
   }
 
+  .s2r-replay-btn {
+    font-size: 11px;
+    padding: 2px 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #fff;
+    color: #666;
+    cursor: pointer;
+    font-family: inherit;
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+  .s2r-replay-btn:hover {
+    border-color: #888;
+    color: #333;
+  }
+
   .s2r-controls {
     display: flex;
     align-items: center;
@@ -221,7 +238,7 @@
         <div class="s2r-tooltip" id="tooltip"></div>
       </div>
       <div class="s2r-sub-caption" style="margin-top: 24px;">
-        <b>Sim2Real Error.</b> Darker blue = lower MSE (better transfer). Click any cell to load its rollout data.
+        <b>Sim2Real Error.</b> Darker blue = lower MSE (better transfer). Click any cell to load its rollout data. <button class="s2r-replay-btn" id="s2rReplayBtn">&#8635; Replay</button>
       </div>
     </div>
   </div>
@@ -279,6 +296,10 @@
   const resampleBtn = document.getElementById('resampleBtn');
   const captionEl   = document.getElementById('chartCaption');
   const tooltipEl   = document.getElementById('tooltip');
+  const s2rReplayBtn = document.getElementById('s2rReplayBtn');
+  if (s2rReplayBtn) {
+    s2rReplayBtn.addEventListener('click', () => { startGridAnim(); });
+  }
   const chartCtx = chartCanvas.getContext('2d');
   const gridCtx  = gridCanvas.getContext('2d');
 
@@ -313,7 +334,7 @@
       }
       allData = data;
       initSize();
-      drawGrid();
+      startGridAnim();
       autoSelectWorst();
     })
     .catch(err => console.error('Failed to load sim2real index:', err));
@@ -429,6 +450,28 @@
   }
 
   // ── Rendering ──
+  // ======== INTRO ANIMATION (heatmap values rise from min) ========
+  let gridAnimProgress = 1;
+  let gridAnimStart = 0;
+  const GRID_ANIM_DURATION = 1800;
+  let gridAnimId = null;
+
+  function startGridAnim() {
+    gridAnimProgress = 0;
+    gridAnimStart = performance.now();
+    if (gridAnimId) cancelAnimationFrame(gridAnimId);
+    function tick(now) {
+      const elapsed = now - gridAnimStart;
+      gridAnimProgress = Math.min(elapsed / GRID_ANIM_DURATION, 1);
+      gridAnimProgress = 1 - Math.pow(1 - gridAnimProgress, 3);
+      render();
+      if (gridAnimProgress < 1) {
+        gridAnimId = requestAnimationFrame(tick);
+      }
+    }
+    gridAnimId = requestAnimationFrame(tick);
+  }
+
   function render() {
     drawChart();
     drawGrid();
@@ -484,14 +527,15 @@
         const value = heatmap[i][j];
 
         if (value !== null) {
-          const color = getHeatmapColor(value, minVal, maxVal);
+          const animValue = minVal + (value - minVal) * gridAnimProgress;
+          const color = getHeatmapColor(animValue, minVal, maxVal);
           gridCtx.fillStyle = color.str;
           gridCtx.fillRect(x, y, CELL_W, CELL_H);
           gridCtx.fillStyle = color.lum < 128 ? '#fff' : '#333';
           gridCtx.font = 'bold 10px -apple-system, BlinkMacSystemFont, sans-serif';
           gridCtx.textAlign = 'center';
           gridCtx.textBaseline = 'middle';
-          gridCtx.fillText(value.toFixed(2), x + CELL_W / 2, y + CELL_H / 2);
+          gridCtx.fillText(animValue.toFixed(2), x + CELL_W / 2, y + CELL_H / 2);
         } else {
           gridCtx.fillStyle = '#f0f0f0';
           gridCtx.fillRect(x, y, CELL_W, CELL_H);

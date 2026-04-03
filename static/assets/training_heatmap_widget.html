@@ -117,14 +117,16 @@
   .heatmap-bottom-bar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 10px 15px 10px 70px;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 10px 15px;
     border-top: 1px solid #eee;
   }
 
   .heatmap-info {
     font-size: 13px;
     color: #666;
+    margin-right: auto;
   }
 
   .heatmap-info-value {
@@ -228,6 +230,7 @@
         <span class="heatmap-toggle-slider"></span>
       </span>
     </label>
+    <button class="heatmap-clear-btn" id="replayBtn">&#8635; Replay</button>
     <button class="heatmap-clear-btn" id="clearBtn">Clear Selection</button>
   </div>
 </div>
@@ -260,6 +263,8 @@
   let animFrameId = null;
   let currentAnimIndex = 0;
   let animatingCurveIdx = -1;
+  let curveAnimStartTime = 0;
+  const CURVE_ANIM_DURATION = 1800; // ms — matches heatmap intro
   let hasInteracted = false;
   let pulseAnimId = null;
   let pulsePhase = 0;
@@ -271,6 +276,7 @@
   const gridCanvas = document.getElementById('heatmapGrid');
   const selectedInfo = document.getElementById('selectedInfo');
   const clearBtn = document.getElementById('clearBtn');
+  const replayBtn = document.getElementById('replayBtn');
   const logScaleToggle = document.getElementById('logScaleToggle');
   const chartCtx = chartCanvas.getContext('2d');
   const gridCtx = gridCanvas.getContext('2d');
@@ -340,7 +346,7 @@
     // Start sequential animation
     if (selectedCells.length > 0) {
       animatingCurveIdx = 0;
-      currentAnimIndex = 0;
+      currentAnimIndex = 0; curveAnimStartTime = 0;
       pendingAnimations = selectedCells.length > 1 ? [1] : [];
     }
     
@@ -363,7 +369,7 @@
       }
       initSize();
       autoSelectBestWorst();
-      render();
+      startGridAnim();
     })
     .catch(err => console.error('Failed to load heatmap data:', err));
   
@@ -383,7 +389,7 @@
       
       initSize();
       autoSelectBestWorst();
-      render();
+      startGridAnim();
     });
   });
   
@@ -422,6 +428,29 @@
     render();
   });
   
+  // ======== INTRO ANIMATION (values rise from 0) ========
+  let gridAnimProgress = 1; // 0→1, starts at 1 (no anim) until first load
+  let gridAnimStart = 0;
+  const GRID_ANIM_DURATION = 1800; // ms
+  let gridAnimId = null;
+
+  function startGridAnim() {
+    gridAnimProgress = 0;
+    gridAnimStart = performance.now();
+    if (gridAnimId) cancelAnimationFrame(gridAnimId);
+    function tick(now) {
+      const elapsed = now - gridAnimStart;
+      gridAnimProgress = Math.min(elapsed / GRID_ANIM_DURATION, 1);
+      // ease-out cubic
+      gridAnimProgress = 1 - Math.pow(1 - gridAnimProgress, 3);
+      render();
+      if (gridAnimProgress < 1) {
+        gridAnimId = requestAnimationFrame(tick);
+      }
+    }
+    gridAnimId = requestAnimationFrame(tick);
+  }
+
   // ======== RENDERING ========
   function render() {
     drawChart();
@@ -481,7 +510,8 @@
       for (let j = 0; j < kps.length; j++) {
         const x = ox + j * cellW;
         const y = oy + displayRow * cellH;
-        const value = validation[i][j];
+        const rawValue = validation[i][j];
+        const value = rawValue * gridAnimProgress;
 
         gridCtx.fillStyle = getHeatmapColor(value, maxVal);
         gridCtx.fillRect(x, y, cellW, cellH);
@@ -887,30 +917,29 @@
     
     if (animatingCurveIdx >= 0 && animatingCurveIdx < curves.length) {
       const animCurve = curves[animatingCurveIdx];
+      // Time-based: compute currentAnimIndex from wall clock
+      if (curveAnimStartTime === 0) curveAnimStartTime = performance.now();
+      const elapsed = performance.now() - curveAnimStartTime;
+      const t = Math.min(elapsed / CURVE_ANIM_DURATION, 1);
+      // ease-out cubic for smooth deceleration
+      const eased = 1 - Math.pow(1 - t, 3);
+      currentAnimIndex = Math.floor(eased * animCurve.data.length);
+
       if (currentAnimIndex < animCurve.data.length) {
-        const speed = Math.max(1, Math.floor(animCurve.data.length / 100));
         animFrameId = requestAnimationFrame(() => {
-          currentAnimIndex += speed;
-          pulsePhase += 0.1;  // Update pulse for cell highlight
-          if (currentAnimIndex >= animCurve.data.length) {
-            // Check for pending animations
-            if (pendingAnimations.length > 0) {
-              animatingCurveIdx = pendingAnimations.shift();
-              currentAnimIndex = 0;
-            } else {
-              animatingCurveIdx = -1;
-            }
-          }
-          render();  // Redraw both chart and grid for pulsing effect
+          pulsePhase = performance.now() / 400;
+          render();
         });
       } else {
-        // Check for pending animations
+        // Curve finished — check for pending animations
         if (pendingAnimations.length > 0) {
           animatingCurveIdx = pendingAnimations.shift();
-          currentAnimIndex = 0;
+          curveAnimStartTime = performance.now();
+          currentAnimIndex = 0; curveAnimStartTime = 0;
           render();
         } else {
           animatingCurveIdx = -1;
+          curveAnimStartTime = 0;
         }
       }
     }
@@ -923,7 +952,7 @@
   function startPulse() {
     if (pulseAnimId) return;
     function tick() {
-      pulsePhase += 0.05;
+      pulsePhase = performance.now() / 400;
       drawGrid();
       // Keep pulsing if pre-interaction hint or user-selected cell exists
       if (!hasInteracted || selectedCells.length > 2) {
@@ -981,13 +1010,24 @@
       selectedCells.length = 2;
       selectedCells.push(cell);
       animatingCurveIdx = 2;
-      currentAnimIndex = 0;
+      currentAnimIndex = 0; curveAnimStartTime = 0;
     }
 
     render();
     if (selectedCells.length > 2) startPulse();
   });
   
+  replayBtn.addEventListener('click', () => {
+    // Restart both heatmap fill and curve animations
+    if (animFrameId) cancelAnimationFrame(animFrameId);
+    if (selectedCells.length > 0) {
+      animatingCurveIdx = 0;
+      currentAnimIndex = 0; curveAnimStartTime = 0;
+      pendingAnimations = selectedCells.length > 1 ? [1] : [];
+    }
+    startGridAnim();
+  });
+
   clearBtn.addEventListener('click', () => {
     selectedCells.length = 2; // keep best/worst
     if (animFrameId) cancelAnimationFrame(animFrameId);
@@ -1019,7 +1059,7 @@
     } else {
       selectedCells.push(cell);
       animatingCurveIdx = selectedCells.length - 1;
-      currentAnimIndex = 0;
+      currentAnimIndex = 0; curveAnimStartTime = 0;
     }
     
     render();

@@ -174,6 +174,23 @@
     background: #c44e52;
   }
 
+  .sysid-replay-btn {
+    font-size: 11px;
+    padding: 2px 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #fff;
+    color: #666;
+    cursor: pointer;
+    font-family: inherit;
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+  .sysid-replay-btn:hover {
+    border-color: #888;
+    color: #333;
+  }
+
 </style>
 </head>
 <body>
@@ -193,7 +210,7 @@
       <div class="sysid-grid-wrap">
         <canvas id="sysidGrid" class="sysid-grid-canvas"></canvas>
       </div>
-      <div class="sysid-sub-caption" style="margin-top: 24px;"><b>Sysid Error.</b> Darker blue = lower error. Click any cell to load its response curves.</div>
+      <div class="sysid-sub-caption" style="margin-top: 24px;"><b>Sysid Error.</b> Darker blue = lower error. Click any cell to load its response curves. <button class="sysid-replay-btn" id="sysidReplayBtn">&#8635; Replay</button></div>
     </div>
   </div>
 </div>
@@ -239,6 +256,10 @@
   const epochSlider = document.getElementById('epochSlider');
   const epochLabel  = document.getElementById('epochLabel');
   const playBtn     = document.getElementById('playBtn');
+  const sysidReplayBtn = document.getElementById('sysidReplayBtn');
+  if (sysidReplayBtn) {
+    sysidReplayBtn.addEventListener('click', () => { startGridAnim(); });
+  }
   const chartCtx = chartCanvas.getContext('2d');
   const gridCtx  = gridCanvas.getContext('2d');
 
@@ -267,7 +288,7 @@
       // Heatmap values are stored as np.log — keep in log scale for coloring
       allData = data;
       initSize();
-      drawGrid();
+      startGridAnim();
       // Auto-select best cell (or defaultCell from index)
       if (data.defaultCell) {
         const name = data.defaultCell;
@@ -425,6 +446,28 @@
   }
 
   // ======== RENDERING ========
+  // ======== INTRO ANIMATION (heatmap values rise from min) ========
+  let gridAnimProgress = 1;
+  let gridAnimStart = 0;
+  const GRID_ANIM_DURATION = 1800;
+  let gridAnimId = null;
+
+  function startGridAnim() {
+    gridAnimProgress = 0;
+    gridAnimStart = performance.now();
+    if (gridAnimId) cancelAnimationFrame(gridAnimId);
+    function tick(now) {
+      const elapsed = now - gridAnimStart;
+      gridAnimProgress = Math.min(elapsed / GRID_ANIM_DURATION, 1);
+      gridAnimProgress = 1 - Math.pow(1 - gridAnimProgress, 3);
+      render();
+      if (gridAnimProgress < 1) {
+        gridAnimId = requestAnimationFrame(tick);
+      }
+    }
+    gridAnimId = requestAnimationFrame(tick);
+  }
+
   function render() {
     drawChart();
     drawGrid();
@@ -468,14 +511,15 @@
         const value = heatmap[i][j];
 
         if (value !== null) {
-          const color = getHeatmapColor(value, minVal, maxVal);
+          const animValue = minVal + (value - minVal) * gridAnimProgress;
+          const color = getHeatmapColor(animValue, minVal, maxVal);
           gridCtx.fillStyle = color.str;
           gridCtx.fillRect(x, y, cellW, cellH);
           gridCtx.fillStyle = color.lum < 128 ? '#fff' : '#333';
           gridCtx.font = 'bold 10px -apple-system, BlinkMacSystemFont, sans-serif';
           gridCtx.textAlign = 'center';
           gridCtx.textBaseline = 'middle';
-          gridCtx.fillText(value.toFixed(2), x + cellW / 2, y + cellH / 2);
+          gridCtx.fillText(animValue.toFixed(2), x + cellW / 2, y + cellH / 2);
         } else {
           gridCtx.fillStyle = '#f0f0f0';
           gridCtx.fillRect(x, y, cellW, cellH);
