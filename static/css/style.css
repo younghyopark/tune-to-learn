@@ -243,9 +243,11 @@ pre code { background: none; padding: 0; border: none; }
 .affiliations span { margin: 0 0.6rem; }
 
 .equal-contrib {
-  font-size: 0.8rem;
-  opacity: 0.55;
+  font-size: 0.9rem;
+  color: var(--text-muted);
   margin-bottom: 1rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
 }
 
 /* Link buttons */
