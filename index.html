@@ -283,7 +283,58 @@ Position controllers have become the dominant interface for executing learned ma
 <!-- All content loaded by default (no gating) -->
 <div id="poll-dynamic-content"></div>
 
+<!-- ╔══════════════════════════════════════════════════════════════╗
+     ║  CONCLUSION                                                  ║
+     ╚══════════════════════════════════════════════════════════════╝ -->
+<section class="section" id="conclusion">
+  <div class="container container-medium">
+    <h2>Conclusion &amp; Remarks</h2>
+    <p>
+      We have presented a systematic study of how position controller gains shape learning dynamics across three paradigms of modern robot learning. Our findings reveal that gains function not as behavioral parameters, but as an <em>inductive bias</em> that modulates the learning interface between policy and environment. Behavior cloning favors compliant, overdamped regimes; reinforcement learning adapts to any gain setting given compatible hyperparameters; and sim-to-real transfer suffers with stiff, overdamped configurations. These results provide both conceptual clarity and practical guidance for a widely used yet underexplored design decision.
+    </p>
+    <h3>Broader Implications</h3>
+      <p>
 
+        <div class="replay-video-wrap" style="max-width:800px; margin:0.5rem auto; position:relative; display:inline-block; width:100%;">
+        <video
+          class="media-video replay-video"
+          src="static/assets/whole-body-RL-as-low-level-controller.mp4"
+          autoplay muted playsinline
+          style="width:80%; display:block; border:none; background:#fff;"
+        ></video>
+        <button class="replay-btn" title="Replay" style="display:none;">
+          <i class="fas fa-redo"></i>replay
+        </button>
+      </div>
+
+
+        <strong>Whole-Body Tracking Controllers for Humanoids.</strong> 
+
+        
+        Modern humanoid robots increasingly use RL-trained whole-body tracking policies 
+        as low-level controllers, analogous to the PD controllers studied here. 
+        Notably, recent work has shown that these motion tracking policies tend to be 
+        inherently stiff regardless of the underlying controller gains <a class="cite" href="https://arxiv.org/abs/2510.17792"><span class="cite-tooltip">Margolis et al. "SoftMimic: Learning Compliant Whole-body Control from Examples." arXiv 2025.</span></a>&mdash;yet when such policies serve as the low-level interface for higher-level loco-manipulation learning, their effective compliance directly shapes the learning dynamics of the policies above them, much as PD gains do in our setting.
+      </p>
+      <p>
+
+        <div class="replay-video-wrap" style="max-width:800px; margin:0.5rem auto; position:relative; display:inline-block; width:100%;">
+          <img
+            class="media-video replay-video"
+            src="static/assets/handheld.png"
+            style="width:80%; display:block; border:none; background:#fff;"
+          />
+        </div>
+
+        <strong>Learning from Wearables or Videos.</strong> Similarly, paradigms that learn manipulation skills from human videos
+        <a class="cite" href="https://arxiv.org/abs/2503.13441"><span class="cite-tooltip">Qiu et al. "Humanoid Policy ~ Human Policy." arXiv 2025.</span></a>
+        <a class="cite" href="https://arxiv.org/abs/2110.07058"><span class="cite-tooltip">Grauman et al. "Ego4D: Around the World in 3,000 Hours of Egocentric Video." CVPR 2022.</span></a>
+        or wearable devices
+        <a class="cite" href="https://arxiv.org/abs/2402.10329"><span class="cite-tooltip">Chi et al. "Universal Manipulation Interface: In-The-Wild Robot Teaching Without In-The-Wild Robots." arXiv 2024.</span></a>
+        typically treat observed next-timestep state as the action label, implicitly assuming perfect target tracking&mdash;which our results suggest may be suboptimal for imitation learning. Whether these gain-dependent trends generalize to such cross-embodiment or whole-body control settings remains an open question, and we hope our findings offer a useful lens for investigating these directions.
+      </p>
+  </div>
+</section>
 
 <section class="section alt-bg" id="citation">
   <div class="container container-medium">

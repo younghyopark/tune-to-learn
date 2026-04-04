@@ -590,6 +590,7 @@ function initPoll() {
       // Transition paragraph before learning-algorithm poll
       combined += '<section class="section" id="lp-transition">'
         + '<div class="container container-medium">'
+        + '<p class="section-kicker">Then what should we tune the gains for?</p>'
         + '<h2>Instead: Gains should be tuned for your learning algorithm.</h2>'
         + '<p>'
         + 'So far we\'ve seen how the robotics community tunes controller gains — and the hidden costs of common defaults. '

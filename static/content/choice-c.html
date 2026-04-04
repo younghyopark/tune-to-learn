@@ -5,6 +5,7 @@
 
 <section class="section alt-bg" id="results">
   <div class="container container-medium">
+    <p class="section-kicker">Some people tune gains for the best teleoperation experience, and thus...</p>
     <h2>Stiff controllers dominate teleop — but do they have to?</h2>
     <div class="container">
       <p>
@@ -35,9 +36,9 @@
       <div class="replay-video-wrap" style="max-width:800px; margin:0.5rem auto; position:relative; display:inline-block; width:100%;">
         <video
           class="media-video replay-video"
-          src="static/assets/input_mapping_schematic.mp4"
+          src="static/assets/input-mapper-diagram.mp4"
           autoplay muted playsinline
-          style="width:100%; display:block; border:none;"
+          style="width:80%; display:block; border:none;"
         ></video>
         <button class="replay-btn" title="Replay" style="display:none;">
           <i class="fas fa-redo"></i>replay
@@ -62,6 +63,22 @@
       </p>
       <p>
         where $\alpha \in \mathbb{R}_0^+$ is a scaling factor and $\beta \in \{0, 1\}$ selects between the current robot pose or the previous target as the integration base.
+      </p>
+      <p>
+        
+      <div class="replay-video-wrap" style="max-width:800px; margin:0.5rem auto; position:relative; display:inline-block; width:100%;">
+        <video
+          class="media-video replay-video"
+          src="static/assets/teleop-video.mp4"
+          autoplay muted playsinline
+          style="width:50%; display:block; border:none;"
+        ></video>
+        <button class="replay-btn" title="Replay" style="display:none;">
+          <i class="fas fa-redo"></i>replay
+        </button>
+      </div>
+
+
         After calibration, participants performed a non-prehensile box pushing task with gain configurations randomly sampled and blindly presented.
         We recorded task completion time, success/failure, and subjective 1–5 control quality ratings across 500 trials.
         This is the result. 
