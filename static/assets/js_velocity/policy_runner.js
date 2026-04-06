@@ -111,7 +111,9 @@ export class PolicyRunner {
     this.sensorAddrs = {};
     this.command = new Float32Array(3); // [vx, vy, omega_z]
     this.lastAction = new Float32Array(config.num_joints);
+    this._obsBuffer = null; // pre-allocated in init()
     this.obsDim = config.observation_dims.reduce((a, b) => a + b, 0);
+    this._obsBuffer = new Float32Array(this.obsDim);
 
     this._animFrameId = null;
     this._running = false;
@@ -121,16 +123,43 @@ export class PolicyRunner {
     this.onStep = null; // Optional callback(data, actionData).
   }
 
-  /** Load the ONNX model and resolve sensor addresses. */
+  /** Load the policy model and resolve sensor addresses.
+   *  Tries to load lightweight JSON weights first (pure JS inference),
+   *  falls back to ONNX runtime if JSON not available.
+   */
   async init(onnxPath) {
-    const ort = await import("onnxruntime-web");
+    this._useJsInference = false;
 
-    this.session = await ort.InferenceSession.create(onnxPath, {
-      executionProviders: ["wasm"],
-    });
+    // Try loading JSON weights for pure JS inference (no ONNX WASM needed)
+    const jsonPath = onnxPath.replace(/\.onnx$/, '_weights.json');
+    try {
+      const resp = await fetch(jsonPath);
+      if (resp.ok) {
+        const raw = await resp.json();
+        this._jsWeights = {};
+        for (const [name, val] of Object.entries(raw)) {
+          const bytes = Uint8Array.from(atob(val.data_b64), c => c.charCodeAt(0));
+          this._jsWeights[name] = {
+            shape: val.shape,
+            data: new Float32Array(bytes.buffer),
+          };
+        }
+        this._useJsInference = true;
+        console.log('PolicyRunner: using JS inference (no ONNX runtime)');
+      }
+    } catch (_) {}
+
+    // Fall back to ONNX runtime
+    if (!this._useJsInference) {
+      const ort = await import("onnxruntime-web");
+      this.session = await ort.InferenceSession.create(onnxPath, {
+        executionProviders: ["wasm"],
+      });
+      this._ort = ort;
+      console.log('PolicyRunner: using ONNX runtime');
+    }
 
     this._resolveSensorAddresses();
-    this._ort = ort;
   }
 
   /** Create velocity arrow visualizations in the Three.js scene. */
@@ -170,19 +199,15 @@ export class PolicyRunner {
       if (busy) return;
       busy = true;
 
-      // One policy step per frame (runs at display refresh rate).
       const obs = this.buildObservation();
       const action = await this._runInference(obs);
       this._applyAction(action, data);
       if (this.onStep) this.onStep(data, action);
 
-      // Apply drag forces (clears + reapplies qfrc_applied each step).
       this.viewer.updateDragForces();
 
       for (let i = 0; i < this.config.decimation; i++) {
         mujoco.mj_step(model, data);
-        if (typeof window._dbgStepCount === 'undefined') window._dbgStepCount = 0;
-        if (++window._dbgStepCount % 10 === 0) console.log('velocity_widget | mujoco physics stepping', window._dbgStepCount);
       }
 
       this._updateArrows();
@@ -227,7 +252,8 @@ export class PolicyRunner {
   buildObservation() {
     const data = this.viewer.getData();
     const cfg = this.config;
-    const obs = new Float32Array(this.obsDim);
+    const obs = this._obsBuffer;
+    obs.fill(0);
     let offset = 0;
 
     for (const term of cfg.observation_order) {
@@ -317,14 +343,98 @@ export class PolicyRunner {
   // ── Private methods ──────────────────────────────────
 
   async _runInference(observation) {
-    const inputTensor = new this._ort.Tensor(
-      "float32",
-      observation,
-      [1, this.obsDim],
-    );
-    const feeds = { [this.config.onnx_input_name]: inputTensor };
+    if (!this._outputBuffer) {
+      this._outputBuffer = new Float32Array(this.config.num_joints);
+    }
+
+    if (this._useJsInference) {
+      return this._runJsInference(observation);
+    }
+
+    // ONNX runtime path
+    if (!this._inputTensor) {
+      this._inputTensor = new this._ort.Tensor(
+        "float32",
+        new Float32Array(this.obsDim),
+        [1, this.obsDim],
+      );
+    }
+    this._inputTensor.data.set(observation);
+    const feeds = { [this.config.onnx_input_name]: this._inputTensor };
     const results = await this.session.run(feeds);
-    return results[this.config.onnx_output_name].data;
+    const outputTensor = results[this.config.onnx_output_name];
+    this._outputBuffer.set(outputTensor.data);
+    for (const key in results) {
+      try { results[key].dispose(); } catch(_) {}
+    }
+    return this._outputBuffer;
+  }
+
+  /** Pure JS forward pass — no WASM, no allocations per step. */
+  _runJsInference(observation) {
+    const w = this._jsWeights;
+    const mean = w['obs_normalizer._mean'].data;
+    const std = w['onnx::Div_24'].data;
+
+    // Normalize: (obs - mean) / std
+    if (!this._jsBuffers) {
+      this._jsBuffers = {
+        l0: new Float32Array(512),
+        l1: new Float32Array(256),
+        l2: new Float32Array(128),
+      };
+    }
+    const buf = this._jsBuffers;
+
+    // Layer 0: Linear(99 → 512) + ELU
+    const w0 = w['mlp.0.weight'].data;  // [512, 99] row-major
+    const b0 = w['mlp.0.bias'].data;    // [512]
+    for (let i = 0; i < 512; i++) {
+      let sum = b0[i];
+      const row = i * 99;
+      for (let j = 0; j < 99; j++) {
+        sum += w0[row + j] * ((observation[j] - mean[j]) / std[j]);
+      }
+      buf.l0[i] = sum > 0 ? sum : Math.expm1(sum); // ELU
+    }
+
+    // Layer 1: Linear(512 → 256) + ELU
+    const w1 = w['mlp.2.weight'].data;  // [256, 512]
+    const b1 = w['mlp.2.bias'].data;    // [256]
+    for (let i = 0; i < 256; i++) {
+      let sum = b1[i];
+      const row = i * 512;
+      for (let j = 0; j < 512; j++) {
+        sum += w1[row + j] * buf.l0[j];
+      }
+      buf.l1[i] = sum > 0 ? sum : Math.expm1(sum);
+    }
+
+    // Layer 2: Linear(256 → 128) + ELU
+    const w2 = w['mlp.4.weight'].data;  // [128, 256]
+    const b2 = w['mlp.4.bias'].data;    // [128]
+    for (let i = 0; i < 128; i++) {
+      let sum = b2[i];
+      const row = i * 256;
+      for (let j = 0; j < 256; j++) {
+        sum += w2[row + j] * buf.l1[j];
+      }
+      buf.l2[i] = sum > 0 ? sum : Math.expm1(sum);
+    }
+
+    // Layer 3: Linear(128 → 29) (no activation)
+    const w3 = w['mlp.6.weight'].data;  // [29, 128]
+    const b3 = w['mlp.6.bias'].data;    // [29]
+    for (let i = 0; i < 29; i++) {
+      let sum = b3[i];
+      const row = i * 128;
+      for (let j = 0; j < 128; j++) {
+        sum += w3[row + j] * buf.l2[j];
+      }
+      this._outputBuffer[i] = sum;
+    }
+
+    return this._outputBuffer;
   }
 
   _applyAction(actionData, data) {

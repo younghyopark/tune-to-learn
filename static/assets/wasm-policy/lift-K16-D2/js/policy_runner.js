@@ -168,17 +168,51 @@ export class PolicyRunner {
     return buffers;
   }
 
-  /** Load the ONNX model and resolve sensor addresses. */
+  /** Load the policy model and resolve sensor addresses.
+   *  Tries JSON weights for pure JS inference first, falls back to ONNX.
+   */
   async init(onnxPath) {
-    const ort = await import("onnxruntime-web");
+    this._useJsInference = false;
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-    this.session = await ort.InferenceSession.create(onnxPath, {
-      executionProviders: ["wasm"],
-    });
+    // Try loading JSON weights for pure JS inference (no ONNX WASM needed)
+    const jsonPath = onnxPath.replace(/\.onnx$/, '_weights.json');
+    try {
+      const resp = await fetch(jsonPath);
+      if (resp.ok) {
+        const raw = await resp.json();
+        this._jsWeights = {};
+        for (const [name, val] of Object.entries(raw)) {
+          if (name === '_meta') { this._jsMeta = val; continue; }
+          const bytes = Uint8Array.from(atob(val.data_b64), c => c.charCodeAt(0));
+          this._jsWeights[name] = {
+            shape: val.shape,
+            data: new Float32Array(bytes.buffer),
+          };
+        }
+        this._useJsInference = true;
+        console.log('PolicyRunner: using JS inference');
+      } else {
+        console.warn('PolicyRunner: JSON weights not found (' + resp.status + '), path: ' + jsonPath);
+      }
+    } catch (e) {
+      console.warn('PolicyRunner: JSON weights fetch failed:', e.message);
+    }
+
+    if (!this._useJsInference) {
+      if (isMobile) {
+        throw new Error('JS weights not available and ONNX disabled on mobile to prevent OOM');
+      }
+      const ort = await import("onnxruntime-web");
+      this.session = await ort.InferenceSession.create(onnxPath, {
+        executionProviders: ["wasm"],
+      });
+      this._ort = ort;
+      console.log('PolicyRunner: using ONNX runtime');
+    }
 
     this._resolveSensorAddresses();
     this._initManipulationCommands();
-    this._ort = ort;
   }
 
   /** Create velocity arrow visualizations in the Three.js scene. */
@@ -672,6 +706,9 @@ export class PolicyRunner {
   }
 
   async _runInference(observation) {
+    if (this._useJsInference) {
+      return this._runJsInference(observation);
+    }
     const inputTensor = new this._ort.Tensor(
       "float32",
       observation,
@@ -679,7 +716,53 @@ export class PolicyRunner {
     );
     const feeds = { [this.config.onnx_input_name]: inputTensor };
     const results = await this.session.run(feeds);
-    return results[this.config.onnx_output_name].data;
+    const data = results[this.config.onnx_output_name].data;
+    for (const key in results) {
+      try { results[key].dispose(); } catch(_) {}
+    }
+    return data;
+  }
+
+  /** Pure JS forward pass: normalize → [Linear + ELU] × 3 → Linear */
+  _runJsInference(observation) {
+    const w = this._jsWeights;
+    const mean = w['obs_normalizer._mean'].data;
+    const std = w['onnx::Div_24'].data;
+    const layers = this._jsMeta.layers; // [[512,43], [256,512], [128,256], [8,128]]
+    const weightNames = ['mlp.0', 'mlp.2', 'mlp.4', 'mlp.6'];
+
+    // Lazy-init reusable buffers
+    if (!this._jsBuffers) {
+      this._jsBuffers = layers.map(l => new Float32Array(l[0]));
+    }
+
+    // Normalize input
+    const inDim = this._jsMeta.input_dim;
+    if (!this._jsNormBuf) this._jsNormBuf = new Float32Array(inDim);
+    for (let j = 0; j < inDim; j++) {
+      this._jsNormBuf[j] = (observation[j] - mean[j]) / std[j];
+    }
+
+    let input = this._jsNormBuf;
+    for (let li = 0; li < layers.length; li++) {
+      const [outDim, inD] = layers[li];
+      const wt = w[weightNames[li] + '.weight'].data;
+      const bi = w[weightNames[li] + '.bias'].data;
+      const out = this._jsBuffers[li];
+
+      for (let i = 0; i < outDim; i++) {
+        let sum = bi[i];
+        const row = i * inD;
+        for (let j = 0; j < inD; j++) {
+          sum += wt[row + j] * input[j];
+        }
+        // ELU activation on all layers except the last
+        out[i] = (li < layers.length - 1) ? (sum > 0 ? sum : Math.expm1(sum)) : sum;
+      }
+      input = out;
+    }
+
+    return this._jsBuffers[layers.length - 1];
   }
 
   _applyAction(actionData, data) {

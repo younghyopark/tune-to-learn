@@ -1263,8 +1263,7 @@ function animate(time) {
     mujoco.mj_step1(mjModel, mjData);
     applyPDControl();
     mujoco.mj_step2(mjModel, mjData);
-    if (typeof _dbgStepCount === 'undefined') window._dbgStepCount = 0;
-    if (++window._dbgStepCount % 10 === 0) console.log('fr3_widget | mujoco physics stepping', window._dbgStepCount);
+    // debug logging removed
   }
 
   // Record & plot joint state (throttled to ~20 Hz)

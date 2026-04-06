@@ -1,0 +1,1450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+<!-- Google Analytics (production only) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-0FCZG3T4ZJ"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  if (location.hostname === 'younghyopark.me') {
+    gtag('config', 'G-0FCZG3T4ZJ');
+  }
+</script>
+
+<title>BC Findings — Tune to Learn</title>
+<link rel="canonical" href="https://younghyopark.me/tune-to-learn/" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-font-smoothing: antialiased; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 1rem;
+    line-height: 1.6;
+    color: #1a1a1a;
+    background: #fff;
+    overflow-x: hidden;
+  }
+
+  /* ── Sticky top group ── */
+  .sticky-top {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  /* ── Desktop Banner ── */
+  .desktop-banner {
+    background: #4f46e5;
+    border-bottom: none;
+    padding: 0.6rem 2.2rem 0.6rem 1rem;
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: rgba(255,255,255,0.9);
+    line-height: 1.45;
+    position: relative;
+  }
+  .desktop-banner svg {
+    display: inline-block;
+    vertical-align: -2px;
+    margin-right: 0.3rem;
+    opacity: 0.8;
+  }
+  .desktop-banner a {
+    color: #fff;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .desktop-banner .dismiss-btn {
+    position: absolute;
+    top: 0.4rem;
+    right: 0.6rem;
+    background: none;
+    border: none;
+    font-size: 1rem;
+    color: rgba(255,255,255,0.7);
+    cursor: pointer;
+    padding: 0.2rem;
+    line-height: 1;
+  }
+  .desktop-banner.hidden { display: none; }
+
+  /* ── Top bar ── */
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.75rem;
+    border-bottom: 1px solid #ddd;
+    background: #f7f8fa;
+  }
+  .back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: #4f46e5;
+    text-decoration: none;
+    padding: 0.25rem 0.45rem;
+    border-radius: 4px;
+    background: rgba(99, 102, 241, 0.06);
+    white-space: nowrap;
+  }
+  .topbar-title {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #333;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* ── Compact header ── */
+  .page-header {
+    padding: 0.6rem 1rem 0.5rem;
+    border-bottom: 1px solid #f0f0f0;
+    max-width: 400px;
+    margin: 0 auto;
+  }
+  .page-header h1 {
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0;
+    line-height: 1.35;
+  }
+  .page-header h1 .tag {
+    display: inline-block;
+    font-size: 0.6rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.1em 0.45em;
+    border-radius: 3px;
+    background: #ede9fe;
+    color: #5b21b6;
+    vertical-align: middle;
+    margin-right: 0.35rem;
+    position: relative;
+    top: -1px;
+  }
+  .page-header .subtitle {
+    font-size: 0.78rem;
+    color: #777;
+    margin-top: 0.15rem;
+    line-height: 1.4;
+  }
+
+  /* ── Inline takeaways ── */
+  .takeaways {
+    display: flex;
+    gap: 0.35rem;
+    padding: 0.4rem 0.75rem 0.35rem;
+    border-bottom: 1px solid #f0f0f0;
+    max-width: 400px;
+    margin: 0 auto;
+  }
+  .takeaway {
+    flex: 1;
+    font-size: 0.7rem;
+    color: #444;
+    padding: 0.3rem 0.45rem;
+    border-left: 2px solid #c4b5fd;
+    background: #faf8ff;
+    border-radius: 0 3px 3px 0;
+    line-height: 1.4;
+  }
+  .takeaway strong { color: #333; font-size: 0.7rem; }
+
+  /* ── Prose sections ── */
+  .prose {
+    padding: 0.75rem 1rem;
+    max-width: 400px;
+    margin: 0 auto;
+    font-size: 0.85rem;
+    color: #444;
+    line-height: 1.6;
+  }
+  .prose p { margin-bottom: 0.6rem; }
+  .prose p:last-child { margin-bottom: 0; }
+  .prose strong { color: #1a1a1a; }
+
+  /* ── Widget container ── */
+  .widget-section {
+    padding: 0 0 0.5rem;
+    max-width: 400px;
+    margin: 0 auto 0;
+    border: 1px solid #e8e8e8;
+    border-radius: 6px;
+    margin-left: 1rem;
+    margin-right: 1rem;
+    overflow: hidden;
+  }
+  @media (min-width: 432px) {
+    .widget-section {
+      margin-left: auto;
+      margin-right: auto;
+    }
+  }
+
+  /* ── Tab bar ── */
+  .tab-bar {
+    display: flex;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-bottom: 1px solid #e0e0e0;
+    background: #fafafa;
+    scrollbar-width: none;
+  }
+  .tab-bar::-webkit-scrollbar { display: none; }
+  .tab-btn, .traj-tab {
+    padding: 0.55rem 0.85rem;
+    border: none;
+    background: transparent;
+    font-size: 0.75rem;
+    font-family: inherit;
+    font-weight: 500;
+    color: #888;
+    cursor: pointer;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+  }
+  .tab-btn.active, .traj-tab.active {
+    color: #333;
+    font-weight: 600;
+    border-bottom-color: #c44e52;
+    background: #fff;
+  }
+
+  /* ── Heatmap grid ── */
+  .grid-section {
+    padding: 0.4rem 0.75rem 0.15rem;
+    text-align: center;
+  }
+  .grid-canvas {
+    display: inline-block;
+    cursor: pointer;
+  }
+  .grid-caption {
+    font-size: 0.7rem;
+    color: #888;
+    text-align: center;
+    padding: 0.2rem 1rem 0;
+    line-height: 1.4;
+    max-width: 340px;
+  }
+  .grid-caption b { color: #555; }
+
+  /* ── Chart ── */
+  .chart-section {
+    padding: 0 0.75rem;
+  }
+  .chart-canvas {
+    display: block;
+    width: 100%;
+  }
+  .chart-caption {
+    font-size: 0.7rem;
+    color: #888;
+    text-align: center;
+    padding: 0.15rem 1rem 0;
+    line-height: 1.4;
+  }
+  .chart-caption b { color: #555; }
+
+  /* ── Bottom controls ── */
+  .controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.4rem 1rem;
+    border-top: 1px solid #f0f0f0;
+  }
+  .ctrl-btn {
+    font-size: 0.72rem;
+    padding: 0.3rem 0.65rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #fff;
+    color: #555;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 500;
+  }
+  .ctrl-btn:active { background: #f5f5f5; }
+
+  .toggle-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.72rem;
+    color: #666;
+  }
+  .toggle-switch {
+    position: relative;
+    width: 32px;
+    height: 18px;
+  }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: #ccc;
+    transition: 0.2s;
+    border-radius: 18px;
+  }
+  .toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 12px;
+    width: 12px;
+    left: 3px;
+    bottom: 3px;
+    background: #fff;
+    transition: 0.2s;
+    border-radius: 50%;
+  }
+  .toggle-switch input:checked + .toggle-slider { background: #4c72b0; }
+  .toggle-switch input:checked + .toggle-slider:before { transform: translateX(14px); }
+
+  /* ── Trajectory controls row ── */
+  .traj-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.75rem;
+    background: #f8f9fb;
+    border-bottom: 1px solid #eee;
+  }
+  .traj-gain-canvas {
+    display: block;
+    cursor: crosshair;
+    flex-shrink: 0;
+  }
+  .traj-resp-wrap {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+  }
+  .traj-resp-title {
+    font-size: 0.6rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #999;
+  }
+  .traj-resp-canvas {
+    width: 100%;
+    height: 70px;
+    display: block;
+    border-radius: 3px;
+    background: #fff;
+    border: 1px solid #eee;
+  }
+  .traj-joint-btns {
+    display: flex;
+    gap: 2px;
+    flex-wrap: wrap;
+  }
+  .traj-joint-btn {
+    font-size: 0.5rem;
+    padding: 1px 3px;
+    border: 1px solid #ddd;
+    border-radius: 2px;
+    background: #fff;
+    color: #888;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .traj-joint-btn.active {
+    color: #fff;
+  }
+  .traj-noise-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.75rem;
+    background: #f8f9fb;
+    border-bottom: 1px solid #eee;
+    font-size: 0.65rem;
+    color: #666;
+  }
+  .traj-noise-row input[type="range"] {
+    flex: 1;
+    height: 3px;
+  }
+  .traj-gain-vals {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.55rem;
+    color: #888;
+    width: 100px;
+  }
+  .traj-gain-vals b { color: #444; font-weight: 600; }
+
+  /* ── Footer link ── */
+  .bottom-cta {
+    text-align: center;
+    padding: 1.5rem 1rem 2rem;
+    border-top: 1px solid #f0f0f0;
+    max-width: 400px;
+    margin: 0 auto;
+  }
+  .bottom-cta a {
+    font-size: 0.82rem;
+    color: #4f46e5;
+    font-weight: 500;
+    text-decoration-color: rgba(79,70,229,0.3);
+  }
+  .bottom-cta p {
+    font-size: 0.72rem;
+    color: #bbb;
+    margin-top: 0.3rem;
+  }
+</style>
+</head>
+<body>
+
+<!-- Sticky top: banner + back bar -->
+<div class="sticky-top">
+  <div class="desktop-banner" id="desktop-banner">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+    <strong>Best viewed on desktop</strong> — the full site includes interactive 3D simulations and live policy demos for a better understanding of our findings.
+    <a href="index.html?full=1">Open full site</a>
+    <button class="dismiss-btn" onclick="this.parentElement.classList.add('hidden');sessionStorage.setItem('banner-dismissed','1');" aria-label="Dismiss">&times;</button>
+  </div>
+  <div class="topbar">
+    <a href="mobile.html" class="back-btn">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Back
+    </a>
+    <span class="topbar-title">Behavior Cloning Findings</span>
+  </div>
+</div>
+<script>
+  if (sessionStorage.getItem('banner-dismissed')) {
+    document.getElementById('desktop-banner').classList.add('hidden');
+  }
+</script>
+
+<!-- Compact header -->
+<div class="page-header">
+  <h1><span class="tag">BC</span> BC prefers Compliant, Damped Controllers</h1>
+  <p class="subtitle">Explore how controller gains shape demonstrations and training outcomes.</p>
+</div>
+
+<!-- Takeaways (always visible, compact) -->
+<div class="takeaways">
+  <div class="takeaway"><strong>Compliant wins.</strong> Low Kp + high Kd = best success rates.</div>
+  <div class="takeaway"><strong>Low loss &#x2260; good policy.</strong> Stiff gains fit easier but fail at the task.</div>
+</div>
+
+<!-- Intro prose -->
+<div class="prose">
+  <p>
+    When using position targets as the action representation, the controller gains
+    implicitly shape the learning problem by altering the action distribution.
+    <strong>Compliant gains</strong> produce larger, more expressive position targets, while
+    <strong>stiff gains</strong> yield small, nearly linear targets that are easy to regress but
+    carry less information about the intended behavior.
+  </p>
+  <p>
+    The heatmap below shows task success rates across different gain configurations.
+    Each cell represents a (Kp, Kd) pair — darker means higher success. Tap any cell
+    to compare its training loss curve.
+  </p>
+</div>
+
+<!-- Trajectory viewer -->
+<div class="prose">
+  <p>
+    <strong>Gain-Dependent Demonstrations.</strong> The viewer below replays the same
+    robot trajectory under different gain settings. Notice how the <strong>state
+    trajectories</strong> (robot motion) remain nearly identical while the
+    <strong>position targets</strong> (actions) change dramatically with gains.
+  </p>
+</div>
+<div class="widget-section" style="margin-bottom: 0.5rem;">
+  <div class="tab-bar" id="trajTabBar">
+    <button class="traj-tab active" data-scene="xmls/scene_handover.xml" data-traj="datasets/handover/ep0-19.json">Handover</button>
+    <button class="traj-tab" data-scene="xmls/franka_emika_panda/scene_dishrack.xml" data-traj="datasets/dishrack/ep0-19.json">Dish Rack</button>
+    <button class="traj-tab" data-scene="xmls/franka_emika_panda/scene_dishrack_unload.xml" data-traj="datasets/dishrack-unload/ep0-19.json">Unloading</button>
+    <button class="traj-tab" data-scene="xmls/franka_emika_panda/scene_dishwasher_open.xml" data-traj="datasets/dishwasher/ep0-19.json">Dishwasher</button>
+    <button class="traj-tab" data-scene="xmls/franka_emika_panda/scene_mughang.xml" data-traj="datasets/mug-hang/ep0-19.json">Mug Hang</button>
+  </div>
+  <div class="traj-controls">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:1px;">
+      <canvas id="trajGainGrid" class="traj-gain-canvas" width="120" height="110" style="width:120px;height:110px;"></canvas>
+      <div class="traj-gain-vals" style="width:120px;">
+        <span>Kp <b id="trajKpVal">200</b></span>
+        <span>Kd <b id="trajKdVal">10</b></span>
+      </div>
+    </div>
+    <div class="traj-resp-wrap">
+      <span class="traj-resp-title">Joint Response</span>
+      <canvas id="trajRespCanvas" class="traj-resp-canvas"></canvas>
+      <div class="traj-joint-btns" id="trajJointBtns"></div>
+    </div>
+  </div>
+  <div class="traj-noise-row">
+    <span style="font-weight:600;">Noise</span>
+    <input type="range" id="trajNoiseSlider" min="0" max="0.1" step="0.005" value="0">
+    <span id="trajNoiseVal" style="min-width:28px;text-align:right;">0.00</span>
+  </div>
+  <div id="trajViewerWrap" style="position:relative;width:100%;height:280px;background:#f0f2f5;">
+    <div id="trajPlaceholder" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:0.75rem;">
+      Loading...
+    </div>
+  </div>
+  <p style="font-size:0.68rem;color:#888;text-align:center;padding:0.3rem 0.75rem;border-top:1px solid #f0f0f0;background:#fafafa;">
+    <b>Live Trajectory.</b> Use the playback controls to scrub through episodes. Switch tasks with the tabs.
+  </p>
+</div>
+
+<!-- Heatmap widget -->
+<div class="prose" style="border-top: 1px solid #f0f0f0; padding-top: 1rem;">
+  <p>
+    <strong>Training Results.</strong> The heatmap below shows task success rates across different gain configurations.
+    Each cell represents a (Kp, Kd) pair — darker means higher success. Tap any cell
+    to compare its training loss curve.
+  </p>
+</div>
+<div class="widget-section">
+  <!-- Task tabs -->
+  <div class="tab-bar" id="tabBar">
+    <button class="tab-btn active" data-task="Bimanual Handover">Handover</button>
+    <button class="tab-btn" data-task="Dish Rack Loading">Dish Rack</button>
+    <button class="tab-btn" data-task="Dish Rack Unloading">Unloading</button>
+    <button class="tab-btn" data-task="Dishwasher Opening">Dishwasher</button>
+    <button class="tab-btn" data-task="Mug Hanging">Mug Hang</button>
+  </div>
+
+  <!-- Heatmap grid (centered) -->
+  <div class="grid-section">
+    <canvas id="gridCanvas" class="grid-canvas"></canvas>
+    <p class="grid-caption"><b>Task Success Rate.</b> Darker = higher success. Tap any cell to load its training curve below.</p>
+  </div>
+
+  <!-- Training loss chart (full width) -->
+  <div class="chart-section">
+    <canvas id="chartCanvas" class="chart-canvas"></canvas>
+    <p class="chart-caption"><b>Training Loss.</b> Compare convergence across gain configurations.</p>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <label class="toggle-wrap">
+      Log
+      <span class="toggle-switch">
+        <input type="checkbox" id="logToggle" checked>
+        <span class="toggle-slider"></span>
+      </span>
+    </label>
+    <button class="ctrl-btn" id="replayBtn">&#8635; Replay</button>
+    <button class="ctrl-btn" id="clearBtn">Clear</button>
+  </div>
+</div>
+
+<!-- Post-widget explanation -->
+<div class="prose" style="border-top: 1px solid #f0f0f0; padding-top: 1rem;">
+  <p>
+    Notice the paradox: the <strong>best-performing</strong> gain regions (upper-left, compliant)
+    have <strong>higher</strong> training loss than stiff regions (lower-right). This is because
+    stiff controllers produce smooth, near-linear action distributions that are trivial
+    for a neural network to fit — but the resulting policies lack the expressiveness
+    needed for successful task execution.
+  </p>
+  <p>
+    This pattern holds across all five tasks, suggesting that gain selection for
+    behavior cloning should prioritize <strong>learnability</strong> — not low training error
+    or task-specific stiffness.
+  </p>
+</div>
+
+<!-- Bottom CTA -->
+<div class="bottom-cta">
+  <a href="index.html?full=1">View on desktop for interactive gain sliders &amp; live 3D policy rollouts</a>
+  <p>Includes drag-to-perturb, noise injection, and gain grid exploration</p>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  // ══════ CONFIG ══════
+  var DATA_URL = 'static/assets/training_heatmap_data.json';
+  var CHART_PAD = { top: 16, right: 28, bottom: 42, left: 52 }; // updated dynamically in initSize
+
+  // Adaptive cell sizing based on screen width
+  var screenW = Math.min(window.innerWidth, 480);
+  var CELL_W = Math.max(Math.floor((screenW - 90) / 8), 22);
+  var CELL_H = Math.max(Math.floor(CELL_W * 0.8), 20);
+  var GRID_OX = 6;
+  var GRID_OY = 24;
+
+  var CURVE_COLORS = [
+    [140, 42, 42],
+    [76, 114, 176],
+    [85, 168, 104],
+    [196, 78, 82],
+    [129, 114, 178],
+  ];
+
+  var REDS_CMAP = [
+    [0.000, 255, 245, 240],
+    [0.125, 254, 224, 210],
+    [0.250, 252, 187, 161],
+    [0.375, 252, 146, 114],
+    [0.500, 251, 106,  74],
+    [0.625, 239,  59,  44],
+    [0.750, 203,  24,  29],
+    [0.875, 165,  15,  21],
+    [1.000, 103,   0,  13],
+  ];
+
+  // ══════ STATE ══════
+  var allData = null, heatmapData = null, currentTask = null;
+  var selectedCells = [];
+  var animFrameId = null, currentAnimIndex = 0, animatingCurveIdx = -1;
+  var curveAnimStartTime = 0, pendingAnimations = [];
+  var useLogScale = true;
+  var gridAnimProgress = 1, gridAnimStart = 0, gridAnimId = null;
+  var ANIM_DURATION = 1400;
+  var pulsePhase = 0;
+
+  // ══════ ELEMENTS ══════
+  var gridCanvas = document.getElementById('gridCanvas');
+  var chartCanvas = document.getElementById('chartCanvas');
+  var gridCtx = gridCanvas.getContext('2d');
+  var chartCtx = chartCanvas.getContext('2d');
+  var tabBtns = document.querySelectorAll('.tab-btn');
+  var logToggle = document.getElementById('logToggle');
+  var replayBtn = document.getElementById('replayBtn');
+  var clearBtn = document.getElementById('clearBtn');
+
+  // ══════ COLORMAP ══════
+  function getColor(value, maxVal) {
+    var t = maxVal > 0 ? Math.min(value / maxVal, 1) : 0;
+    var i = 0;
+    while (i < REDS_CMAP.length - 2 && REDS_CMAP[i + 1][0] < t) i++;
+    var t0 = REDS_CMAP[i][0], r0 = REDS_CMAP[i][1], g0 = REDS_CMAP[i][2], b0 = REDS_CMAP[i][3];
+    var t1 = REDS_CMAP[i+1][0], r1 = REDS_CMAP[i+1][1], g1 = REDS_CMAP[i+1][2], b1 = REDS_CMAP[i+1][3];
+    var f = t1 > t0 ? (t - t0) / (t1 - t0) : 0;
+    return 'rgb(' + Math.round(r0+(r1-r0)*f) + ',' + Math.round(g0+(g1-g0)*f) + ',' + Math.round(b0+(b1-b0)*f) + ')';
+  }
+
+  // ══════ SIZING ══════
+  var gridOffsetX = 0; // computed horizontal centering offset for grid drawing
+
+  function initSize() {
+    if (!heatmapData) return;
+    var kps = heatmapData.kps, kds = heatmapData.kds;
+    var dpr = window.devicePixelRatio || 1;
+
+    // Both canvases share the same container width
+    var containerW = gridCanvas.parentElement.clientWidth;
+
+    // Grid canvas — full width, grid centered inside
+    var labelSpace = 44;
+    var gridBottomMargin = 18;
+    var gridContentW = GRID_OX + kps.length * CELL_W + labelSpace;
+    var gridContentH = GRID_OY + kds.length * CELL_H + gridBottomMargin;
+    gridOffsetX = Math.max(0, Math.floor((containerW - gridContentW) / 2));
+    gridCanvas.width = containerW * dpr;
+    gridCanvas.height = gridContentH * dpr;
+    gridCanvas.style.width = containerW + 'px';
+    gridCanvas.style.height = gridContentH + 'px';
+    gridCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // Chart canvas — same width, padded to align with grid
+    var chartWrap = chartCanvas.parentElement;
+    var cw = chartWrap.clientWidth;
+    var ch = Math.min(180, Math.round(cw * 0.45));
+    chartCanvas.width = cw * dpr;
+    chartCanvas.height = ch * dpr;
+    chartCanvas.style.width = cw + 'px';
+    chartCanvas.style.height = ch + 'px';
+    chartCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // Align chart plot area with grid: left edge = gridOffsetX + GRID_OX, right edge matches grid right
+    var gridRight = gridOffsetX + GRID_OX + kps.length * CELL_W;
+    CHART_PAD.left = gridOffsetX + GRID_OX + 42; // 42px for y-axis labels
+    CHART_PAD.right = Math.max(12, cw - gridRight);
+  }
+
+  // ══════ AUTO-SELECT BEST/WORST ══════
+  function autoSelect() {
+    if (!heatmapData) return;
+    var kps = heatmapData.kps, kds = heatmapData.kds, val = heatmapData.validation;
+    var TIE = 0.03;
+    var maxV = -Infinity, minV = Infinity;
+    for (var i = 0; i < kds.length; i++)
+      for (var j = 0; j < kps.length; j++) {
+        if (val[i][j] > maxV) maxV = val[i][j];
+        if (val[i][j] < minV) minV = val[i][j];
+      }
+
+    var best = null;
+    for (var i = 0; i < kds.length; i++)
+      for (var j = 0; j < kps.length; j++)
+        if (val[i][j] >= maxV - TIE)
+          if (!best || i > best.row || (i === best.row && j < best.col))
+            best = { row: i, col: j, kp: kps[j], kd: kds[i] };
+
+    var worst = null;
+    for (var i = 0; i < kds.length; i++)
+      for (var j = 0; j < kps.length; j++)
+        if (val[i][j] <= minV + TIE)
+          if (!worst || i < worst.row || (i === worst.row && j > worst.col))
+            worst = { row: i, col: j, kp: kps[j], kd: kds[i] };
+
+    selectedCells = [];
+    if (best) selectedCells.push(best);
+    if (worst && (worst.row !== best.row || worst.col !== best.col)) selectedCells.push(worst);
+
+    if (selectedCells.length > 0) {
+      animatingCurveIdx = 0;
+      currentAnimIndex = 0;
+      curveAnimStartTime = 0;
+      pendingAnimations = selectedCells.length > 1 ? [1] : [];
+    }
+  }
+
+  // ══════ GRID ANIMATION ══════
+  function startGridAnim() {
+    gridAnimProgress = 0;
+    gridAnimStart = performance.now();
+    if (gridAnimId) cancelAnimationFrame(gridAnimId);
+    function tick(now) {
+      var elapsed = now - gridAnimStart;
+      gridAnimProgress = Math.min(elapsed / ANIM_DURATION, 1);
+      gridAnimProgress = 1 - Math.pow(1 - gridAnimProgress, 3);
+      render();
+      if (gridAnimProgress < 1) gridAnimId = requestAnimationFrame(tick);
+    }
+    gridAnimId = requestAnimationFrame(tick);
+  }
+
+  // ══════ RENDER ══════
+  function render() {
+    drawGrid();
+    drawChart();
+  }
+
+  function drawGrid() {
+    if (!heatmapData) return;
+    var kps = heatmapData.kps, kds = heatmapData.kds, val = heatmapData.validation;
+    var ox = GRID_OX + gridOffsetX, oy = GRID_OY;
+    var gridW = kps.length * CELL_W, gridH = kds.length * CELL_H;
+
+    gridCtx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
+
+    var maxV = 0;
+    for (var i = 0; i < kds.length; i++)
+      for (var j = 0; j < kps.length; j++)
+        if (val[i][j] > maxV) maxV = val[i][j];
+
+    // Draw cells
+    for (var i = 0; i < kds.length; i++) {
+      var dr = kds.length - 1 - i;
+      for (var j = 0; j < kps.length; j++) {
+        var x = ox + j * CELL_W, y = oy + dr * CELL_H;
+        var v = val[i][j] * gridAnimProgress;
+
+        gridCtx.fillStyle = getColor(v, maxV);
+        gridCtx.fillRect(x, y, CELL_W, CELL_H);
+        gridCtx.strokeStyle = '#fff';
+        gridCtx.lineWidth = 0.5;
+        gridCtx.strokeRect(x, y, CELL_W, CELL_H);
+
+        // Value text
+        var fontSize = Math.max(Math.floor(CELL_W * 0.3), 8);
+        gridCtx.fillStyle = v > maxV * 0.5 ? '#fff' : '#333';
+        gridCtx.font = 'bold ' + fontSize + 'px -apple-system, sans-serif';
+        gridCtx.textAlign = 'center';
+        gridCtx.textBaseline = 'middle';
+        gridCtx.fillText(v.toFixed(2), x + CELL_W / 2, y + CELL_H / 2);
+
+        // Selection highlight
+        var selIdx = -1;
+        for (var s = 0; s < selectedCells.length; s++)
+          if (selectedCells[s].row === i && selectedCells[s].col === j) { selIdx = s; break; }
+
+        if (selIdx >= 0) {
+          var c = CURVE_COLORS[selIdx % CURVE_COLORS.length];
+          var isAnim = (selIdx === animatingCurveIdx);
+          if (isAnim) {
+            var pw = 3 + 1.5 * Math.sin(pulsePhase * 2);
+            gridCtx.strokeStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+            gridCtx.lineWidth = pw;
+            gridCtx.strokeRect(x + 1.5, y + 1.5, CELL_W - 3, CELL_H - 3);
+          } else if (animatingCurveIdx < 0 || selIdx < animatingCurveIdx) {
+            gridCtx.strokeStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+            gridCtx.lineWidth = 2.5;
+            gridCtx.strokeRect(x + 1, y + 1, CELL_W - 2, CELL_H - 2);
+          }
+        }
+      }
+    }
+
+    // Axis arrows
+    var axisColor = '#333', arrowSz = 5;
+    gridCtx.strokeStyle = axisColor;
+    gridCtx.fillStyle = axisColor;
+    gridCtx.lineWidth = 1.2;
+
+    // X-axis
+    var xY = oy + gridH + 1;
+    gridCtx.beginPath();
+    gridCtx.moveTo(ox, xY);
+    gridCtx.lineTo(ox + gridW + 8, xY);
+    gridCtx.stroke();
+    gridCtx.beginPath();
+    gridCtx.moveTo(ox + gridW + 8, xY);
+    gridCtx.lineTo(ox + gridW + 8 - arrowSz, xY - arrowSz);
+    gridCtx.lineTo(ox + gridW + 8 - arrowSz, xY + arrowSz);
+    gridCtx.closePath();
+    gridCtx.fill();
+
+    // Y-axis
+    var yX = ox - 1;
+    gridCtx.beginPath();
+    gridCtx.moveTo(yX, oy + gridH);
+    gridCtx.lineTo(yX, 3);
+    gridCtx.stroke();
+    gridCtx.beginPath();
+    gridCtx.moveTo(yX, 3);
+    gridCtx.lineTo(yX - arrowSz, 3 + arrowSz);
+    gridCtx.lineTo(yX + arrowSz, 3 + arrowSz);
+    gridCtx.closePath();
+    gridCtx.fill();
+
+    // Labels
+    var lblSize = Math.max(Math.floor(CELL_W * 0.38), 11);
+    function drawLabel(sub, lx, ly) {
+      gridCtx.fillStyle = axisColor;
+      gridCtx.textBaseline = 'alphabetic';
+      gridCtx.textAlign = 'left';
+      gridCtx.font = 'bold ' + lblSize + 'px -apple-system, sans-serif';
+      gridCtx.fillText('K', lx, ly);
+      var kW = gridCtx.measureText('K').width;
+      gridCtx.font = Math.floor(lblSize * 0.75) + 'px -apple-system, sans-serif';
+      gridCtx.fillText(sub, lx + kW, ly + 3);
+    }
+    drawLabel('p', ox + gridW + 12, xY + 4);
+    drawLabel('d', yX + 4, 14);
+
+    // Best/Worst labels (right side)
+    if (selectedCells.length > 0) {
+      var labels = ['Best', 'Worst', 'Selected'];
+      selectedCells.forEach(function(cell, idx) {
+        if (animatingCurveIdx >= 0 && idx > animatingCurveIdx) return;
+        var c = CURVE_COLORS[idx % CURVE_COLORS.length];
+        var dr = kds.length - 1 - cell.row;
+        var cx = ox + cell.col * CELL_W;
+        var cy = oy + dr * CELL_H + CELL_H / 2;
+        var labelX = ox + gridW + 12;
+
+        gridCtx.strokeStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+        gridCtx.lineWidth = 1.5;
+        gridCtx.beginPath();
+        gridCtx.moveTo(labelX - 4, cy);
+        gridCtx.lineTo(cx + CELL_W + 2, cy);
+        gridCtx.stroke();
+
+        gridCtx.fillStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+        gridCtx.font = 'bold 10px -apple-system, sans-serif';
+        gridCtx.textAlign = 'left';
+        gridCtx.textBaseline = 'middle';
+        gridCtx.fillText(labels[idx] || '#' + (idx + 1), labelX, cy);
+      });
+    }
+  }
+
+  function drawChart() {
+    var dpr = window.devicePixelRatio || 1;
+    var w = chartCanvas.width / dpr;
+    var h = chartCanvas.height / dpr;
+
+    chartCtx.clearRect(0, 0, w, h);
+
+    if (!heatmapData || selectedCells.length === 0) {
+      chartCtx.fillStyle = '#bbb';
+      chartCtx.font = '12px -apple-system, sans-serif';
+      chartCtx.textAlign = 'center';
+      chartCtx.fillText('Tap heatmap cells to view training curves', w / 2, h / 2);
+      return;
+    }
+
+    var curves = [];
+    var maxEpochs = 0, minLoss = Infinity, maxLoss = -Infinity;
+
+    for (var ci = 0; ci < selectedCells.length; ci++) {
+      var cell = selectedCells[ci];
+      var key = cell.kp + '_' + cell.kd;
+      var lc = heatmapData.lossCurves[key] || [];
+      if (lc.length > 0) {
+        curves.push({ data: lc, kp: cell.kp, kd: cell.kd });
+        if (lc.length > maxEpochs) maxEpochs = lc.length;
+        for (var li = 0; li < lc.length; li++) {
+          if (lc[li] < minLoss) minLoss = lc[li];
+          if (lc[li] > maxLoss) maxLoss = lc[li];
+        }
+      }
+    }
+
+    if (curves.length === 0) {
+      chartCtx.fillStyle = '#bbb';
+      chartCtx.font = '12px -apple-system, sans-serif';
+      chartCtx.textAlign = 'center';
+      chartCtx.fillText('No data for selected cells', w / 2, h / 2);
+      return;
+    }
+
+    var yMargin = (maxLoss - minLoss) * 0.1;
+    var yMin = minLoss - yMargin, yMax = maxLoss + yMargin;
+    if (useLogScale) { yMin = Math.max(1e-8, minLoss * 0.8); yMax = maxLoss * 1.2; }
+
+    var px = CHART_PAD.left, py = CHART_PAD.top;
+    var pw = w - CHART_PAD.left - CHART_PAD.right;
+    var ph = h - CHART_PAD.top - CHART_PAD.bottom;
+
+    // Grid lines
+    chartCtx.strokeStyle = '#eee';
+    chartCtx.lineWidth = 0.5;
+    var nGY = 4, nGX = 4;
+    for (var gi = 0; gi <= nGY; gi++) {
+      var gy = py + (gi / nGY) * ph;
+      chartCtx.beginPath(); chartCtx.moveTo(px, gy); chartCtx.lineTo(px + pw, gy); chartCtx.stroke();
+    }
+
+    // Axes
+    chartCtx.strokeStyle = '#333';
+    chartCtx.lineWidth = 1.5;
+    chartCtx.beginPath();
+    chartCtx.moveTo(px, py);
+    chartCtx.lineTo(px, py + ph);
+    chartCtx.lineTo(px + pw, py + ph);
+    chartCtx.stroke();
+
+    function mapX(ep) { return px + (ep / (maxEpochs - 1)) * pw; }
+    function mapY(loss) {
+      if (useLogScale) {
+        var lMin = Math.log(yMin), lMax = Math.log(yMax);
+        return py + ph - ((Math.log(Math.max(loss, 1e-8)) - lMin) / (lMax - lMin)) * ph;
+      }
+      return py + ph - ((loss - yMin) / (yMax - yMin)) * ph;
+    }
+
+    // Y tick labels
+    chartCtx.fillStyle = '#555';
+    chartCtx.font = '9px -apple-system, sans-serif';
+    chartCtx.textAlign = 'right';
+    for (var yi = 0; yi <= nGY; yi++) {
+      var yv;
+      if (useLogScale) {
+        var lMin = Math.log(yMin), lMax = Math.log(yMax);
+        yv = Math.exp(lMax - (yi / nGY) * (lMax - lMin));
+      } else {
+        yv = yMax - (yi / nGY) * (yMax - yMin);
+      }
+      chartCtx.fillText(yv.toFixed(4), px - 5, py + (yi / nGY) * ph + 3);
+    }
+
+    // X tick labels
+    chartCtx.textAlign = 'center';
+    for (var xi = 0; xi <= nGX; xi++) {
+      var ep = Math.round((xi / nGX) * (maxEpochs - 1));
+      chartCtx.fillText(ep.toString(), px + (xi / nGX) * pw, py + ph + 14);
+    }
+
+    // Axis labels
+    chartCtx.fillStyle = '#666';
+    chartCtx.font = '10px -apple-system, sans-serif';
+    chartCtx.textAlign = 'center';
+    chartCtx.fillText('Epoch', px + pw / 2, h - 4);
+    chartCtx.save();
+    chartCtx.translate(10, py + ph / 2);
+    chartCtx.rotate(-Math.PI / 2);
+    chartCtx.fillText('Loss', 0, 0);
+    chartCtx.restore();
+
+    // Draw curves
+    curves.forEach(function(curve, idx) {
+      var c = CURVE_COLORS[idx % CURVE_COLORS.length];
+      var rgb = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+
+      var len;
+      if (animatingCurveIdx >= 0) {
+        if (idx < animatingCurveIdx) len = curve.data.length;
+        else if (idx === animatingCurveIdx) len = Math.min(currentAnimIndex, curve.data.length);
+        else len = 0;
+      } else {
+        len = curve.data.length;
+      }
+      if (len === 0) return;
+
+      chartCtx.strokeStyle = rgb;
+      chartCtx.lineWidth = 2;
+      chartCtx.lineCap = 'round';
+      chartCtx.lineJoin = 'round';
+      chartCtx.beginPath();
+      for (var di = 0; di < len; di++) {
+        var dx = mapX(di), dy = mapY(curve.data[di]);
+        di === 0 ? chartCtx.moveTo(dx, dy) : chartCtx.lineTo(dx, dy);
+      }
+      chartCtx.stroke();
+
+      // End dot
+      if (len > 0) {
+        var lx = mapX(len - 1), ly = mapY(curve.data[len - 1]);
+        chartCtx.beginPath();
+        chartCtx.arc(lx, ly, 3.5, 0, Math.PI * 2);
+        chartCtx.fillStyle = rgb;
+        chartCtx.fill();
+        chartCtx.strokeStyle = '#fff';
+        chartCtx.lineWidth = 1.5;
+        chartCtx.stroke();
+      }
+    });
+
+    // Legend
+    var visCurves = curves.filter(function(_, idx) {
+      return animatingCurveIdx < 0 || idx <= animatingCurveIdx;
+    });
+    if (visCurves.length > 0) {
+      var legLabels = ['Best', 'Worst', 'Selected'];
+      chartCtx.font = '9px -apple-system, sans-serif';
+      var legH = 8 + visCurves.length * 14;
+      var legW = 68;
+      var legX = px + pw - legW - 4, legY = py + 4;
+
+      chartCtx.fillStyle = 'rgba(255,255,255,0.9)';
+      chartCtx.strokeStyle = '#ddd';
+      chartCtx.lineWidth = 0.5;
+      chartCtx.beginPath();
+      chartCtx.roundRect(legX, legY, legW, legH, 3);
+      chartCtx.fill();
+      chartCtx.stroke();
+
+      visCurves.forEach(function(vc, vi) {
+        var oi = curves.indexOf(vc);
+        var c = CURVE_COLORS[oi % CURVE_COLORS.length];
+        var ry = legY + 10 + vi * 14;
+        chartCtx.strokeStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+        chartCtx.lineWidth = 2;
+        chartCtx.beginPath();
+        chartCtx.moveTo(legX + 6, ry);
+        chartCtx.lineTo(legX + 20, ry);
+        chartCtx.stroke();
+        chartCtx.fillStyle = '#333';
+        chartCtx.textAlign = 'left';
+        chartCtx.font = oi <= 1 ? 'bold 9px -apple-system, sans-serif' : '9px -apple-system, sans-serif';
+        chartCtx.fillText(legLabels[oi] || '#' + (oi + 1), legX + 24, ry + 3);
+      });
+    }
+
+    // Curve animation
+    if (animatingCurveIdx >= 0 && animatingCurveIdx < curves.length) {
+      var ac = curves[animatingCurveIdx];
+      if (curveAnimStartTime === 0) curveAnimStartTime = performance.now();
+      var elapsed = performance.now() - curveAnimStartTime;
+      var t = Math.min(elapsed / ANIM_DURATION, 1);
+      var eased = 1 - Math.pow(1 - t, 3);
+      currentAnimIndex = Math.floor(eased * ac.data.length);
+
+      if (currentAnimIndex < ac.data.length) {
+        animFrameId = requestAnimationFrame(function() {
+          pulsePhase = performance.now() / 400;
+          render();
+        });
+      } else {
+        if (pendingAnimations.length > 0) {
+          animatingCurveIdx = pendingAnimations.shift();
+          curveAnimStartTime = 0;
+          currentAnimIndex = 0;
+          render();
+        } else {
+          animatingCurveIdx = -1;
+          curveAnimStartTime = 0;
+        }
+      }
+    }
+  }
+
+  // ══════ INTERACTION ══════
+  function getCell(e) {
+    if (!heatmapData) return null;
+    var rect = gridCanvas.getBoundingClientRect();
+    var scaleX = gridCanvas.width / (window.devicePixelRatio || 1) / rect.width;
+    var scaleY = gridCanvas.height / (window.devicePixelRatio || 1) / rect.height;
+    var mx = (e.clientX - rect.left) * scaleX;
+    var my = (e.clientY - rect.top) * scaleY;
+    var col = Math.floor((mx - GRID_OX - gridOffsetX) / CELL_W);
+    var displayRow = Math.floor((my - GRID_OY) / CELL_H);
+    var row = heatmapData.kds.length - 1 - displayRow;
+    if (col < 0 || col >= heatmapData.kps.length || row < 0 || row >= heatmapData.kds.length) return null;
+    return { row: row, col: col, kp: heatmapData.kps[col], kd: heatmapData.kds[row] };
+  }
+
+  // Touch handler — use touchend so scrolling isn't blocked
+  var _touchStartX = 0, _touchStartY = 0;
+  gridCanvas.addEventListener('touchstart', function(e) {
+    _touchStartX = e.touches[0].clientX;
+    _touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+
+  gridCanvas.addEventListener('touchend', function(e) {
+    var dx = Math.abs(e.changedTouches[0].clientX - _touchStartX);
+    var dy = Math.abs(e.changedTouches[0].clientY - _touchStartY);
+    // Only select cell if it was a tap, not a scroll
+    if (dx > 10 || dy > 10) return;
+
+    var cell = getCell(e.changedTouches[0]);
+    if (!cell) return;
+
+    if (animFrameId) cancelAnimationFrame(animFrameId);
+    pendingAnimations = [];
+
+    var userCell = selectedCells[2];
+    if (userCell && userCell.row === cell.row && userCell.col === cell.col) {
+      selectedCells.length = 2;
+      animatingCurveIdx = -1;
+    } else {
+      selectedCells.length = 2;
+      selectedCells.push(cell);
+      animatingCurveIdx = 2;
+      currentAnimIndex = 0;
+      curveAnimStartTime = 0;
+    }
+    render();
+  }, { passive: true });
+
+  // Click handler (for non-touch)
+  gridCanvas.addEventListener('click', function(e) {
+    var cell = getCell(e);
+    if (!cell) return;
+
+    if (animFrameId) cancelAnimationFrame(animFrameId);
+    pendingAnimations = [];
+
+    var userCell = selectedCells[2];
+    if (userCell && userCell.row === cell.row && userCell.col === cell.col) {
+      selectedCells.length = 2;
+      animatingCurveIdx = -1;
+    } else {
+      selectedCells.length = 2;
+      selectedCells.push(cell);
+      animatingCurveIdx = 2;
+      currentAnimIndex = 0;
+      curveAnimStartTime = 0;
+    }
+    render();
+  });
+
+  // ══════ CONTROLS ══════
+  logToggle.addEventListener('change', function() { useLogScale = this.checked; render(); });
+
+  replayBtn.addEventListener('click', function() {
+    if (animFrameId) cancelAnimationFrame(animFrameId);
+    if (selectedCells.length > 0) {
+      animatingCurveIdx = 0;
+      currentAnimIndex = 0;
+      curveAnimStartTime = 0;
+      pendingAnimations = selectedCells.length > 1 ? [1] : [];
+    }
+    startGridAnim();
+  });
+
+  clearBtn.addEventListener('click', function() {
+    selectedCells.length = 2;
+    if (animFrameId) cancelAnimationFrame(animFrameId);
+    animatingCurveIdx = -1;
+    currentAnimIndex = 0;
+    pendingAnimations = [];
+    render();
+  });
+
+  // ══════ TABS ══════
+  tabBtns.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var task = this.dataset.task;
+      if (task === currentTask) return;
+      tabBtns.forEach(function(b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      currentTask = task;
+      heatmapData = allData.taskData[currentTask];
+      initSize();
+      autoSelect();
+      startGridAnim();
+    });
+  });
+
+  // ══════ LOAD DATA ══════
+  var _dataReady = false, _inView = false, _animStarted = false;
+
+  function tryStartAnim() {
+    if (_dataReady && _inView && !_animStarted) {
+      _animStarted = true;
+      initSize();
+      autoSelect();
+      startGridAnim();
+    }
+  }
+
+  fetch(DATA_URL)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      allData = data;
+      if (data.tasks && data.tasks.length > 0) {
+        currentTask = data.tasks[0];
+        heatmapData = data.taskData[currentTask];
+      } else {
+        heatmapData = data;
+      }
+      initSize();
+      _dataReady = true;
+      tryStartAnim();
+    })
+    .catch(function(err) { console.error('Failed to load heatmap data:', err); });
+
+  // Start animation when widget scrolls into view
+  var _heatmapObs = new IntersectionObserver(function(entries) {
+    if (entries[0].isIntersecting) {
+      _inView = true;
+      tryStartAnim();
+      _heatmapObs.disconnect();
+    }
+  }, { threshold: 0.15 });
+  _heatmapObs.observe(gridCanvas.parentElement.parentElement);
+
+  // ══════ RESIZE ══════
+  window.addEventListener('resize', function() {
+    screenW = Math.min(window.innerWidth, 480);
+    CELL_W = Math.max(Math.floor((screenW - 80) / 8), 24);
+    CELL_H = Math.max(Math.floor(CELL_W * 0.8), 20);
+    initSize();
+    render();
+  });
+
+})();
+</script>
+
+<!-- Trajectory viewer JS -->
+<script>
+(function() {
+  var trajWrap = document.getElementById('trajViewerWrap');
+  var trajPlaceholder = document.getElementById('trajPlaceholder');
+  var trajTabs = document.querySelectorAll('.traj-tab');
+  var trajIframe = null;
+
+  // Suppress tour
+  try { localStorage.setItem('mujoco-traj-toured', '1'); } catch(_) {}
+
+  // ── Gain grid state ──
+  var KPS = [16, 32, 64, 128, 256, 512];
+  var KDS = [1, 2, 4, 8, 12, 16, 24];
+  var GC_A=[140,140,140], GC_B=[76,114,176], GC_C=[196,78,82], GC_D=[129,114,178];
+  function lerpC(a,b,t){return [a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];}
+  function gColor(nx,ny){var c=lerpC(lerpC(GC_A,GC_B,nx),lerpC(GC_C,GC_D,nx),ny);return 'rgb('+Math.round(c[0])+','+Math.round(c[1])+','+Math.round(c[2])+')';}
+  function gainsFromNorm(nx,ny){return {kp:Math.exp((1-nx)*Math.log(KPS[0])+nx*Math.log(KPS[KPS.length-1])),kd:Math.exp((1-ny)*Math.log(KDS[0])+ny*Math.log(KDS[KDS.length-1]))};}
+
+  var gnx = 0.729, gny = 0.725; // default: kp≈200, kd≈10
+  var tGainC = document.getElementById('trajGainGrid');
+  var tGainCtx = tGainC.getContext('2d');
+  var tKpVal = document.getElementById('trajKpVal');
+  var tKdVal = document.getElementById('trajKdVal');
+
+  function drawTGainGrid() {
+    var W=120,H=110, dpr=Math.min(window.devicePixelRatio||1,2);
+    tGainC.width=W*dpr;tGainC.height=H*dpr;
+    tGainCtx.setTransform(dpr,0,0,dpr,0,0);
+    var pad={top:14,right:24,bottom:6,left:12},gs=Math.min(W-pad.left-pad.right,H-pad.top-pad.bottom);
+    tGainCtx.clearRect(0,0,W,H);
+    // Grid
+    tGainCtx.strokeStyle='rgba(0,0,0,0.08)';tGainCtx.lineWidth=0.5;
+    for(var i=0;i<=6;i++){var f=i/6;tGainCtx.beginPath();tGainCtx.moveTo(pad.left+f*gs,pad.top);tGainCtx.lineTo(pad.left+f*gs,pad.top+gs);tGainCtx.stroke();tGainCtx.beginPath();tGainCtx.moveTo(pad.left,pad.top+f*gs);tGainCtx.lineTo(pad.left+gs,pad.top+f*gs);tGainCtx.stroke();}
+    // Axes
+    tGainCtx.strokeStyle='#333';tGainCtx.fillStyle='#333';tGainCtx.lineWidth=1;
+    var as=3;
+    tGainCtx.beginPath();tGainCtx.moveTo(pad.left,pad.top+gs+1);tGainCtx.lineTo(pad.left+gs+5,pad.top+gs+1);tGainCtx.stroke();
+    tGainCtx.beginPath();tGainCtx.moveTo(pad.left+gs+5,pad.top+gs+1);tGainCtx.lineTo(pad.left+gs+5-as,pad.top+gs+1-as);tGainCtx.lineTo(pad.left+gs+5-as,pad.top+gs+1+as);tGainCtx.closePath();tGainCtx.fill();
+    tGainCtx.beginPath();tGainCtx.moveTo(pad.left-1,pad.top+gs);tGainCtx.lineTo(pad.left-1,3);tGainCtx.stroke();
+    tGainCtx.beginPath();tGainCtx.moveTo(pad.left-1,3);tGainCtx.lineTo(pad.left-1-as,3+as);tGainCtx.lineTo(pad.left-1+as,3+as);tGainCtx.closePath();tGainCtx.fill();
+    // Labels
+    tGainCtx.font='bold 9px -apple-system,sans-serif';tGainCtx.textAlign='left';tGainCtx.textBaseline='middle';
+    tGainCtx.fillText('Kp →',pad.left+gs+7,pad.top+gs+1);
+    tGainCtx.fillText('Kd',pad.left+1,8);
+    // Dot
+    var cx=pad.left+gnx*gs,cy=pad.top+(1-gny)*gs;
+    tGainCtx.beginPath();tGainCtx.arc(cx,cy,7,0,Math.PI*2);
+    tGainCtx.fillStyle=gColor(gnx,gny);tGainCtx.fill();
+    tGainCtx.strokeStyle='rgba(0,0,0,0.3)';tGainCtx.lineWidth=1.5;tGainCtx.stroke();
+  }
+
+  function setGains(nx, ny) {
+    gnx=Math.max(0,Math.min(1,nx)); gny=Math.max(0,Math.min(1,ny));
+    var g=gainsFromNorm(gnx,gny);
+    tKpVal.textContent=Math.round(g.kp);
+    tKdVal.textContent=(Math.round(g.kd*10)/10).toString();
+    drawTGainGrid();
+    // Update joint button color
+    var ab=document.querySelector('.traj-joint-btn.active');
+    if(ab){ab.style.background=gColor(gnx,gny);ab.style.borderColor=gColor(gnx,gny);}
+    // Send to iframe
+    if(trajIframe){try{trajIframe.contentWindow.postMessage({type:'set-gains',nx:gnx,ny:gny},'*');}catch(_){}}
+  }
+
+  // Gain grid touch/click
+  var _tgDrag=false;
+  function tgApply(clientX,clientY){var rect=tGainC.getBoundingClientRect();var pl=12,pt=14,pr=24,pb=6;var gs=Math.min(rect.width-pl-pr,rect.height-pt-pb);setGains((clientX-rect.left-pl)/gs,1-(clientY-rect.top-pt)/gs);}
+  tGainC.addEventListener('pointerdown',function(e){if(e.button!==0)return;_tgDrag=true;tGainC.setPointerCapture(e.pointerId);tgApply(e.clientX,e.clientY);});
+  tGainC.addEventListener('pointermove',function(e){if(_tgDrag)tgApply(e.clientX,e.clientY);});
+  tGainC.addEventListener('pointerup',function(){_tgDrag=false;});
+
+  // ── Response chart ──
+  var tRespC=document.getElementById('trajRespCanvas');
+  var tRespCtx=tRespC.getContext('2d');
+  var tJointBtns=document.getElementById('trajJointBtns');
+  var tRespHistory=[], tSelectedJoint=3, tJointLabels=[];
+  var TRESP_MAX=600;
+
+  function buildTJointBtns(n) {
+    tJointBtns.innerHTML='';tJointLabels=[];
+    for(var j=0;j<n;j++){
+      tJointLabels.push('J'+(j+1));
+      var btn=document.createElement('button');
+      btn.className='traj-joint-btn'+(j===tSelectedJoint?' active':'');
+      btn.textContent='J'+(j+1);
+      if(j===tSelectedJoint){btn.style.background=gColor(gnx,gny);btn.style.borderColor=gColor(gnx,gny);}
+      (function(idx,b){b.addEventListener('click',function(){
+        tSelectedJoint=idx;
+        tJointBtns.querySelectorAll('.traj-joint-btn').forEach(function(bb){bb.classList.remove('active');bb.style.background='';bb.style.borderColor='';});
+        b.classList.add('active');b.style.background=gColor(gnx,gny);b.style.borderColor=gColor(gnx,gny);
+      });})(j,btn);
+      tJointBtns.appendChild(btn);
+    }
+  }
+
+  function drawTResp() {
+    var dpr=Math.min(window.devicePixelRatio||1,2);
+    var W=tRespC.clientWidth,H=tRespC.clientHeight;
+    if(W===0||H===0)return;
+    tRespC.width=W*dpr;tRespC.height=H*dpr;
+    tRespCtx.setTransform(dpr,0,0,dpr,0,0);
+    tRespCtx.clearRect(0,0,W,H);
+    var n=tRespHistory.length;
+    if(n<2){tRespCtx.fillStyle='#ccc';tRespCtx.font='10px -apple-system,sans-serif';tRespCtx.textAlign='center';tRespCtx.fillText('Waiting...',W/2,H/2);return;}
+    var si=tSelectedJoint,p={l:4,r:4,t:4,b:4},pW=W-p.l-p.r,pH=H-p.t-p.b;
+    var yMin=Infinity,yMax=-Infinity;
+    for(var i=0;i<n;i++){var a=tRespHistory[i].actual[si]||0,t=tRespHistory[i].target[si]||0;if(a<yMin)yMin=a;if(a>yMax)yMax=a;if(t<yMin)yMin=t;if(t>yMax)yMax=t;}
+    var yP=(yMax-yMin)*.1||.1;yMin-=yP;yMax+=yP;
+    function mx(i){return p.l+(i/(n-1))*pW;}function my(v){return p.t+pH-((v-yMin)/(yMax-yMin))*pH;}
+    // Target dashed
+    tRespCtx.setLineDash([3,3]);tRespCtx.strokeStyle='#aaa';tRespCtx.lineWidth=1;tRespCtx.beginPath();
+    for(var i=0;i<n;i++){var x=mx(i),y=my(tRespHistory[i].target[si]||0);i===0?tRespCtx.moveTo(x,y):tRespCtx.lineTo(x,y);}tRespCtx.stroke();
+    // Actual solid
+    tRespCtx.setLineDash([]);tRespCtx.strokeStyle=gColor(gnx,gny);tRespCtx.lineWidth=1.5;tRespCtx.beginPath();
+    for(var i=0;i<n;i++){var x=mx(i),y=my(tRespHistory[i].actual[si]||0);i===0?tRespCtx.moveTo(x,y):tRespCtx.lineTo(x,y);}tRespCtx.stroke();
+  }
+
+  // Redraw response at display rate
+  function tRespLoop(){drawTResp();requestAnimationFrame(tRespLoop);}
+  tRespLoop();
+
+  // Listen for joint data from trajectory viewer
+  window.addEventListener('message',function(e){
+    if(!e.data)return;
+    if(e.data.type==='traj-joint-data'){
+      if(tJointLabels.length===0&&e.data.actual)buildTJointBtns(Math.min(e.data.actual.length,7));
+      tRespHistory.push({actual:e.data.actual,target:e.data.target});
+      if(tRespHistory.length>TRESP_MAX)tRespHistory.shift();
+    }
+  });
+
+  // ── Noise slider ──
+  var tNoiseSlider=document.getElementById('trajNoiseSlider');
+  var tNoiseVal=document.getElementById('trajNoiseVal');
+  tNoiseSlider.addEventListener('input',function(){
+    var v=parseFloat(this.value);
+    tNoiseVal.textContent=v.toFixed(2);
+    if(trajIframe){try{trajIframe.contentWindow.postMessage({type:'set-noise',value:v},'*');}catch(_){}}
+  });
+
+  // ── Iframe management ──
+  function destroyTraj() {
+    if (trajIframe) {
+      try { trajIframe.src = 'about:blank'; } catch(_) {}
+      trajIframe.remove();
+      trajIframe = null;
+    }
+  }
+
+  function loadTraj(scene, traj) {
+    destroyTraj();
+    tRespHistory=[];
+    tJointLabels=[];
+    trajPlaceholder.style.display = 'flex';
+
+    setTimeout(function() {
+      var src = 'static/assets/mujoco_trajectory.html?scene=' + scene + '&traj=' + traj + '&auto=1&loop=1';
+      var ifr = document.createElement('iframe');
+      ifr.allow = 'autoplay';
+      ifr.style.cssText = 'width:100%;height:100%;border:none;display:block;';
+      ifr.src = src;
+      trajWrap.insertBefore(ifr, trajPlaceholder);
+      trajIframe = ifr;
+      trajPlaceholder.style.display = 'none';
+
+      ifr.addEventListener('load', function() {
+        try {
+          var doc = ifr.contentDocument;
+          if (!doc) return;
+          var style = doc.createElement('style');
+          style.textContent =
+            '#gain-float, #response-float, #noise-float,' +
+            '#help-btn, #mode-badge,' +
+            '#tour-spotlight, #tour-tooltip { display: none !important; }' +
+            '#live-badge .live-hint { display: none !important; }';
+          doc.head.appendChild(style);
+        } catch(_) {}
+        // Send current gains to new viewer
+        try{ifr.contentWindow.postMessage({type:'set-gains',nx:gnx,ny:gny},'*');}catch(_){}
+      });
+    }, 300);
+  }
+
+  // Tab click
+  trajTabs.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      trajTabs.forEach(function(b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      loadTraj(btn.dataset.scene, btn.dataset.traj);
+    });
+  });
+
+  // Init
+  drawTGainGrid();
+  var first = trajTabs[0];
+  if (first) loadTraj(first.dataset.scene, first.dataset.traj);
+})();
+</script>
+
+</body>
+</html>

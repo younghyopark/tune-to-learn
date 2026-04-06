@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+<!-- Google Analytics (production only) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-0FCZG3T4ZJ"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  if (location.hostname === 'younghyopark.me') {
+    gtag('config', 'G-0FCZG3T4ZJ');
+  }
+</script>
+
+<title>Sim-to-Real Findings — Tune to Learn</title>
+<link rel="canonical" href="https://younghyopark.me/tune-to-learn/" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-font-smoothing: antialiased; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 1rem;
+    line-height: 1.6;
+    color: #1a1a1a;
+    background: #fff;
+    overflow-x: hidden;
+  }
+
+  /* ── Sticky top group ── */
+  .sticky-top { position: sticky; top: 0; z-index: 100; }
+
+  .desktop-banner {
+    background: #4f46e5;
+    padding: 0.6rem 2.2rem 0.6rem 1rem;
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: rgba(255,255,255,0.95);
+    line-height: 1.45;
+    position: relative;
+  }
+  .desktop-banner svg { display: inline-block; vertical-align: -2px; margin-right: 0.3rem; opacity: 0.8; }
+  .desktop-banner a { color: #fff; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
+  .desktop-banner .dismiss-btn {
+    position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%);
+    background: none; border: none; color: rgba(255,255,255,0.7); font-size: 1.1rem; cursor: pointer; padding: 0.2rem 0.4rem;
+  }
+  .desktop-banner.hidden { display: none; }
+
+  .topbar {
+    display: flex; align-items: center;
+    padding: 0.5rem 0.75rem;
+    background: #fff;
+    border-bottom: 1px solid #e8e8e8;
+    font-size: 0.82rem;
+  }
+  .back-btn {
+    display: flex; align-items: center; gap: 0.2rem;
+    color: #4f46e5; text-decoration: none; font-weight: 600; font-size: 0.82rem;
+  }
+  .topbar-title {
+    margin-left: 0.75rem;
+    font-weight: 600; color: #222; font-size: 0.82rem;
+  }
+
+  .page-header { padding: 1rem 1rem 0.3rem; }
+  .page-header h1 { font-size: 1.15rem; font-weight: 700; line-height: 1.35; color: #111; }
+  .page-header .tag {
+    display: inline-block; font-size: 0.6rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    padding: 0.15rem 0.5rem; border-radius: 3px;
+    vertical-align: 2px; margin-right: 0.3rem;
+    background: #d1fae5; color: #065f46;
+  }
+  .page-header .subtitle { font-size: 0.78rem; color: #888; margin-top: 0.3rem; }
+
+  .takeaways { display: flex; flex-direction: column; gap: 0.4rem; padding: 0.6rem 1rem 0.8rem; }
+  .takeaway {
+    font-size: 0.78rem; color: #444;
+    padding: 0.4rem 0.6rem;
+    background: #f0fdf4;
+    border-left: 3px solid #10b981;
+    border-radius: 0 4px 4px 0;
+    line-height: 1.45;
+  }
+
+  .prose { padding: 0.5rem 1rem; font-size: 0.82rem; color: #333; line-height: 1.6; }
+  .prose p + p { margin-top: 0.6rem; }
+
+  .widget-section {
+    margin: 0.5rem 0.5rem;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+  }
+  .widget-label {
+    font-size: 0.65rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    color: #999; padding: 0.5rem 0.75rem 0.25rem;
+  }
+
+  /* ── Heatmap grid canvas ── */
+  .w-grid-canvas { display: block; width: 100%; }
+  .w-grid-caption {
+    font-size: 0.68rem; color: #888; padding: 0.2rem 0.75rem 0.3rem;
+    line-height: 1.4;
+  }
+  .w-grid-caption b { color: #555; }
+
+  /* ── Controls row ── */
+  .w-controls {
+    display: flex; align-items: center; gap: 6px;
+    padding: 0.3rem 0.5rem;
+    background: #f5f5f7;
+    border-top: 1px solid #eee;
+    border-bottom: 1px solid #eee;
+    font-size: 0.7rem;
+  }
+  .w-controls select {
+    font-family: inherit; font-size: 0.7rem; font-weight: 500;
+    padding: 3px 6px; border: 1px solid #ddd; border-radius: 4px;
+    background: #fff; color: #333; cursor: pointer;
+  }
+  .w-controls input[type="range"] {
+    flex: 1; height: 3px;
+    -webkit-appearance: none; appearance: none;
+    background: #ccc; border-radius: 2px; cursor: pointer;
+  }
+  .w-controls input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 14px; height: 14px;
+    border-radius: 50%; background: #4c72b0; cursor: pointer;
+  }
+  .w-play-btn {
+    width: 24px; height: 24px; padding: 0;
+    border: none; border-radius: 50%;
+    background: #4c72b0; color: #fff;
+    font-size: 11px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .w-play-btn.playing { background: #c44e52; }
+  .w-ctrl-label { font-size: 0.62rem; color: #666; white-space: nowrap; min-width: 40px; text-align: right; }
+  .w-ctrl-label b { color: #333; font-weight: 600; }
+  .w-resample-btn {
+    width: 24px; height: 24px; padding: 0;
+    border: 1px solid #ddd; border-radius: 50%;
+    background: #fff; color: #666; font-size: 12px;
+    cursor: pointer; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ── Chart canvas ── */
+  .w-chart-canvas {
+    display: block; width: 100%; height: 160px;
+    background: #fafafa;
+  }
+
+  /* ── Video section ── */
+  .video-compare { display: flex; gap: 0.5rem; padding: 0 1rem; margin: 0.5rem 0; }
+  .video-col { flex: 1; min-width: 0; }
+  .video-wrap {
+    position: relative; overflow: hidden; border-radius: 6px;
+    aspect-ratio: 16/18; background: #000;
+  }
+  .video-wrap video { width: 100%; height: 100%; object-fit: cover; object-position: center bottom; cursor: pointer; }
+  .video-label { font-size: 0.68rem; color: #666; text-align: center; margin-top: 0.3rem; }
+  .unmute-pill {
+    position: absolute; bottom: 8px; right: 8px;
+    display: flex; align-items: center; gap: 4px;
+    background: rgba(0,0,0,0.65); color: #fff;
+    padding: 4px 8px; border-radius: 16px;
+    font-size: 0.6rem; cursor: pointer;
+  }
+  @keyframes pulse-hint {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(1.04); }
+  }
+  .unmute-pill.pulsing { animation: pulse-hint 1.5s ease-in-out infinite; }
+
+  .bottom-cta {
+    text-align: center; padding: 1.5rem 1rem 2rem;
+    border-top: 1px solid #f0f0f0; max-width: 400px; margin: 0 auto;
+  }
+  .bottom-cta a { font-size: 0.82rem; color: #4f46e5; font-weight: 500; text-decoration-color: rgba(79,70,229,0.3); }
+  .bottom-cta p { font-size: 0.72rem; color: #bbb; margin-top: 0.3rem; }
+</style>
+</head>
+<body>
+
+<!-- Sticky top: banner + back bar -->
+<div class="sticky-top">
+  <div class="desktop-banner" id="desktop-banner">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+    <strong>Best viewed on desktop</strong> — the full site includes interactive 3D simulations and live policy demos for a better understanding of our findings.
+    <a href="index.html?full=1">Open full site</a>
+    <button class="dismiss-btn" onclick="this.parentElement.classList.add('hidden');sessionStorage.setItem('banner-dismissed','1');" aria-label="Dismiss">&times;</button>
+  </div>
+  <div class="topbar">
+    <a href="mobile.html" class="back-btn">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Back
+    </a>
+    <span class="topbar-title">Sim-to-Real Findings</span>
+  </div>
+</div>
+<script>
+  if (sessionStorage.getItem('banner-dismissed')) document.getElementById('desktop-banner').classList.add('hidden');
+</script>
+
+<div class="page-header">
+  <h1><span class="tag">S2R</span> Sim-to-Real Transfer Degrades on Stiff, Overdamped Gains</h1>
+  <p class="subtitle">See how gain settings affect the sim-to-real gap in reaching tasks.</p>
+</div>
+
+<div class="takeaways">
+  <div class="takeaway"><strong>Paradox.</strong> Stiff, overdamped gains yield the best system identification but the worst sim-to-real transfer.</div>
+  <div class="takeaway"><strong>Failure mode.</strong> High-frequency oscillation from aggressive controller + neural network policy interaction.</div>
+  <div class="takeaway"><strong>Solution.</strong> Compliant, underdamped gains act as a natural low-pass filter for reliable transfer.</div>
+</div>
+
+<div class="prose">
+  <p>
+    We study reaching tasks with a Franka Research 3 robot to directly isolate the
+    motor-level sim-to-real gap. For each gain setting, we perform gain-specific
+    system identification, train RL policies in the calibrated simulation, and deploy
+    them on the real robot without fine-tuning.
+  </p>
+</div>
+
+<!-- ════════ SYSID WIDGET (inline) ════════ -->
+<div class="prose" style="border-top: 1px solid #f0f0f0; padding-top: 1rem;">
+  <p>
+    <strong>Stiff, overdamped gains are easiest to model.</strong>
+    The MSE after system identification is over an order of magnitude lower for
+    stiff, overdamped gains. Tap any cell to see how the identified simulator
+    tracks the real robot.
+  </p>
+</div>
+<div class="widget-section" id="sysidWidget">
+  <p class="widget-label">System Identification Error</p>
+  <canvas id="sysidGrid" class="w-grid-canvas"></canvas>
+  <p class="w-grid-caption"><b>Sysid Error (log MSE).</b> Darker blue = lower error. Tap a cell to view response curves.</p>
+  <div class="w-controls">
+    <select id="sysidJoint"></select>
+    <button class="w-play-btn" id="sysidPlayBtn">&#9654;</button>
+    <input type="range" id="sysidEpochSlider" min="0" max="0" value="0">
+    <span class="w-ctrl-label">Epoch <b id="sysidEpochLabel">-</b></span>
+  </div>
+  <canvas id="sysidChart" class="w-chart-canvas"></canvas>
+  <p class="w-grid-caption" style="border-top:1px solid #f0f0f0;background:#fafafa;padding-top:0.3rem;">
+    <b>Response Curve.</b> Blue = real, red = simulated, gray dashed = desired position. Scrub epochs to watch the fit improve.
+  </p>
+</div>
+
+<!-- ════════ SIM2REAL WIDGET (inline) ════════ -->
+<div class="prose" style="border-top: 1px solid #f0f0f0; padding-top: 1rem;">
+  <p>
+    <strong>&hellip;but hardest to transfer.</strong>
+    Paradoxically, stiff and overdamped gains produce the worst sim-to-real transfer.
+    The dominant failure mode is high-frequency oscillation that amplifies small
+    prediction errors into out-of-distribution states.
+  </p>
+</div>
+<div class="widget-section" id="s2rWidget">
+  <p class="widget-label">Sim-to-Real Transfer Error</p>
+  <canvas id="s2rGrid" class="w-grid-canvas"></canvas>
+  <p class="w-grid-caption"><b>Sim2Real Error (MSE).</b> Darker blue = lower error (better transfer). Tap a cell to compare trajectories.</p>
+  <div class="w-controls">
+    <select id="s2rJoint"></select>
+    <button class="w-play-btn" id="s2rPlayBtn">&#9654;</button>
+    <input type="range" id="s2rTimeSlider" min="0" max="100" value="0">
+    <span class="w-ctrl-label" id="s2rTimeLabel">-</span>
+    <button class="w-resample-btn" id="s2rResample" title="New rollout">&#8635;</button>
+  </div>
+  <canvas id="s2rChart" class="w-chart-canvas" style="height:200px;"></canvas>
+  <p class="w-grid-caption" style="border-top:1px solid #f0f0f0;background:#fafafa;padding-top:0.3rem;">
+    <b>Trajectory Comparison.</b> Blue = real robot, red = simulated. Top = position, bottom = velocity. Shaded area = gap.
+  </p>
+</div>
+
+<!-- ── Video comparison ── -->
+<div class="prose" style="border-top: 1px solid #f0f0f0; padding-top: 1rem;">
+  <p>
+    <strong>Zero-shot sim-to-real transfer.</strong> With compliant gains (left), the arm
+    smoothly approaches the target. With stiff, overdamped gains (right), the same
+    policy architecture produces violent high-frequency jittering — tap the sound icon to hear it.
+  </p>
+</div>
+<div class="video-compare">
+  <div class="video-col">
+    <div class="video-wrap">
+      <video id="vid-good" loop muted playsinline onclick="this.muted=!this.muted">
+        <source src="static/videos/good_sim2real.mp4" type="video/mp4">
+      </video>
+    </div>
+    <p class="video-label">Compliant &times; Underdamped</p>
+  </div>
+  <div class="video-col">
+    <div class="video-wrap">
+      <video id="vid-bad" loop muted playsinline
+        onclick="var v=this;v.muted=!v.muted;var p=document.getElementById('unmute-hint');if(!v.muted){p.classList.remove('pulsing');p.querySelector('.ul').textContent='sound on';}else{p.classList.add('pulsing');p.querySelector('.ul').textContent='tap to hear jitter';}">
+        <source src="static/videos/bad_sim2real.mp4" type="video/mp4">
+      </video>
+      <div class="unmute-pill pulsing" id="unmute-hint"
+        onclick="var v=document.getElementById('vid-bad');v.muted=!v.muted;if(!v.muted){this.classList.remove('pulsing');this.querySelector('.ul').textContent='sound on';}else{this.classList.add('pulsing');this.querySelector('.ul').textContent='tap to hear jitter';}">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+          <line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>
+        </svg>
+        <span class="ul">tap to hear jitter</span>
+      </div>
+    </div>
+    <p class="video-label">Stiff &times; Overdamped</p>
+  </div>
+</div>
+<script>
+(function() {
+  var g = document.getElementById('vid-good'), b = document.getElementById('vid-bad');
+
+  // Sync loop: when either ends, restart both from 0
+  g.addEventListener('ended', function() { g.currentTime = 0; b.currentTime = 0; g.play(); b.play(); });
+  b.addEventListener('ended', function() { g.currentTime = 0; b.currentTime = 0; g.play(); b.play(); });
+
+  // Keep them in sync during playback (drift correction)
+  g.addEventListener('timeupdate', function() {
+    if (Math.abs(g.currentTime - b.currentTime) > 0.15) b.currentTime = g.currentTime;
+  });
+
+  // Only start playing when videos scroll into view
+  var started = false;
+  var vidObs = new IntersectionObserver(function(entries) {
+    if (entries[0].isIntersecting && !started) {
+      started = true;
+      vidObs.disconnect();
+      g.currentTime = 0; b.currentTime = 0;
+      g.play(); b.play();
+    }
+  }, { threshold: 0.2 });
+  vidObs.observe(g.parentElement);
+})();
+</script>
+
+<!-- Bottom CTA -->
+<div class="bottom-cta">
+  <a href="index.html?full=1">View on desktop for the full interactive experience</a>
+  <p>Includes detailed system ID curves, trajectory overlays, and synchronized video comparison</p>
+</div>
+
+<!-- ════════ WIDGET SCRIPTS ════════ -->
+<script>
+// ── Shared helpers ──
+var BLUES_R = [
+  [0,8,48,107],[0.125,8,81,156],[0.25,33,113,181],[0.375,66,146,198],
+  [0.5,107,174,214],[0.625,158,202,225],[0.75,198,219,239],[0.875,222,235,247],[1,247,251,255]
+];
+function hmColor(val, lo, hi) {
+  var t = hi > lo ? Math.max(0, Math.min(1, (val - lo) / (hi - lo))) : 0;
+  var i = 0;
+  while (i < BLUES_R.length - 2 && BLUES_R[i + 1][0] < t) i++;
+  var a = BLUES_R[i], b = BLUES_R[i + 1];
+  var f = b[0] > a[0] ? (t - a[0]) / (b[0] - a[0]) : 0;
+  var r = Math.round(a[1] + (b[1] - a[1]) * f);
+  var g = Math.round(a[2] + (b[2] - a[2]) * f);
+  var bl = Math.round(a[3] + (b[3] - a[3]) * f);
+  return { str: 'rgb(' + r + ',' + g + ',' + bl + ')', lum: 0.299 * r + 0.587 * g + 0.114 * bl };
+}
+
+function drawHeatmapGrid(ctx, canvas, data, sel, animP) {
+  var kps = data.kps, kds = data.kds, hm = data.heatmap;
+  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+  var W = canvas.clientWidth;
+  // Adaptive cell size
+  var cw = Math.max(Math.floor((W - 50) / kps.length), 28);
+  var ch = Math.max(Math.floor(cw * 0.78), 22);
+  var gridW = kps.length * cw, gridH = kds.length * ch;
+  var ox = Math.floor((W - gridW) / 2), oy = 16;
+  var H = oy + gridH + 22;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+
+  // Compute range
+  var lo = Infinity, hi = -Infinity;
+  for (var i = 0; i < kds.length; i++)
+    for (var j = 0; j < kps.length; j++) {
+      var v = hm[i][j];
+      if (v !== null) { if (v < lo) lo = v; if (v > hi) hi = v; }
+    }
+
+  for (var i = 0; i < kds.length; i++) {
+    for (var j = 0; j < kps.length; j++) {
+      var dr = kds.length - 1 - i;
+      var x = ox + j * cw, y = oy + dr * ch;
+      var val = hm[i][j];
+      if (val !== null) {
+        var aVal = lo + (val - lo) * animP;
+        var c = hmColor(aVal, lo, hi);
+        ctx.fillStyle = c.str;
+        ctx.fillRect(x, y, cw, ch);
+        ctx.fillStyle = c.lum < 128 ? '#fff' : '#333';
+        ctx.font = 'bold ' + Math.max(8, Math.min(10, cw / 4)) + 'px -apple-system,sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(aVal.toFixed(2), x + cw / 2, y + ch / 2);
+      } else {
+        ctx.fillStyle = '#f0f0f0'; ctx.fillRect(x, y, cw, ch);
+        ctx.fillStyle = '#999'; ctx.font = '9px sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('N/A', x + cw / 2, y + ch / 2);
+      }
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, cw, ch);
+      // Selection highlight
+      if (sel && sel.row === i && sel.col === j) {
+        ctx.strokeStyle = 'rgb(196,78,82)'; ctx.lineWidth = 2.5;
+        ctx.strokeRect(x + 1, y + 1, cw - 2, ch - 2);
+      }
+    }
+  }
+  // Axes
+  ctx.strokeStyle = '#333'; ctx.fillStyle = '#333'; ctx.lineWidth = 1.5;
+  var xAY = oy + gridH + 1, as = 4;
+  ctx.beginPath(); ctx.moveTo(ox, xAY); ctx.lineTo(ox + gridW + 8, xAY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(ox + gridW + 8, xAY); ctx.lineTo(ox + gridW + 8 - as, xAY - as); ctx.lineTo(ox + gridW + 8 - as, xAY + as); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(ox - 1, oy + gridH); ctx.lineTo(ox - 1, 3); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(ox - 1, 3); ctx.lineTo(ox - 1 - as, 3 + as); ctx.lineTo(ox - 1 + as, 3 + as); ctx.closePath(); ctx.fill();
+  ctx.font = 'bold 10px -apple-system,sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText('Kp →', ox + gridW + 11, xAY);
+  ctx.fillText('Kd', ox + 2, 9);
+
+  return { ox: ox, oy: oy, cw: cw, ch: ch };
+}
+
+function gridHitTest(e, canvas, data, layout) {
+  if (!layout) return null;
+  var rect = canvas.getBoundingClientRect();
+  var x = e.clientX - rect.left, y = e.clientY - rect.top;
+  var col = Math.floor((x - layout.ox) / layout.cw);
+  var dr = Math.floor((y - layout.oy) / layout.ch);
+  if (col < 0 || col >= data.kps.length || dr < 0 || dr >= data.kds.length) return null;
+  var row = data.kds.length - 1 - dr;
+  if (data.heatmap[row][col] === null) return null;
+  return { row: row, col: col };
+}
+</script>
+
+<!-- ── Sysid Widget JS ── -->
+<script>
+(function() {
+  var INDEX_URL = 'static/assets/sysid-data/sysid_index.json';
+  var CELLS_DIR = 'static/assets/sysid-data/cells';
+  var COLOR_REAL = [76,114,176], COLOR_SIM = [196,78,82], COLOR_QDES = [160,160,160];
+
+  var gridC = document.getElementById('sysidGrid'), gridCtx = gridC.getContext('2d');
+  var chartC = document.getElementById('sysidChart'), chartCtx = chartC.getContext('2d');
+  var jointSel = document.getElementById('sysidJoint');
+  var epochSlider = document.getElementById('sysidEpochSlider');
+  var epochLabel = document.getElementById('sysidEpochLabel');
+  var playBtn = document.getElementById('sysidPlayBtn');
+
+  var allData = null, cellCache = {}, sel = null, joint = 0, epochIdx = 0, layout = null;
+  var animP = 1, animStart = 0, animId = null, playInt = null;
+
+  // Build joint dropdown
+  for (var j = 0; j < 7; j++) {
+    var o = document.createElement('option'); o.value = j; o.textContent = 'J' + (j + 1);
+    jointSel.appendChild(o);
+  }
+  jointSel.addEventListener('change', function() { joint = parseInt(this.value); drawChart(); });
+
+  function startAnim() {
+    animP = 0; animStart = performance.now();
+    if (animId) cancelAnimationFrame(animId);
+    function tick(now) {
+      animP = Math.min((now - animStart) / 1800, 1);
+      animP = 1 - Math.pow(1 - animP, 3);
+      layout = drawHeatmapGrid(gridCtx, gridC, allData, sel, animP);
+      if (animP < 1) animId = requestAnimationFrame(tick);
+    }
+    animId = requestAnimationFrame(tick);
+  }
+
+  function loadCell(row, col) {
+    var name = 'K' + allData.kps[col] + '_D' + allData.kds[row];
+    sel = { row: row, col: col, name: name };
+    stopPlay();
+    layout = drawHeatmapGrid(gridCtx, gridC, allData, sel, animP);
+    if (cellCache[name]) { applyCell(name); drawChart(); startPlay(); return; }
+    epochSlider.max = 0; epochSlider.value = 0; epochIdx = 0; epochLabel.textContent = '...';
+    drawChart();
+    fetch(CELLS_DIR + '/' + name + '.json')
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        cellCache[name] = d;
+        if (sel && sel.name === name) { applyCell(name); drawChart(); startPlay(); }
+      })
+      .catch(function() { drawChart(); });
+  }
+
+  function applyCell(name) {
+    var rc = cellCache[name];
+    if (rc && rc.snapshots && rc.snapshots.length) {
+      epochSlider.max = rc.snapshots.length - 1;
+      epochSlider.value = rc.snapshots.length - 1;
+      epochIdx = rc.snapshots.length - 1;
+      epochLabel.textContent = rc.snapshots[epochIdx].epoch;
+    }
+  }
+
+  function startPlay() {
+    stopPlay();
+    epochIdx = 0; epochSlider.value = 0;
+    playBtn.innerHTML = '&#9646;&#9646;'; playBtn.classList.add('playing');
+    playInt = setInterval(function() {
+      if (!sel || !cellCache[sel.name]) return;
+      var rc = cellCache[sel.name];
+      epochIdx++;
+      if (epochIdx >= rc.snapshots.length) { stopPlay(); epochIdx = rc.snapshots.length - 1; }
+      epochSlider.value = epochIdx;
+      epochLabel.textContent = rc.snapshots[epochIdx].epoch;
+      drawChart();
+    }, 30);
+  }
+
+  function stopPlay() {
+    if (playInt) { clearInterval(playInt); playInt = null; }
+    playBtn.innerHTML = '&#9654;'; playBtn.classList.remove('playing');
+  }
+
+  playBtn.addEventListener('click', function() { playInt ? stopPlay() : startPlay(); });
+  epochSlider.addEventListener('input', function() {
+    stopPlay();
+    epochIdx = parseInt(this.value);
+    if (sel && cellCache[sel.name] && cellCache[sel.name].snapshots[epochIdx])
+      epochLabel.textContent = cellCache[sel.name].snapshots[epochIdx].epoch;
+    drawChart();
+  });
+
+  gridC.addEventListener('click', function(e) {
+    if (!allData || !layout) return;
+    var hit = gridHitTest(e, gridC, allData, layout);
+    if (hit) loadCell(hit.row, hit.col);
+  });
+
+  function drawChart() {
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var W = chartC.clientWidth, H = chartC.clientHeight;
+    chartC.width = W * dpr; chartC.height = H * dpr;
+    chartCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    chartCtx.clearRect(0, 0, W, H);
+
+    if (!sel) {
+      chartCtx.fillStyle = '#ccc'; chartCtx.font = '11px sans-serif'; chartCtx.textAlign = 'center';
+      chartCtx.fillText('Tap a heatmap cell above', W / 2, H / 2); return;
+    }
+    var rc = cellCache[sel.name];
+    if (!rc || !rc.snapshots || !rc.snapshots.length) {
+      chartCtx.fillStyle = '#ccc'; chartCtx.font = '11px sans-serif'; chartCtx.textAlign = 'center';
+      chartCtx.fillText('Loading...', W / 2, H / 2); return;
+    }
+
+    var snap = rc.snapshots[epochIdx] || rc.snapshots[rc.snapshots.length - 1];
+    var realQ = rc.real_qpos, qdes = rc.real_qdes, simQ = snap.sim_qpos;
+    var T = realQ.length, j = joint;
+    var pad = { top: 8, right: 10, bottom: 18, left: 40 };
+    var pX = pad.left, pY = pad.top, pW = W - pad.left - pad.right, pH = H - pad.top - pad.bottom;
+
+    // Y range across all snapshots
+    var yMin = Infinity, yMax = -Infinity;
+    for (var t = 0; t < T; t++) {
+      var vals = [realQ[t][j], qdes[t][j]];
+      for (var vi = 0; vi < vals.length; vi++) { if (vals[vi] < yMin) yMin = vals[vi]; if (vals[vi] > yMax) yMax = vals[vi]; }
+    }
+    for (var si = 0; si < rc.snapshots.length; si++)
+      for (var t = 0; t < T; t++) {
+        var v = rc.snapshots[si].sim_qpos[t][j];
+        if (v < yMin) yMin = v; if (v > yMax) yMax = v;
+      }
+    var yP = (yMax - yMin) * 0.08 || 0.01; yMin -= yP; yMax += yP;
+
+    function mx(i) { return pX + (i / (T - 1)) * pW; }
+    function my(v) { return pY + pH - ((v - yMin) / (yMax - yMin)) * pH; }
+
+    // BG + grid
+    chartCtx.fillStyle = '#fafafa'; chartCtx.fillRect(pX, pY, pW, pH);
+    chartCtx.strokeStyle = '#e8e8e8'; chartCtx.lineWidth = 0.5;
+    for (var i = 0; i <= 4; i++) {
+      var gy = pY + (i / 4) * pH;
+      chartCtx.beginPath(); chartCtx.moveTo(pX, gy); chartCtx.lineTo(pX + pW, gy); chartCtx.stroke();
+    }
+
+    // qdes (dashed gray)
+    chartCtx.strokeStyle = 'rgb(' + COLOR_QDES.join(',') + ')';
+    chartCtx.lineWidth = 1; chartCtx.setLineDash([4, 2]); chartCtx.beginPath();
+    for (var t = 0; t < T; t++) { var x = mx(t), y = my(qdes[t][j]); t === 0 ? chartCtx.moveTo(x, y) : chartCtx.lineTo(x, y); }
+    chartCtx.stroke(); chartCtx.setLineDash([]);
+
+    // Real (blue)
+    chartCtx.strokeStyle = 'rgb(' + COLOR_REAL.join(',') + ')'; chartCtx.lineWidth = 2; chartCtx.beginPath();
+    for (var t = 0; t < T; t++) { var x = mx(t), y = my(realQ[t][j]); t === 0 ? chartCtx.moveTo(x, y) : chartCtx.lineTo(x, y); }
+    chartCtx.stroke();
+
+    // Sim (red)
+    chartCtx.strokeStyle = 'rgb(' + COLOR_SIM.join(',') + ')'; chartCtx.lineWidth = 2; chartCtx.beginPath();
+    for (var t = 0; t < T; t++) { var x = mx(t), y = my(simQ[t][j]); t === 0 ? chartCtx.moveTo(x, y) : chartCtx.lineTo(x, y); }
+    chartCtx.stroke();
+
+    // Y ticks
+    chartCtx.fillStyle = '#888'; chartCtx.font = '8px sans-serif'; chartCtx.textAlign = 'right'; chartCtx.textBaseline = 'middle';
+    for (var i = 0; i <= 4; i++) {
+      var v = yMax - (i / 4) * (yMax - yMin);
+      chartCtx.fillText(v.toFixed(2), pX - 4, pY + (i / 4) * pH);
+    }
+
+    // Inline legend
+    var lx = pX + 6, ly = pY + 6;
+    var items = [['Real', COLOR_REAL, false], ['Sim', COLOR_SIM, false], ['Desired', COLOR_QDES, true]];
+    for (var li = 0; li < items.length; li++) {
+      var iy = ly + li * 12;
+      chartCtx.strokeStyle = 'rgb(' + items[li][1].join(',') + ')';
+      chartCtx.lineWidth = 2; chartCtx.setLineDash(items[li][2] ? [4, 2] : []);
+      chartCtx.beginPath(); chartCtx.moveTo(lx, iy); chartCtx.lineTo(lx + 16, iy); chartCtx.stroke();
+      chartCtx.setLineDash([]);
+      chartCtx.fillStyle = '#555'; chartCtx.font = '8px sans-serif'; chartCtx.textAlign = 'left'; chartCtx.textBaseline = 'middle';
+      chartCtx.fillText(items[li][0], lx + 20, iy);
+    }
+  }
+
+  // Lazy load via IntersectionObserver
+  var loaded = false;
+  var obs = new IntersectionObserver(function(entries) {
+    if (entries[0].isIntersecting && !loaded) {
+      loaded = true; obs.disconnect();
+      fetch(INDEX_URL).then(function(r) { return r.json(); }).then(function(d) {
+        allData = d;
+        startAnim();
+        // Auto-select best (lowest value)
+        var minV = Infinity, mi = 0, mj = 0;
+        for (var i = 0; i < d.kds.length; i++)
+          for (var j = 0; j < d.kps.length; j++) {
+            var v = d.heatmap[i][j];
+            if (v !== null && v < minV) { minV = v; mi = i; mj = j; }
+          }
+        loadCell(mi, mj);
+      });
+    }
+  }, { threshold: 0.1 });
+  obs.observe(document.getElementById('sysidWidget'));
+})();
+</script>
+
+<!-- ── Sim2Real Widget JS ── -->
+<script>
+(function() {
+  var INDEX_URL = 'static/assets/sim2real_data/summary.json';
+  var CELLS_DIR = 'static/assets/sim2real_data';
+  var COLOR_REAL = [76,114,176], COLOR_SIM = [196,78,82];
+  var WINDOW_SIZE = 200, ANIM_SPEED = 2.0;
+
+  var gridC = document.getElementById('s2rGrid'), gridCtx = gridC.getContext('2d');
+  var chartC = document.getElementById('s2rChart'), chartCtx = chartC.getContext('2d');
+  var jointSel = document.getElementById('s2rJoint');
+  var timeSlider = document.getElementById('s2rTimeSlider');
+  var timeLabel = document.getElementById('s2rTimeLabel');
+  var playBtn = document.getElementById('s2rPlayBtn');
+  var resampleBtn = document.getElementById('s2rResample');
+
+  var allData = null, cellCache = {}, sel = null, joint = 0, layout = null;
+  var rolloutIdx = 0, windowPos = 0, playing = false, playRAF = null, playLast = 0;
+  var animP = 1, animStart = 0, animId = null;
+
+  for (var j = 0; j < 7; j++) {
+    var o = document.createElement('option'); o.value = j; o.textContent = 'J' + (j + 1);
+    jointSel.appendChild(o);
+  }
+  jointSel.addEventListener('change', function() { joint = parseInt(this.value); drawChart(); });
+
+  function startAnim() {
+    animP = 0; animStart = performance.now();
+    if (animId) cancelAnimationFrame(animId);
+    function tick(now) {
+      animP = Math.min((now - animStart) / 1800, 1);
+      animP = 1 - Math.pow(1 - animP, 3);
+      layout = drawHeatmapGrid(gridCtx, gridC, allData, sel, animP);
+      if (animP < 1) animId = requestAnimationFrame(tick);
+    }
+    animId = requestAnimationFrame(tick);
+  }
+
+  function loadCell(row, col) {
+    var name = 'K' + allData.kps[col] + '_D' + allData.kds[row];
+    sel = { row: row, col: col, name: name };
+    stopPlay();
+    layout = drawHeatmapGrid(gridCtx, gridC, allData, sel, animP);
+    if (cellCache[name]) { applyCell(name); drawChart(); triggerPlay(); return; }
+    drawChart();
+    fetch(CELLS_DIR + '/' + name + '.json')
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        cellCache[name] = d;
+        if (sel && sel.name === name) { applyCell(name); drawChart(); triggerPlay(); }
+      })
+      .catch(function() { drawChart(); });
+  }
+
+  function applyCell(name) {
+    var cd = cellCache[name];
+    if (!cd || !cd.rollouts || !cd.rollouts.length) return;
+    rolloutIdx = Math.floor(Math.random() * cd.rollouts.length);
+    windowPos = -WINDOW_SIZE;
+    updateTime();
+  }
+
+  function updateTime() {
+    if (!sel || !cellCache[sel.name]) { timeLabel.textContent = '-'; return; }
+    var cd = cellCache[sel.name], N = cd.n_steps, dur = cd.duration;
+    var ws = Math.max(0, Math.floor(windowPos));
+    var we = Math.min(Math.floor(windowPos) + WINDOW_SIZE, N - 1);
+    timeLabel.textContent = (ws / (N - 1) * dur).toFixed(1) + '-' + (we / (N - 1) * dur).toFixed(1) + 's';
+    timeSlider.value = Math.max(0, Math.floor(windowPos));
+  }
+
+  function triggerPlay() {
+    if (playing) return;
+    playing = true; playLast = 0;
+    playBtn.innerHTML = '&#9646;&#9646;'; playBtn.classList.add('playing');
+    function tick(ts) {
+      if (!playing) return;
+      if (playLast) {
+        var dt = (ts - playLast) / (1000 / 60);
+        windowPos += ANIM_SPEED * dt;
+        var cd = cellCache[sel.name];
+        if (cd && windowPos >= 0) { windowPos = 0; stopPlay(); }
+        updateTime(); drawChart();
+      }
+      playLast = ts;
+      playRAF = requestAnimationFrame(tick);
+    }
+    playRAF = requestAnimationFrame(tick);
+  }
+
+  function stopPlay() {
+    playing = false;
+    if (playRAF) { cancelAnimationFrame(playRAF); playRAF = null; }
+    playBtn.innerHTML = '&#9654;'; playBtn.classList.remove('playing');
+  }
+
+  playBtn.addEventListener('click', function() {
+    if (playing) stopPlay();
+    else if (sel && cellCache[sel.name]) {
+      windowPos = -WINDOW_SIZE;
+      triggerPlay();
+    }
+  });
+
+  timeSlider.addEventListener('input', function() {
+    stopPlay();
+    windowPos = parseInt(this.value);
+    updateTime(); drawChart();
+  });
+
+  resampleBtn.addEventListener('click', function() {
+    if (!sel || !cellCache[sel.name]) return;
+    var cd = cellCache[sel.name];
+    if (cd.rollouts.length <= 1) return;
+    var ni = rolloutIdx;
+    while (ni === rolloutIdx) ni = Math.floor(Math.random() * cd.rollouts.length);
+    rolloutIdx = ni;
+    windowPos = -WINDOW_SIZE;
+    drawChart();
+    triggerPlay();
+  });
+
+  gridC.addEventListener('click', function(e) {
+    if (!allData || !layout) return;
+    var hit = gridHitTest(e, gridC, allData, layout);
+    if (hit) loadCell(hit.row, hit.col);
+  });
+
+  function drawChart() {
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var W = chartC.clientWidth, H = chartC.clientHeight;
+    chartC.width = W * dpr; chartC.height = H * dpr;
+    chartCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    chartCtx.clearRect(0, 0, W, H);
+
+    if (!sel) {
+      chartCtx.fillStyle = '#ccc'; chartCtx.font = '11px sans-serif'; chartCtx.textAlign = 'center';
+      chartCtx.fillText('Tap a heatmap cell above', W / 2, H / 2); return;
+    }
+    var cd = cellCache[sel.name];
+    if (!cd || !cd.rollouts || !cd.rollouts.length) {
+      chartCtx.fillStyle = '#ccc'; chartCtx.font = '11px sans-serif'; chartCtx.textAlign = 'center';
+      chartCtx.fillText('Loading...', W / 2, H / 2); return;
+    }
+
+    var rollout = cd.rollouts[rolloutIdx];
+    var GAP = 6;
+    var topH = Math.floor((H - GAP) * 0.5);
+    var botH = H - topH - GAP;
+    drawSub(W, topH, 0, rollout, 'pos', true);
+    drawSub(W, botH, topH + GAP, rollout, 'vel', false);
+  }
+
+  function drawSub(W, H, yOff, rollout, mode, showLeg) {
+    var real = mode === 'pos' ? rollout.rp[joint] : rollout.rv[joint];
+    var sim = mode === 'pos' ? rollout.sp[joint] : rollout.sv[joint];
+    var N = real.length, cd = cellCache[sel.name], dur = cd.duration;
+    var pad = { top: 4, right: 8, bottom: showLeg ? 4 : 16, left: 36 };
+    var pX = pad.left, pY = yOff + pad.top, pW = W - pad.left - pad.right, pH = H - pad.top - pad.bottom;
+
+    var rawWs = Math.floor(windowPos);
+    var winStart = Math.max(0, rawWs);
+    var dataEnd = Math.min(rawWs + WINDOW_SIZE, N - 1);
+    var yREnd = Math.min(winStart + WINDOW_SIZE, N - 1);
+
+    var yMin = Infinity, yMax = -Infinity;
+    for (var i = winStart; i <= yREnd; i++) {
+      if (real[i] < yMin) yMin = real[i]; if (real[i] > yMax) yMax = real[i];
+      if (sim[i] < yMin) yMin = sim[i]; if (sim[i] > yMax) yMax = sim[i];
+    }
+    if (!isFinite(yMin)) { yMin = -0.1; yMax = 0.1; }
+    var minR = mode === 'pos' ? 0.05 : 0.5;
+    if (yMax - yMin < minR) { var mid = (yMin + yMax) / 2; yMin = mid - minR / 2; yMax = mid + minR / 2; }
+    var yP = (yMax - yMin) * 0.08; yMin -= yP; yMax += yP;
+
+    function mx(i) { return pX + ((i - winStart) / WINDOW_SIZE) * pW; }
+    function my(v) { return pY + pH - ((v - yMin) / (yMax - yMin)) * pH; }
+
+    chartCtx.fillStyle = '#fafafa'; chartCtx.fillRect(pX, pY, pW, pH);
+    chartCtx.strokeStyle = '#e8e8e8'; chartCtx.lineWidth = 0.5;
+    for (var i = 0; i <= 3; i++) {
+      var gy = pY + (i / 3) * pH;
+      chartCtx.beginPath(); chartCtx.moveTo(pX, gy); chartCtx.lineTo(pX + pW, gy); chartCtx.stroke();
+    }
+
+    if (winStart <= dataEnd) {
+      // Gap fill
+      chartCtx.fillStyle = 'rgba(' + COLOR_SIM[0] + ',' + COLOR_SIM[1] + ',' + COLOR_SIM[2] + ',0.1)';
+      chartCtx.beginPath();
+      for (var i = winStart; i <= dataEnd; i++) chartCtx.lineTo(mx(i), my(real[i]));
+      for (var i = dataEnd; i >= winStart; i--) chartCtx.lineTo(mx(i), my(sim[i]));
+      chartCtx.closePath(); chartCtx.fill();
+
+      // Real
+      chartCtx.strokeStyle = 'rgb(' + COLOR_REAL.join(',') + ')'; chartCtx.lineWidth = 2; chartCtx.beginPath();
+      for (var i = winStart; i <= dataEnd; i++) { i === winStart ? chartCtx.moveTo(mx(i), my(real[i])) : chartCtx.lineTo(mx(i), my(real[i])); }
+      chartCtx.stroke();
+
+      // Sim
+      chartCtx.strokeStyle = 'rgb(' + COLOR_SIM.join(',') + ')'; chartCtx.lineWidth = 2; chartCtx.beginPath();
+      for (var i = winStart; i <= dataEnd; i++) { i === winStart ? chartCtx.moveTo(mx(i), my(sim[i])) : chartCtx.lineTo(mx(i), my(sim[i])); }
+      chartCtx.stroke();
+    }
+
+    // Y ticks
+    chartCtx.fillStyle = '#888'; chartCtx.font = '7px sans-serif'; chartCtx.textAlign = 'right'; chartCtx.textBaseline = 'middle';
+    for (var i = 0; i <= 3; i++) {
+      var v = yMax - (i / 3) * (yMax - yMin);
+      chartCtx.fillText(v.toFixed(2), pX - 3, pY + (i / 3) * pH);
+    }
+
+    // Y label
+    chartCtx.save(); chartCtx.translate(8, pY + pH / 2); chartCtx.rotate(-Math.PI / 2);
+    chartCtx.font = '8px sans-serif'; chartCtx.textAlign = 'center'; chartCtx.fillStyle = '#888';
+    chartCtx.fillText(mode === 'pos' ? 'Pos (rad)' : 'Vel (rad/s)', 0, 0);
+    chartCtx.restore();
+
+    // X ticks
+    if (!showLeg) {
+      chartCtx.textAlign = 'center'; chartCtx.textBaseline = 'top'; chartCtx.font = '7px sans-serif';
+      for (var i = 0; i <= 3; i++) {
+        var step = winStart + WINDOW_SIZE * (i / 3);
+        var t = step / (N - 1) * dur;
+        chartCtx.fillText(t.toFixed(1) + 's', pX + (i / 3) * pW, pY + pH + 2);
+      }
+    }
+
+    // Legend
+    if (showLeg) {
+      var lx = pX + 4, ly = pY + 4;
+      chartCtx.font = '8px sans-serif'; chartCtx.textAlign = 'left'; chartCtx.textBaseline = 'middle';
+      chartCtx.strokeStyle = 'rgb(' + COLOR_REAL.join(',') + ')'; chartCtx.lineWidth = 2;
+      chartCtx.beginPath(); chartCtx.moveTo(lx, ly + 4); chartCtx.lineTo(lx + 14, ly + 4); chartCtx.stroke();
+      chartCtx.fillStyle = '#555'; chartCtx.fillText('Real', lx + 18, ly + 4);
+      chartCtx.strokeStyle = 'rgb(' + COLOR_SIM.join(',') + ')';
+      chartCtx.beginPath(); chartCtx.moveTo(lx, ly + 16); chartCtx.lineTo(lx + 14, ly + 16); chartCtx.stroke();
+      chartCtx.fillText('Sim', lx + 18, ly + 16);
+    }
+  }
+
+  // Lazy load
+  var loaded = false;
+  var obs = new IntersectionObserver(function(entries) {
+    if (entries[0].isIntersecting && !loaded) {
+      loaded = true; obs.disconnect();
+      fetch(INDEX_URL).then(function(r) { return r.json(); }).then(function(d) {
+        // Convert log heatmap to linear
+        for (var i = 0; i < d.heatmap.length; i++)
+          for (var j = 0; j < d.heatmap[i].length; j++)
+            if (d.heatmap[i][j] !== null) d.heatmap[i][j] = Math.exp(d.heatmap[i][j]);
+        allData = d;
+        timeSlider.max = d.n_steps - 1;
+        startAnim();
+        // Auto-select worst (highest error)
+        var maxV = -Infinity, mi = 0, mj = 0;
+        for (var i = 0; i < d.kds.length; i++)
+          for (var j = 0; j < d.kps.length; j++) {
+            var v = d.heatmap[i][j];
+            if (v !== null && v > maxV) { maxV = v; mi = i; mj = j; }
+          }
+        loadCell(mi, mj);
+      });
+    }
+  }, { threshold: 0.1 });
+  obs.observe(document.getElementById('s2rWidget'));
+})();
+</script>
+
+</body>
+</html>

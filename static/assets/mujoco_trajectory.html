@@ -1025,11 +1025,19 @@ const viewer = new MuJoCoViewer(document.getElementById('container'), {
       // Initialize gain display
       applyGains(gainNormX, gainNormY);
 
-      // Physics step callback → record response
-      let _dbgStepCount = 0;
+      // Physics step callback → record response + post to parent
       viewer.onPhysicsStep((qpos, qdes, nArm) => {
-        if (++_dbgStepCount % 10 === 0) console.log('trajectory_widget | mujoco physics stepping', _dbgStepCount);
         recordResponse(qpos, qdes, nArm);
+        // Post joint data to parent for mobile chart
+        const n = Math.min(nArm, 7);
+        const actual = [], target = [];
+        for (let j = 0; j < n; j++) {
+          actual.push(qpos[j]);
+          target.push(qdes[j]);
+        }
+        try {
+          window.parent.postMessage({ type: 'traj-joint-data', actual, target }, '*');
+        } catch(_) {}
       });
 
       // Start response plot redraw loop
@@ -1090,6 +1098,14 @@ viewer.init().catch(err => {
 
 // ── Pause/resume from parent (iframe hibernation) ────
 window.addEventListener('message', (e) => {
+  // Gain change from parent
+  if (e.data?.type === 'set-gains' && typeof applyGains === 'function') {
+    applyGains(e.data.nx, e.data.ny);
+  }
+  // Noise change from parent
+  if (e.data?.type === 'set-noise' && viewer) {
+    viewer.trajNoise = e.data.value;
+  }
   if (e.data?.type === 'sim-pause') {
     _simPaused = true;
     if (_viewerReady) {

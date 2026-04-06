@@ -512,8 +512,9 @@ try {
 viewer.enableCameraTracking();
 
 // ── Create policy runner ──────────────────────────────
-statusEl.textContent = 'Loading ONNX policy...';
+statusEl.textContent = 'Loading policy...';
 const runner = new PolicyRunner(viewer, config);
+window.runner = runner; // expose for parent frame joint response chart
 
 try {
   await runner.init(policyPath);
@@ -601,6 +602,8 @@ const JOINT_SUBSET = [
   { idx: 10, label: 'RAnk' },
   { idx: 12, label: 'Waist' },
 ];
+window.responseHistory = responseHistory;
+window.JOINT_SUBSET = JOINT_SUBSET;
 let selectedSubIdx = 4; // index into JOINT_SUBSET (default: RKnee)
 
 // Build joint selector buttons dynamically.
@@ -623,6 +626,7 @@ JOINT_SUBSET.forEach((j, si) => {
 
 let respSkip = 0;
 
+let _labelsPosted = false;
 runner.onStep = (data, actionData) => {
   respSkip++;
   if (respSkip < 3) return;
@@ -638,18 +642,35 @@ runner.onStep = (data, actionData) => {
   }
   responseHistory.push({ actual, target });
   if (responseHistory.length > RESP_HISTORY) responseHistory.shift();
+
+  // Post to parent for mobile joint response chart
+  try {
+    const msg = { type: 'joint-data', actual, target };
+    if (!_labelsPosted) {
+      msg.labels = JOINT_SUBSET.map(j => j.label);
+      _labelsPosted = true;
+    }
+    window.parent.postMessage(msg, '*');
+  } catch(_) {}
 };
 
+let _respCtx = null;
+let _respW = 0, _respH = 0;
 function drawResponsePlot() {
   if (!respCanvas) return;
   const dpr = Math.min(window.devicePixelRatio, 2);
   const W = respCanvas.clientWidth;
   const H = respCanvas.clientHeight;
   if (W === 0 || H === 0) return;
-  respCanvas.width = W * dpr;
-  respCanvas.height = H * dpr;
-  const ctx = respCanvas.getContext('2d');
-  ctx.scale(dpr, dpr);
+  // Only reallocate canvas buffer when size actually changes
+  if (W !== _respW || H !== _respH) {
+    _respW = W; _respH = H;
+    respCanvas.width = W * dpr;
+    respCanvas.height = H * dpr;
+    _respCtx = respCanvas.getContext('2d');
+  }
+  const ctx = _respCtx;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
   const si = selectedSubIdx;
   const color = curveColor;
@@ -1201,8 +1222,7 @@ function gainTestStep() {
   // Step physics — base is truly fixed (no freejoint in this model).
   for (let s = 0; s < decimation; s++) {
     mujoco.mj_step(model, data);
-    if (typeof window._dbgStepCount === 'undefined') window._dbgStepCount = 0;
-    if (++window._dbgStepCount % 10 === 0) console.log('velocity_widget | mujoco physics stepping', window._dbgStepCount);
+    // debug logging removed
   }
   gainTestSimTime += cfg.timestep * decimation;
 
@@ -1289,19 +1309,44 @@ async function swapConfig(newScene, newPolicy, newConfig, newColor) {
     patchActuatorGains(xmlText, walkModel);
     if (fixedModel) patchActuatorGains(xmlText, fixedModel);
 
-    // 3. Load new ONNX policy.
+    // 3. Load new policy (JS weights if available, otherwise ONNX).
     statusEl.textContent = 'Loading policy…';
-    const ort = await import('onnxruntime-web');
-    const newSession = await ort.InferenceSession.create(newPolicy, {
-      executionProviders: ['wasm'],
-    });
+    const jsonPath = newPolicy.replace(/\.onnx$/, '_weights.json');
+    let loadedJs = false;
+    try {
+      const jResp = await fetch(jsonPath);
+      if (jResp.ok) {
+        const raw = await jResp.json();
+        runner._jsWeights = {};
+        for (const [name, val] of Object.entries(raw)) {
+          if (name === '_meta') continue;
+          const bytes = Uint8Array.from(atob(val.data_b64), c => c.charCodeAt(0));
+          runner._jsWeights[name] = {
+            shape: val.shape,
+            data: new Float32Array(bytes.buffer),
+          };
+        }
+        runner._useJsInference = true;
+        loadedJs = true;
+      }
+    } catch(_) {}
+
+    if (!loadedJs) {
+      const ort = await import('onnxruntime-web');
+      const newSession = await ort.InferenceSession.create(newPolicy, {
+        executionProviders: ['wasm'],
+      });
+      runner.session = newSession;
+      runner._useJsInference = false;
+    }
 
     // 4. Update config + runner internals.
     config = newCfg;
     runner.config = config;
-    runner.session = newSession;
     runner.obsDim = config.observation_dims.reduce((a, b) => a + b, 0);
+    runner._obsBuffer = new Float32Array(runner.obsDim);
     runner.lastAction = new Float32Array(config.num_joints);
+    runner._outputBuffer = new Float32Array(config.num_joints);
 
     // Update curve color.
     if (newColor) {

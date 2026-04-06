@@ -328,13 +328,16 @@ export class MuJoCoViewer {
       this.camera.lookAt(0, 0.5, 0);
     }
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
-    this.renderer.setPixelRatio(window.devicePixelRatio);
+    // Cap pixel ratio at 2 to prevent excessive GPU memory on mobile (3x Retina)
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const maxDPR = isMobile ? 1.5 : window.devicePixelRatio;
+    this.renderer = new THREE.WebGLRenderer({ antialias: !isMobile });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, maxDPR));
     this.renderer.setSize(
       this.container.clientWidth,
       this.container.clientHeight,
     );
-    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.enabled = !isMobile;
     this.container.appendChild(this.renderer.domElement);
 
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);

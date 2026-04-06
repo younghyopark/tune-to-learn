@@ -58,15 +58,23 @@
     a:hover { text-decoration-color: #1a1a1a; }
     img, video, iframe { max-width: 100%; display: block; border: none; }
 
+    /* ── Sticky top group ── */
+    .sticky-top {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
     /* ── Desktop Banner ── */
     .desktop-banner {
-      background: rgba(99, 102, 241, 0.06);
-      border-bottom: 1px solid rgba(99, 102, 241, 0.15);
-      padding: 0.85rem 1rem;
+      background: #4f46e5;
+      border-bottom: none;
+      padding: 0.6rem 2.2rem 0.6rem 1rem;
       text-align: center;
-      font-size: 0.82rem;
-      color: #444;
-      line-height: 1.5;
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: rgba(255,255,255,0.95);
+      line-height: 1.45;
       position: relative;
     }
     .desktop-banner svg {
@@ -76,23 +84,66 @@
       opacity: 0.6;
     }
     .desktop-banner a {
-      color: #4f46e5;
-      font-weight: 500;
-      text-decoration-color: rgba(79, 70, 229, 0.3);
+      color: #fff;
+      font-weight: 600;
+      text-decoration: underline;
+      text-underline-offset: 2px;
     }
     .desktop-banner .dismiss-btn {
       position: absolute;
-      top: 0.5rem;
-      right: 0.75rem;
+      top: 0.4rem;
+      right: 0.6rem;
       background: none;
       border: none;
       font-size: 1.1rem;
-      color: #999;
+      color: rgba(255,255,255,0.7);
       cursor: pointer;
       padding: 0.2rem;
       line-height: 1;
     }
     .desktop-banner.hidden { display: none; }
+
+    /* ── Sticky title bar ── */
+    .sticky-title-bar {
+      background: #f7f8fa;
+      border-bottom: 1px solid #ddd;
+      padding: 0.4rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .sticky-title-bar .title {
+      font-size: 0.72rem;
+      font-weight: 400;
+      color: #1a1a1a;
+      letter-spacing: -0.01em;
+      white-space: nowrap;
+      overflow-x: scroll;
+      -webkit-overflow-scrolling: touch;
+      flex: 1;
+      min-width: 0;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    .sticky-title-bar .title::-webkit-scrollbar { display: none; }
+    .sticky-title-bar .title b { font-weight: 700; }
+    .sticky-title-bar .links {
+      display: flex;
+      gap: 0.4rem;
+      flex-shrink: 0;
+    }
+    .sticky-title-bar .mini-btn {
+      font-size: 0.68rem;
+      font-weight: 500;
+      color: #555;
+      text-decoration: none;
+      padding: 0.2rem 0.5rem;
+      border: 1px solid #ddd;
+      border-radius: 3px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
 
     /* ── Hero ── */
     .hero {
@@ -103,7 +154,7 @@
       border-bottom: 1px solid #e0e0e0;
     }
     .paper-title {
-      font-size: clamp(1.35rem, 5vw, 1.8rem);
+      font-size: clamp(1.7rem, 5vw, 2.5rem);
       font-weight: 700;
       line-height: 1.25;
       margin-bottom: 0.85rem;
@@ -220,9 +271,10 @@
     }
     .finding-card {
       border: 1px solid #e0e0e0;
-      border-radius: 4px;
+      border-radius: 8px;
       padding: 1rem 1.1rem;
       background: #fff;
+      position: relative;
     }
     .finding-card .tag {
       display: inline-block;
@@ -242,6 +294,37 @@
       color: #444;
       line-height: 1.55;
     }
+    a.finding-link {
+      text-decoration: none;
+      display: block;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      border-left: 3px solid transparent;
+    }
+    a.finding-link.bc-link { border-left-color: #5b21b6; }
+    a.finding-link.rl-link { border-left-color: #1e40af; }
+    a.finding-link.s2r-link { border-left-color: #065f46; }
+    a.finding-link:active { box-shadow: 0 0 0 2px rgba(79,70,229,0.2); }
+    .finding-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 0.5rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid #f0f0f0;
+    }
+    .finding-arrow {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #5b21b6;
+    }
+    .finding-chevron {
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: #f5f5f5;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .finding-chevron svg { opacity: 0.5; }
 
     /* ── BibTeX ── */
     .bibtex-block {
@@ -312,12 +395,21 @@
 </head>
 <body>
 
-<!-- Desktop Banner -->
-<div class="desktop-banner" id="desktop-banner">
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-  Best on desktop — interactive 3D simulations &amp; live demos await.
-  <a href="index.html?full=1">Open full site</a>
-  <button class="dismiss-btn" onclick="this.parentElement.classList.add('hidden');sessionStorage.setItem('banner-dismissed','1');" aria-label="Dismiss">&times;</button>
+<!-- Sticky top: banner + title -->
+<div class="sticky-top">
+  <div class="desktop-banner" id="desktop-banner">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+    <strong>Best viewed on desktop</strong> — the full site includes interactive 3D simulations and live policy demos for a better understanding of our findings.
+    <a href="index.html?full=1">Open full site</a>
+    <button class="dismiss-btn" onclick="this.parentElement.classList.add('hidden');sessionStorage.setItem('banner-dismissed','1');" aria-label="Dismiss">&times;</button>
+  </div>
+  <div class="sticky-title-bar">
+    <span class="title"><b>Tune to Learn:</b> How Controller Gains Shape Robot Policy Learning</span>
+    <div class="links">
+      <a href="static/assets/arxiv__tune_to_learn.pdf" class="mini-btn" target="_blank">Paper</a>
+      <a href="https://youtu.be/4KR8p2wuoIg" class="mini-btn">Video</a>
+    </div>
+  </div>
 </div>
 <script>
   if (sessionStorage.getItem('banner-dismissed')) {
@@ -330,7 +422,7 @@
   <div class="container">
     <h1 class="paper-title">
       Tune to Learn:<br/>
-      <span class="subtitle">How Controller Gains Affect Robot Policy Learning</span>
+      <span class="subtitle">How Controller Gains Affect<br/>Robot Policy Learning</span>
     </h1>
 
     <div class="author-list">
@@ -397,19 +489,74 @@
   <div class="container">
     <h2>Key Findings</h2>
     <div class="findings-cards">
-      <div class="finding-card">
+      <a href="mobile-bc.html" class="finding-card finding-link bc-link">
         <span class="tag bc">Behavior Cloning</span>
         <p>BC benefits from <b>compliant, overdamped</b> gain regimes. Swapping to the right gain setting can improve success rates by over 30% on the same task with the same data.</p>
-      </div>
-      <div class="finding-card">
+        <div class="finding-footer">
+          <span class="finding-arrow">Explore interactive heatmaps &amp; demos</span>
+          <span class="finding-chevron"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        </div>
+      </a>
+      <a href="mobile-rl.html" class="finding-card finding-link rl-link">
         <span class="tag rl">Reinforcement Learning</span>
         <p>RL can succeed across <b>all gain regimes</b> given compatible hyperparameter tuning. The learning algorithm adapts to the dynamics imposed by different gains.</p>
-      </div>
-      <div class="finding-card">
+        <div class="finding-footer">
+          <span class="finding-arrow" style="color: #1e40af;">Explore live policy rollouts</span>
+          <span class="finding-chevron"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        </div>
+      </a>
+      <a href="mobile-sim2real.html" class="finding-card finding-link s2r-link">
         <span class="tag s2r">Sim-to-Real Transfer</span>
         <p>Sim-to-real transfer is <b>harmed by stiff, overdamped</b> configurations. Compliant gains reduce the sim-to-real gap and improve transfer success.</p>
-      </div>
+        <div class="finding-footer">
+          <span class="finding-arrow" style="color: #065f46;">Explore trajectory comparisons</span>
+          <span class="finding-chevron"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        </div>
+      </a>
     </div>
+  </div>
+</section>
+
+<!-- Conclusion & Remarks -->
+<section class="section" id="conclusion">
+  <div class="container">
+    <h2>Conclusion &amp; Remarks</h2>
+    <p style="font-size: 0.88rem; color: #444; line-height: 1.6;">
+      We have presented a systematic study of how position controller gains shape
+      learning dynamics across three paradigms of modern robot learning. Our findings
+      reveal that gains function not as behavioral parameters, but as an
+      <em>inductive bias</em> that modulates the learning interface between policy and
+      environment.
+    </p>
+    <h3 style="font-size: 1rem; margin-top: 1rem; margin-bottom: 0.5rem;">Broader Implications</h3>
+    <video
+      muted playsinline
+      style="width: 100%; border-radius: 6px; margin-bottom: 0.5rem; display: block;"
+      id="wb-video"
+      src="static/assets/whole-body-RL-as-low-level-controller.mp4"
+    ></video>
+    <p style="font-size: 0.85rem; color: #444; line-height: 1.6;">
+      <strong>Whole-Body Tracking Controllers for Humanoids.</strong>
+      Modern humanoid robots increasingly use RL-trained whole-body tracking policies
+      as low-level controllers, analogous to the PD controllers studied here. These
+      motion tracking policies tend to be inherently stiff — yet when such policies
+      serve as the low-level interface for higher-level learning, their effective
+      compliance directly shapes the learning dynamics of the policies above them,
+      much as PD gains do in our setting.
+    </p>
+    <img
+      src="static/assets/handheld.png"
+      style="width: 100%; border-radius: 6px; margin: 0.75rem 0 0.5rem; display: block;"
+      alt="Learning from wearable devices"
+    />
+    <p style="font-size: 0.85rem; color: #444; line-height: 1.6;">
+      <strong>The Implicit Stiff-Controller Assumption in Learning from Wearables or Videos.</strong>
+      Paradigms that learn manipulation skills from human videos or wearable devices
+      typically treat observed next-timestep state as the action label, implicitly
+      assuming perfect target tracking — which our results suggest may be suboptimal
+      for imitation learning. Whether these gain-dependent trends generalize to such
+      cross-embodiment or whole-body control settings remains an open question.
+    </p>
   </div>
 </section>
 
@@ -419,11 +566,14 @@
     <h2>BibTeX</h2>
     <div class="bibtex-block">
       <button class="copy-btn" id="copy-btn">Copy</button>
-      <pre><code id="bibtex-code">@inproceedings{author2026method,
-  title     = {Your Paper Title Goes Here},
-  author    = {One, Author and Two, Author and Three, Author and Four, Author},
-  booktitle = {Conference on Robot Learning (CoRL)},
-  year      = {2026}
+      <pre><code id="bibtex-code">@misc{bronars2026tunelearncontrollergains,
+      title={Tune to Learn: How Controller Gains Shape Robot Policy Learning},
+      author={Antonia Bronars and Younghyo Park and Pulkit Agrawal},
+      year={2026},
+      eprint={2604.02523},
+      archivePrefix={arXiv},
+      primaryClass={cs.RO},
+      url={https://arxiv.org/abs/2604.02523},
 }</code></pre>
     </div>
   </div>
@@ -443,22 +593,31 @@
   <p>&copy; 2026 ImprobableAI @MIT CSAIL. All rights reserved.</p>
 </footer>
 
-<!-- Minimal JS: BibTeX copy only -->
+<!-- Minimal JS -->
 <script>
 (function() {
+  // BibTeX copy
   var btn = document.getElementById('copy-btn');
   var code = document.getElementById('bibtex-code');
-  if (!btn || !code) return;
-  btn.addEventListener('click', function() {
-    navigator.clipboard.writeText(code.textContent.trim()).then(function() {
-      btn.textContent = 'Copied!';
-      btn.classList.add('copied');
-      setTimeout(function() {
-        btn.textContent = 'Copy';
-        btn.classList.remove('copied');
-      }, 2000);
+  if (btn && code) {
+    btn.addEventListener('click', function() {
+      navigator.clipboard.writeText(code.textContent.trim()).then(function() {
+        btn.textContent = 'Copied!';
+        btn.classList.add('copied');
+        setTimeout(function() { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+      });
     });
-  });
+  }
+
+  // Play whole-body video when visible
+  var wbVid = document.getElementById('wb-video');
+  if (wbVid) {
+    var obs = new IntersectionObserver(function(entries) {
+      if (entries[0].isIntersecting) { wbVid.play(); }
+      else { wbVid.pause(); }
+    }, { threshold: 0.3 });
+    obs.observe(wbVid);
+  }
 })();
 </script>
 

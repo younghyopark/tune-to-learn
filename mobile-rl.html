@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+<!-- Google Analytics (production only) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-0FCZG3T4ZJ"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  if (location.hostname === 'younghyopark.me') {
+    gtag('config', 'G-0FCZG3T4ZJ');
+  }
+</script>
+
+<title>RL Findings — Tune to Learn</title>
+<link rel="canonical" href="https://younghyopark.me/tune-to-learn/" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-font-smoothing: antialiased; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 1rem;
+    line-height: 1.6;
+    color: #1a1a1a;
+    background: #fff;
+    overflow-x: hidden;
+  }
+
+  /* ── Sticky top group ── */
+  .sticky-top { position: sticky; top: 0; z-index: 100; }
+
+  .desktop-banner {
+    background: #4f46e5;
+    padding: 0.6rem 2.2rem 0.6rem 1rem;
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: rgba(255,255,255,0.95);
+    line-height: 1.45;
+    position: relative;
+  }
+  .desktop-banner svg { display: inline-block; vertical-align: -2px; margin-right: 0.3rem; opacity: 0.8; }
+  .desktop-banner a { color: #fff; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+  .desktop-banner .dismiss-btn {
+    position: absolute; top: 0.4rem; right: 0.6rem;
+    background: none; border: none; font-size: 1rem;
+    color: rgba(255,255,255,0.7); cursor: pointer; padding: 0.2rem; line-height: 1;
+  }
+  .desktop-banner.hidden { display: none; }
+
+  .topbar {
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.4rem 0.75rem;
+    border-bottom: 1px solid #ddd; background: #f7f8fa;
+  }
+  .back-btn {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    font-size: 0.78rem; font-weight: 500; color: #4f46e5;
+    text-decoration: none; padding: 0.25rem 0.45rem;
+    border-radius: 4px; background: rgba(99,102,241,0.06); white-space: nowrap;
+  }
+  .topbar-title { font-size: 0.78rem; font-weight: 600; color: #333; }
+
+  /* ── Header ── */
+  .page-header {
+    padding: 0.6rem 1rem 0.5rem;
+    border-bottom: 1px solid #f0f0f0;
+    max-width: 400px; margin: 0 auto;
+  }
+  .page-header h1 { font-size: 1rem; font-weight: 700; line-height: 1.35; }
+  .page-header h1 .tag {
+    display: inline-block; font-size: 0.6rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 0.1em 0.45em; border-radius: 3px;
+    background: #dbeafe; color: #1e40af;
+    vertical-align: middle; margin-right: 0.35rem; position: relative; top: -1px;
+  }
+  .page-header .subtitle { font-size: 0.78rem; color: #777; margin-top: 0.15rem; }
+
+  /* ── Takeaways ── */
+  .takeaways {
+    display: flex; gap: 0.35rem;
+    padding: 0.4rem 0.75rem 0.35rem;
+    border-bottom: 1px solid #f0f0f0;
+    max-width: 400px; margin: 0 auto;
+  }
+  .takeaway {
+    flex: 1; font-size: 0.7rem; color: #444;
+    padding: 0.3rem 0.45rem;
+    border-left: 2px solid #93c5fd; background: #f0f7ff;
+    border-radius: 0 3px 3px 0; line-height: 1.4;
+  }
+  .takeaway strong { color: #333; }
+
+  /* ── Prose ── */
+  .prose {
+    padding: 0.75rem 1rem; max-width: 400px; margin: 0 auto;
+    font-size: 0.85rem; color: #444; line-height: 1.6;
+  }
+  .prose p { margin-bottom: 0.6rem; }
+  .prose p:last-child { margin-bottom: 0; }
+  .prose strong { color: #1a1a1a; }
+
+  /* ── Widget ── */
+  .widget-section {
+    max-width: 400px;
+    margin: 0 1rem;
+    border: 1px solid #e8e8e8;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  @media (min-width: 432px) {
+    .widget-section { margin-left: auto; margin-right: auto; }
+  }
+
+  .tab-bar {
+    display: flex; border-bottom: 1px solid #e0e0e0; background: #fafafa;
+  }
+  .tab-btn {
+    flex: 1; padding: 0.5rem 0.5rem; border: none; background: transparent;
+    font-size: 0.72rem; font-family: inherit; font-weight: 500;
+    color: #888; cursor: pointer; text-align: center;
+    border-bottom: 2px solid transparent;
+  }
+  .tab-btn.active { color: #333; font-weight: 600; border-bottom-color: #c0392b; background: #fff; }
+
+  /* Grid + viewer stacked */
+  .grid-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 0.75rem;
+    gap: 0.75rem;
+    background: #f8f9fb;
+    border-bottom: 1px solid #eee;
+  }
+  .grid-canvas { display: block; cursor: pointer; flex-shrink: 0; width: 120px; height: 120px; }
+  .grid-label {
+    font-size: 0.7rem; color: #666; line-height: 1.4; flex: 1;
+  }
+  .grid-label b { color: #333; display: block; font-size: 0.72rem; margin-bottom: 0.15rem; }
+
+  /* Joint response chart */
+  .response-wrap {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+  .response-title {
+    font-size: 0.62rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #999;
+  }
+  .response-canvas {
+    width: 100%;
+    height: 80px;
+    display: block;
+    border-radius: 3px;
+    background: #fff;
+    border: 1px solid #eee;
+  }
+  .joint-btns {
+    display: flex;
+    gap: 2px;
+    flex-wrap: wrap;
+  }
+  .joint-btn {
+    font-size: 0.55rem;
+    padding: 1px 4px;
+    border: 1px solid #ddd;
+    border-radius: 2px;
+    background: #fff;
+    color: #888;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .joint-btn.active {
+    background: #4f46e5;
+    border-color: #4f46e5;
+    color: #fff;
+  }
+
+  .viewer-wrap {
+    position: relative;
+    width: 100%;
+    height: 280px;
+    background: #f0f2f5;
+  }
+  .viewer-wrap iframe {
+    width: 100%; height: 100%; border: none; display: block;
+  }
+  .viewer-placeholder {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 0.5rem;
+    color: #999; font-size: 0.8rem;
+    pointer-events: none;
+  }
+  .viewer-placeholder.hidden { display: none; }
+  .load-btn {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    padding: 0.5rem 1.2rem;
+    border-radius: 6px; border: none;
+    background: #4f46e5; color: #fff;
+    font-size: 0.82rem; font-weight: 600;
+    font-family: inherit; cursor: pointer;
+    pointer-events: auto;
+  }
+  .load-btn:active { background: #4338ca; }
+  .viewer-hint {
+    font-size: 0.68rem; color: #aaa; text-align: center;
+    line-height: 1.4; max-width: 220px;
+  }
+
+  .widget-caption {
+    font-size: 0.7rem; color: #888; text-align: center;
+    padding: 0.35rem 0.75rem; border-top: 1px solid #f0f0f0; background: #fafafa;
+  }
+  .widget-caption b { color: #555; }
+
+  /* ── Bottom CTA ── */
+  .bottom-cta {
+    text-align: center; padding: 1.5rem 1rem 2rem;
+    border-top: 1px solid #f0f0f0; max-width: 400px; margin: 0 auto;
+  }
+  .bottom-cta a { font-size: 0.82rem; color: #4f46e5; font-weight: 500; }
+  .bottom-cta p { font-size: 0.72rem; color: #bbb; margin-top: 0.3rem; }
+</style>
+</head>
+<body>
+
+<!-- Sticky top -->
+<div class="sticky-top">
+  <div class="desktop-banner" id="desktop-banner">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+    <strong>Best viewed on desktop</strong> — the full site includes interactive 3D simulations and live policy demos for a better understanding of our findings.
+    <a href="index.html?full=1">Open full site</a>
+    <button class="dismiss-btn" onclick="this.parentElement.classList.add('hidden');sessionStorage.setItem('banner-dismissed','1');" aria-label="Dismiss">&times;</button>
+  </div>
+  <div class="topbar">
+    <a href="mobile.html" class="back-btn">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Back
+    </a>
+    <span class="topbar-title">Reinforcement Learning Findings</span>
+  </div>
+</div>
+<script>
+  if (sessionStorage.getItem('banner-dismissed')) document.getElementById('desktop-banner').classList.add('hidden');
+</script>
+
+<!-- Header -->
+<div class="page-header">
+  <h1><span class="tag">RL</span> RL succeeds across all gain settings</h1>
+  <p class="subtitle">Tap dots on the gain grid to load live policies.</p>
+</div>
+
+<!-- Takeaways -->
+<div class="takeaways">
+  <div class="takeaway"><strong>All gains work.</strong> RL finds solutions for every gain regime given proper tuning.</div>
+  <div class="takeaway"><strong>Sensitivity varies.</strong> Gains modulate the hyperparameter landscape differently per task.</div>
+</div>
+
+<!-- Intro prose -->
+<div class="prose">
+  <p>
+    Unlike behavior cloning, online RL can <strong>discover successful policies
+    across all gain settings</strong> — compliant, critically damped, and stiff — as long as
+    key hyperparameters are re-tuned per configuration.
+  </p>
+  <p>
+    Each dot below loads a <strong>live RL policy</strong> running in your browser
+    via MuJoCo WASM + ONNX inference. Tap a dot to see the policy trained under that
+    (Kp, Kd) setting.
+  </p>
+</div>
+
+<!-- Widget -->
+<div class="widget-section">
+  <div class="tab-bar" id="tabBar">
+    <button class="tab-btn active" data-task="locomotion">G1 Locomotion</button>
+    <button class="tab-btn" data-task="lift">Lift Cube</button>
+    <button class="tab-btn" data-task="reorient">Reorient Cube</button>
+  </div>
+
+  <div class="grid-row">
+    <canvas id="gainGrid" class="grid-canvas" width="120" height="120"></canvas>
+    <div class="response-wrap">
+      <span class="response-title">Joint Response</span>
+      <canvas id="responseCanvas" class="response-canvas"></canvas>
+      <div class="joint-btns" id="jointBtns"></div>
+    </div>
+  </div>
+
+  <div class="viewer-wrap" id="viewerWrap">
+    <div class="viewer-placeholder" id="placeholder">
+      <span style="color:#aaa;font-size:0.75rem;">Loading...</span>
+    </div>
+  </div>
+
+  <p class="widget-caption"><b>Live RL Policy.</b> Tap a gain dot to switch policies. Drag the robot to perturb. Pinch to zoom.</p>
+</div>
+
+<!-- Post-widget prose -->
+<div class="prose" style="border-top: 1px solid #f0f0f0; padding-top: 1rem;">
+  <p>
+    While RL can solve tasks under any gain regime, the <strong>ease of finding good
+    hyperparameters</strong> varies. Some gain configurations produce large, smooth regions
+    of successful settings, while others require more precise tuning.
+    However, no single gain regime is consistently easier to optimize across all tasks.
+  </p>
+  <p>
+    This stands in contrast to behavior cloning, where compliant gains are clearly
+    preferred. For RL, the choice of gains is less critical than ensuring the
+    training pipeline is properly configured for the selected regime.
+  </p>
+</div>
+
+<!-- Shapeability widget -->
+<div class="prose">
+  <p>
+    <strong>Hyperparameter Sensitivity.</strong> Tap a gain dot to watch how
+    Optuna explores the action-scale space. Green rings = &gt;95% success.
+  </p>
+</div>
+<div class="widget-section" id="shapeWidget" style="margin-bottom: 1rem;">
+  <div class="tab-bar" id="shapeTabs"></div>
+  <div class="grid-row">
+    <canvas id="shapeGainGrid" class="grid-canvas" width="110" height="110" style="width:110px;height:110px;"></canvas>
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;">
+      <div id="shapeRegimeLabel" style="font-size:0.75rem;font-weight:600;color:#444;text-align:center;min-height:1.2em;"></div>
+      <span style="font-size:0.55rem;text-transform:uppercase;color:#aaa;letter-spacing:0.03em;">Success Rate</span>
+      <canvas id="shapeColorbar" width="100" height="6" style="border-radius:2px;border:1px solid #ddd;"></canvas>
+      <div style="display:flex;justify-content:space-between;width:100px;font-size:0.5rem;color:#aaa;"><span>0%</span><span>100%</span></div>
+    </div>
+  </div>
+  <div style="padding:4px;">
+    <canvas id="shapePlot" style="width:100%;height:230px;display:block;border-radius:3px;"></canvas>
+  </div>
+  <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;border-top:1px solid #eee;background:#fafafa;">
+    <button id="shapePlayBtn" style="width:26px;height:26px;border:1px solid #ccc;border-radius:50%;background:#fff;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;" disabled>&#9654;</button>
+    <span id="shapeTrialLabel" style="font-size:0.65rem;color:#555;min-width:60px;">Trial: 0/50</span>
+    <input type="range" id="shapeSlider" min="0" max="50" value="0" disabled style="flex:1;height:3px;">
+    <span style="display:inline-flex;align-items:center;gap:3px;font-size:0.6rem;color:#555;">
+      <span style="display:inline-block;width:10px;height:10px;border-radius:50%;border:2px solid #2db84d;background:rgba(52,199,89,0.2);"></span>
+      &gt;95%
+    </span>
+    <span id="shapeSuccessCount" style="font-size:0.6rem;color:#34c759;font-weight:600;min-width:20px;text-align:right;"></span>
+  </div>
+</div>
+
+<!-- Bottom CTA -->
+<div class="bottom-cta">
+  <a href="index.html?full=1">View on desktop for larger interactive visualizations</a>
+  <p>Full-width hyperparameter landscape with detailed controls</p>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  // ── Task configs (mirrored from rl_manipulation_widget.html) ──
+  var TASKS = {
+    locomotion: {
+      viewer: 'static/assets/mujoco_velocity_policy.html',
+      base: 'models/g1_velocity',
+      dots: [
+        { folder: 'LLmax', scene: 'g1_scene.xml', fx: 1/6, fy: 1/6 },
+        { folder: 'LHmax', scene: 'g1_scene.xml', fx: 1/6, fy: 5/6 },
+        { folder: 'HLmax', scene: 'g1_scene.xml', fx: 5/6, fy: 1/6 },
+        { folder: 'HHmax', scene: 'g1_scene.xml', fx: 5/6, fy: 5/6 },
+      ],
+    },
+    lift: {
+      dots: [
+        { folder: 'lift-K16-D2',   scene: 'mjlab_lift_cube_franka_k16_d2_scene.xml',   fx: 1/6, fy: 1/6 },
+        { folder: 'lift-K16-D24',  scene: 'mjlab_lift_cube_franka_k16_d24_scene.xml',  fx: 1/6, fy: 5/6 },
+        { folder: 'lift-K512-D2',  scene: 'mjlab_lift_cube_franka_k512_d2_scene.xml',  fx: 5/6, fy: 1/6 },
+        { folder: 'lift-K512-D24', scene: 'mjlab_lift_cube_franka_k512_d24_scene.xml', fx: 5/6, fy: 5/6 },
+      ],
+    },
+    reorient: {
+      dots: [
+        { folder: 'reorient-K16-D2',   scene: 'mjlab_reorient_cube_franka_challenge_k16_d2_resample_scene.xml',   fx: 1/6, fy: 1/6 },
+        { folder: 'reorient-K16-D24',  scene: 'mjlab_reorient_cube_franka_challenge_k16_d24_resample_scene.xml',  fx: 1/6, fy: 5/6 },
+        { folder: 'reorient-K512-D2',  scene: 'mjlab_reorient_cube_franka_challenge_k512_d2_resample_scene.xml',  fx: 5/6, fy: 1/6 },
+        { folder: 'reorient-K512-D24', scene: 'mjlab_reorient_cube_franka_challenge_k512_d24_resample_scene.xml', fx: 5/6, fy: 5/6 },
+      ],
+    },
+  };
+
+  // ── Corner colors ──
+  var GC_A = [140,140,140], GC_B = [76,114,176], GC_C = [196,78,82], GC_D = [129,114,178];
+  function lerpC(a,b,t) { return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t]; }
+  function dotColor(fx,fy) {
+    var c = lerpC(lerpC(GC_A,GC_B,fx), lerpC(GC_C,GC_D,fx), fy);
+    return 'rgb('+Math.round(c[0])+','+Math.round(c[1])+','+Math.round(c[2])+')';
+  }
+
+  // ── State ──
+  var currentTask = 'locomotion';
+  var activeIdx = -1;
+  var pulsePhase = 0, pulseRAF = null;
+
+  // ── Elements ──
+  var canvas = document.getElementById('gainGrid');
+  var ctx = canvas.getContext('2d');
+  var placeholder = document.getElementById('placeholder');
+  var tabBtns = document.querySelectorAll('.tab-btn');
+
+  // ── Grid drawing ──
+  var S = 120; // canvas CSS size
+  var PAD = { top: 22, right: 14, bottom: 14, left: 14 };
+
+  function gridMetrics() {
+    var gs = S - PAD.left - PAD.right;
+    return { gs: gs, ox: PAD.left, oy: PAD.top };
+  }
+
+  function dotXY(dot) {
+    var m = gridMetrics();
+    return { cx: m.ox + dot.fx * m.gs, cy: m.oy + (1 - dot.fy) * m.gs };
+  }
+
+  function draw() {
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = S * dpr;
+    canvas.height = S * dpr;
+    canvas.style.width = S + 'px';
+    canvas.style.height = S + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    var m = gridMetrics();
+    ctx.clearRect(0, 0, S, S);
+
+    // Grid lines
+    ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+    ctx.lineWidth = 0.5;
+    for (var i = 0; i <= 6; i++) {
+      var f = i / 6;
+      ctx.beginPath(); ctx.moveTo(m.ox + f*m.gs, m.oy); ctx.lineTo(m.ox + f*m.gs, m.oy + m.gs); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(m.ox, m.oy + f*m.gs); ctx.lineTo(m.ox + m.gs, m.oy + f*m.gs); ctx.stroke();
+    }
+
+    // Axis arrows
+    ctx.strokeStyle = '#333'; ctx.fillStyle = '#333'; ctx.lineWidth = 1.2;
+    var arrowSz = 4;
+    // X
+    var xY = m.oy + m.gs + 1;
+    ctx.beginPath(); ctx.moveTo(m.ox, xY); ctx.lineTo(m.ox + m.gs + 6, xY); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(m.ox+m.gs+6, xY); ctx.lineTo(m.ox+m.gs+6-arrowSz, xY-arrowSz); ctx.lineTo(m.ox+m.gs+6-arrowSz, xY+arrowSz); ctx.closePath(); ctx.fill();
+    // Y
+    var yX = m.ox - 1;
+    ctx.beginPath(); ctx.moveTo(yX, m.oy+m.gs); ctx.lineTo(yX, 4); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(yX, 4); ctx.lineTo(yX-arrowSz, 4+arrowSz); ctx.lineTo(yX+arrowSz, 4+arrowSz); ctx.closePath(); ctx.fill();
+
+    // Labels
+    ctx.font = 'bold 10px -apple-system, sans-serif'; ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+    ctx.fillText('K', m.ox+m.gs+8, xY+3);
+    var kw = ctx.measureText('K').width;
+    ctx.font = '7px -apple-system, sans-serif';
+    ctx.fillText('p', m.ox+m.gs+8+kw, xY+5);
+
+    ctx.font = 'bold 10px -apple-system, sans-serif';
+    ctx.fillText('K', yX+3, 12);
+    kw = ctx.measureText('K').width;
+    ctx.font = '7px -apple-system, sans-serif';
+    ctx.fillText('d', yX+3+kw, 14);
+
+    // Dots
+    var dots = TASKS[currentTask].dots;
+    dots.forEach(function(dot, i) {
+      var p = dotXY(dot);
+      var isActive = i === activeIdx;
+      var r = 8;
+
+      if (isActive) {
+        var glowA = 0.15 + 0.15 * Math.sin(pulsePhase * 2);
+        var glowR = r + 4 + 2 * Math.sin(pulsePhase * 2);
+        ctx.beginPath(); ctx.arc(p.cx, p.cy, glowR, 0, Math.PI*2);
+        ctx.fillStyle = 'rgba(0,0,0,' + glowA + ')';
+        ctx.fill();
+      }
+
+      ctx.beginPath(); ctx.arc(p.cx, p.cy, r, 0, Math.PI*2);
+      ctx.fillStyle = dotColor(dot.fx, dot.fy);
+      ctx.fill();
+
+      if (isActive) {
+        ctx.lineWidth = 2.5; ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+      } else {
+        ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+        if (activeIdx >= 0) {
+          ctx.beginPath(); ctx.arc(p.cx, p.cy, r, 0, Math.PI*2);
+          ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fill();
+        }
+      }
+      ctx.beginPath(); ctx.arc(p.cx, p.cy, r, 0, Math.PI*2); ctx.stroke();
+    });
+  }
+
+  // ── Pulse ──
+  function startPulse() {
+    if (pulseRAF) return;
+    function tick() {
+      if (activeIdx < 0) { pulseRAF = null; return; }
+      pulsePhase += 0.05;
+      draw();
+      pulseRAF = requestAnimationFrame(tick);
+    }
+    pulseRAF = requestAnimationFrame(tick);
+  }
+
+  // ── Viewer management ──
+  var viewerWrap = document.getElementById('viewerWrap');
+  var pendingSrc = null;
+  var currentIframe = null;
+
+  function destroyViewer() {
+    if (currentIframe) {
+      if (currentIframe._syncId) clearInterval(currentIframe._syncId);
+      try { currentIframe.src = 'about:blank'; } catch(_) {}
+      currentIframe.remove();
+      currentIframe = null;
+    }
+  }
+
+  function loadViewer() {
+    if (!pendingSrc) return;
+    destroyViewer();
+    placeholder.classList.add('hidden');
+
+    var ifr = document.createElement('iframe');
+    ifr.allow = 'autoplay';
+    ifr.style.cssText = 'width:100%;height:100%;border:none;display:block;';
+    ifr.src = pendingSrc;
+    viewerWrap.insertBefore(ifr, placeholder);
+    currentIframe = ifr;
+
+    // Hide overlays for velocity viewer
+    ifr.addEventListener('load', function() {
+      try {
+        var doc = ifr.contentDocument;
+        if (!doc) return;
+        var style = doc.createElement('style');
+        style.textContent =
+          '#tour-spotlight, #tour-tooltip,' +
+          '#help-btn,' +
+          '#mode-toggle, #gain-info,' +
+          '#cmd-widget, #response-float,' +
+          '#legend, #controls,' +
+          '#hint-overlay { display: none !important; }' +
+          '#live-badge .live-hint { display: none !important; }';
+        doc.head.appendChild(style);
+      } catch(_) {}
+    });
+
+    // Poll iframe's responseHistory for joint response data
+    var _syncId = setInterval(function() {
+      if (!ifr.contentWindow) { clearInterval(_syncId); return; }
+      var debugEl = document.querySelector('.widget-caption b');
+      try {
+        var rh = ifr.contentWindow.responseHistory;
+        if (debugEl) debugEl.textContent = 'Poll: rh=' + (rh ? rh.length : 'null');
+        if (!rh || rh.length === 0) return;
+        if (jointLabels.length === 0) {
+          try {
+            var subset = ifr.contentWindow.JOINT_SUBSET;
+            if (subset) buildJointBtns(subset.map(function(j) { return j.label; }));
+          } catch(_) {}
+          if (jointLabels.length === 0) {
+            var nJ = rh[0].actual.length;
+            var labels = [];
+            for (var j = 0; j < nJ; j++) labels.push('J' + (j+1));
+            buildJointBtns(labels);
+          }
+        }
+        // Copy latest entries
+        respHistory = [];
+        for (var i = 0; i < rh.length; i++) {
+          respHistory.push({ actual: rh[i].actual, target: rh[i].target });
+        }
+      } catch(_) {}
+    }, 200);
+    ifr._syncId = _syncId;
+  }
+
+  function buildSrc(idx) {
+    var dot = TASKS[currentTask].dots[idx];
+    var task = TASKS[currentTask];
+    var color = dotColor(dot.fx, dot.fy);
+
+    if (task.viewer) {
+      var prefix = task.base + '/' + dot.folder;
+      return task.viewer
+        + '?scene=' + prefix + '/' + dot.scene
+        + '&policy=' + prefix + '/policy.onnx'
+        + '&config=' + prefix + '/policy_config.json'
+        + '&autorun=1'
+        + '&gainColor=' + encodeURIComponent(color);
+    } else {
+      var base = 'static/assets/wasm-policy/' + dot.folder;
+      return base + '/index.html'
+        + '?scene=' + dot.scene
+        + '&policy=policy.onnx'
+        + '&config=policy_config.json'
+        + '&autorun=1'
+        + '&fast=1';
+    }
+  }
+
+  // ── Select dot ──
+  var _loadTimeout = null;
+  var _lastTask = null; // track which task the current iframe is for
+
+  function selectDot(idx) {
+    activeIdx = idx;
+    var task = TASKS[currentTask];
+    var dot = task.dots[idx];
+    var color = dotColor(dot.fx, dot.fy);
+    curveColor = color;
+    respHistory = [];
+
+    // Update active joint button color
+    var activeBtn = jointBtnsEl.querySelector('.joint-btn.active');
+    if (activeBtn) {
+      activeBtn.style.background = curveColor;
+      activeBtn.style.borderColor = curveColor;
+    }
+
+    if (_loadTimeout) clearTimeout(_loadTimeout);
+
+    // For velocity viewer (G1 locomotion): use hot-swap if iframe already loaded
+    if (task.viewer && _lastTask === currentTask && currentIframe) {
+      var prefix = task.base + '/' + dot.folder;
+      try {
+        currentIframe.contentWindow.postMessage({
+          type: 'swap-config',
+          scene: prefix + '/' + dot.scene,
+          policy: prefix + '/policy.onnx',
+          config: prefix + '/policy_config.json',
+          gainColor: color,
+        }, '*');
+      } catch(_) {}
+      draw();
+      startPulse();
+      return;
+    }
+
+    // Otherwise: destroy and reload
+    pendingSrc = buildSrc(idx);
+    jointLabels = [];
+    _lastTask = currentTask;
+
+    destroyViewer();
+    placeholder.classList.remove('hidden');
+    placeholder.innerHTML = '<span style="color:#aaa;font-size:0.75rem;">Loading...</span>';
+
+    _loadTimeout = setTimeout(function() {
+      loadViewer();
+    }, 300);
+
+    draw();
+    startPulse();
+  }
+
+  // ── Touch / click on grid ──
+  function getHitDot(clientX, clientY) {
+    var rect = canvas.getBoundingClientRect();
+    var mx = (clientX - rect.left) * (S / rect.width);
+    var my = (clientY - rect.top) * (S / rect.height);
+    var dots = TASKS[currentTask].dots;
+    var best = -1, bestDist = Infinity;
+    dots.forEach(function(dot, i) {
+      var p = dotXY(dot);
+      var d = Math.sqrt((mx-p.cx)*(mx-p.cx) + (my-p.cy)*(my-p.cy));
+      if (d < 20 && d < bestDist) { best = i; bestDist = d; }
+    });
+    return best;
+  }
+
+  var _tStartX = 0, _tStartY = 0;
+  canvas.addEventListener('touchstart', function(e) {
+    _tStartX = e.touches[0].clientX;
+    _tStartY = e.touches[0].clientY;
+  }, { passive: true });
+
+  canvas.addEventListener('touchend', function(e) {
+    var dx = Math.abs(e.changedTouches[0].clientX - _tStartX);
+    var dy = Math.abs(e.changedTouches[0].clientY - _tStartY);
+    if (dx > 10 || dy > 10) return;
+    var idx = getHitDot(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+    if (idx >= 0) selectDot(idx);
+  }, { passive: true });
+
+  canvas.addEventListener('click', function(e) {
+    var idx = getHitDot(e.clientX, e.clientY);
+    if (idx >= 0) selectDot(idx);
+  });
+
+  // ── Tabs ──
+  tabBtns.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var task = this.dataset.task;
+      if (task === currentTask) return;
+      currentTask = task;
+      activeIdx = -1;
+      _lastTask = null; // force iframe reload on task switch
+      if (pulseRAF) { cancelAnimationFrame(pulseRAF); pulseRAF = null; }
+      tabBtns.forEach(function(b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      draw();
+      // Auto-load a random dot
+      var numDots = TASKS[currentTask].dots.length;
+      selectDot(Math.floor(Math.random() * numDots));
+    });
+  });
+
+  // ── Suppress tour in the velocity viewer ──
+  try { localStorage.setItem('mujoco-velocity-toured', '1'); } catch(_) {}
+
+  // ── Joint Response Chart ──
+  var respCanvas = document.getElementById('responseCanvas');
+  var respCtx = respCanvas.getContext('2d');
+  var jointBtnsEl = document.getElementById('jointBtns');
+  var RESP_HISTORY = 60;
+  var respHistory = []; // [{actual: [...], target: [...]}]
+  var selectedJoint = 4; // default to RKnee for G1
+  var jointLabels = [];
+  var curveColor = '#4f46e5'; // updated when a dot is selected
+  var _respSkip = 0;
+  var _respW = 0, _respH = 0;
+
+  // Build joint buttons when we know the joint names
+  function buildJointBtns(labels) {
+    jointLabels = labels;
+    // Clamp selectedJoint if out of range
+    if (selectedJoint >= labels.length) selectedJoint = 0;
+    // Try to default to RKnee if available
+    if (respHistory.length === 0) {
+      var rkIdx = labels.indexOf('RKnee');
+      if (rkIdx >= 0) selectedJoint = rkIdx;
+    }
+    jointBtnsEl.innerHTML = '';
+    labels.forEach(function(label, i) {
+      var btn = document.createElement('button');
+      btn.className = 'joint-btn' + (i === selectedJoint ? ' active' : '');
+      if (i === selectedJoint) {
+        btn.style.background = curveColor;
+        btn.style.borderColor = curveColor;
+      }
+      btn.textContent = label;
+      btn.addEventListener('click', function() {
+        selectedJoint = i;
+        jointBtnsEl.querySelectorAll('.joint-btn').forEach(function(b) {
+          b.classList.remove('active');
+          b.style.background = '';
+          b.style.borderColor = '';
+        });
+        btn.classList.add('active');
+        btn.style.background = curveColor;
+        btn.style.borderColor = curveColor;
+      });
+      jointBtnsEl.appendChild(btn);
+    });
+  }
+
+  function drawResponse() {
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var W = respCanvas.clientWidth;
+    var H = respCanvas.clientHeight;
+    if (W === 0 || H === 0) return;
+    if (W !== _respW || H !== _respH) {
+      _respW = W; _respH = H;
+      respCanvas.width = W * dpr;
+      respCanvas.height = H * dpr;
+    }
+    var ctx = respCtx;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+
+    var n = respHistory.length;
+    if (n < 2) {
+      ctx.fillStyle = '#ccc';
+      ctx.font = '10px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Waiting for data...', W / 2, H / 2);
+      return;
+    }
+
+    var si = selectedJoint;
+    var padL = 4, padR = 4, padT = 4, padB = 4;
+    var pW = W - padL - padR, pH = H - padT - padB;
+
+    // Y range
+    var yMin = Infinity, yMax = -Infinity;
+    for (var i = 0; i < n; i++) {
+      var a = respHistory[i].actual[si] || 0;
+      var t = respHistory[i].target[si] || 0;
+      if (a < yMin) yMin = a;
+      if (a > yMax) yMax = a;
+      if (t < yMin) yMin = t;
+      if (t > yMax) yMax = t;
+    }
+    var yPad = (yMax - yMin) * 0.1 || 0.1;
+    yMin -= yPad; yMax += yPad;
+
+    function mapX(i) { return padL + (i / (n - 1)) * pW; }
+    function mapY(v) { return padT + pH - ((v - yMin) / (yMax - yMin)) * pH; }
+
+    // Target (dashed)
+    ctx.setLineDash([3, 3]);
+    ctx.strokeStyle = '#aaa';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (var i = 0; i < n; i++) {
+      var x = mapX(i), y = mapY(respHistory[i].target[si] || 0);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    // Actual (solid)
+    ctx.setLineDash([]);
+    ctx.strokeStyle = curveColor;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (var i = 0; i < n; i++) {
+      var x = mapX(i), y = mapY(respHistory[i].actual[si] || 0);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  // Listen for joint data from the viewer iframe (both velocity and wasm-policy viewers)
+  var _jointMsgCount = 0;
+  window.addEventListener('message', function(e) {
+    // Debug: show all message types received
+    if (e.data && e.data.type) {
+      _jointMsgCount++;
+      var debugEl = document.querySelector('.widget-caption');
+      if (debugEl && _jointMsgCount % 10 === 0) {
+        debugEl.textContent = 'msgs:' + _jointMsgCount + ' last:' + e.data.type + ' hist:' + respHistory.length;
+      }
+    }
+    if (!e.data) return;
+    if (e.data.type === 'joint-config' && e.data.jointNames) {
+      // wasm-policy viewers send config with joint names
+      buildJointBtns(e.data.jointNames.slice(0, 7).map(function(n, i) { return n || 'J'+(i+1); }));
+    }
+    if (e.data.type === 'joint-data') {
+      // Build joint buttons on first message with labels
+      if (e.data.labels && jointLabels.length === 0) {
+        buildJointBtns(e.data.labels);
+      }
+      // Velocity viewer sends actual/target; wasm-policy sends qpos/action
+      var actual = e.data.actual || e.data.qpos;
+      var target = e.data.target || e.data.action;
+      if (actual) {
+        if (jointLabels.length === 0) {
+          var nJ = Array.isArray(actual) ? actual.length : Math.min(7, actual.length);
+          var labels = e.data.labels || [];
+          if (labels.length === 0) for (var j = 0; j < nJ; j++) labels.push('J' + (j+1));
+          buildJointBtns(labels);
+        }
+        respHistory.push({
+          actual: Array.isArray(actual) ? actual : Array.from(actual),
+          target: target ? (Array.isArray(target) ? target : Array.from(target)) : actual
+        });
+        if (respHistory.length > RESP_HISTORY) respHistory.shift();
+      }
+    }
+  });
+
+  // Draw response chart at display rate
+  var _respRAF = null;
+  function respLoop() {
+    drawResponse();
+    _respRAF = requestAnimationFrame(respLoop);
+  }
+  respLoop();
+
+  // ── Init ──
+  draw();
+  selectDot(0);
+})();
+</script>
+
+<script>
+// ── Shapeability Widget (mobile) ──
+(function() {
+  var CSV_DIR = 'static/assets/optuna_csvs_12';
+  var TASKS = {
+    'FR3 Joint-Reach': {
+      xCol:'base_action_scale', yCol:'wrist_scale_factor',
+      xLabel:'Elbow Scale', yLabel:'Wrist Scale',
+      successCol:'success_rate', successScale:1,
+      xRange:[0,1], yRange:[0,1],
+      isHL: function(r) { var v=parseFloat(r.success_rate); return !isNaN(v) && v>0.95; },
+      files: {
+        'CO':'optuna_action_scale_learnability-cat-rel-joint-reach-sysid-franka-v0_new_K16_D24_tpe.csv',
+        'SO':'optuna_action_scale_learnability-cat-rel-joint-reach-sysid-franka-v0_new_K512_D24_tpe.csv',
+        'CU':'optuna_action_scale_learnability-cat-rel-joint-reach-sysid-franka-v0_new_K16_D2_tpe.csv',
+        'SU':'optuna_action_scale_learnability-cat-rel-joint-reach-sysid-franka-v0_new_K512_D2_tpe.csv',
+      }
+    },
+    'FR3 Lift Cube': {
+      xCol:'base_action_scale', yCol:'wrist_scale_factor',
+      xLabel:'Elbow Scale', yLabel:'Wrist Scale',
+      successCol:'lift_goal_fine_rate', successScale:1,
+      xRange:[0,4], yRange:[0,1],
+      isHL: function(r) { return parseFloat(r.lift_goal_fine_rate)>0.95; },
+      files: {
+        'CO':'optuna_action_scale_learnability-cat-rel-lift-sysid-franka-v0_new_K16_D24_tpe_max4.0_liftreward.csv',
+        'SO':'optuna_action_scale_learnability-cat-rel-lift-sysid-franka-v0_new_K512_D24_tpe_max4.0_liftreward.csv',
+        'CU':'optuna_action_scale_learnability-cat-rel-lift-sysid-franka-v0_new_K16_D2_tpe_max4.0_liftreward.csv',
+        'SU':'optuna_action_scale_learnability-cat-rel-lift-sysid-franka-v0_new_K512_D2_tpe_max4.0_liftreward.csv',
+      }
+    },
+    'G1 Velocity': {
+      xCol:'lower_body_scale', yCol:'upper_body_ratio',
+      xLabel:'Lower Body', yLabel:'Upper Body',
+      successCol:'success_rate', successScale:100,
+      xRange:[0,4], yRange:[0,2],
+      isHL: function(r) { var v=parseFloat(r.success_rate); return !isNaN(v) && v>95; },
+      files: {
+        'CO':'optuna_g1_action_scale_activity_stiff0.25x_damp4.0x.csv',
+        'SO':'optuna_g1_action_scale_activity_stiff4.0x_damp4.0x.csv',
+        'CU':'optuna_g1_action_scale_activity_stiff0.25x_damp0.25x.csv',
+        'SU':'optuna_g1_action_scale_activity_stiff4.0x_damp0.25x.csv',
+      }
+    }
+  };
+
+  // Gain dots: CO=Compliant×Overdamped, SO=Stiff×Over, CU=Comp×Under, SU=Stiff×Under
+  var DOTS = [
+    { key:'CO', nx:0, ny:1, label:'Compliant × Overdamped' },
+    { key:'SO', nx:1, ny:1, label:'Stiff × Overdamped' },
+    { key:'CU', nx:0, ny:0, label:'Compliant × Underdamped' },
+    { key:'SU', nx:1, ny:0, label:'Stiff × Underdamped' },
+  ];
+
+  var GC_A=[140,140,140], GC_B=[76,114,176], GC_C=[196,78,82], GC_D=[129,114,178];
+  function lerpC(a,b,t) { return [a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t]; }
+  function sDotColor(nx,ny) { var c=lerpC(lerpC(GC_A,GC_B,nx),lerpC(GC_C,GC_D,nx),ny); return 'rgb('+Math.round(c[0])+','+Math.round(c[1])+','+Math.round(c[2])+')'; }
+
+  var REDS=[[0,255,245,240],[.125,254,224,210],[.25,252,187,161],[.375,252,146,114],[.5,251,106,74],[.625,239,59,44],[.75,203,24,29],[.875,165,15,21],[1,103,0,13]];
+  function redsColor(t) {
+    t=Math.max(0,Math.min(1,t)); var i=0;
+    while(i<REDS.length-2&&REDS[i+1][0]<t)i++;
+    var f=REDS[i+1][0]>REDS[i][0]?(t-REDS[i][0])/(REDS[i+1][0]-REDS[i][0]):0;
+    return [Math.round(REDS[i][1]+f*(REDS[i+1][1]-REDS[i][1])),Math.round(REDS[i][2]+f*(REDS[i+1][2]-REDS[i][2])),Math.round(REDS[i][3]+f*(REDS[i+1][3]-REDS[i][3]))];
+  }
+
+  // State
+  var sTask=Object.keys(TASKS)[0], sRegime=null, sTrial=0, sPlaying=false, sTimer=null;
+  var sData={};
+  var sPulse=0, sPulseRAF=null;
+
+  // Elements
+  var sGainC=document.getElementById('shapeGainGrid');
+  var sGainCtx=sGainC.getContext('2d');
+  var sPlotC=document.getElementById('shapePlot');
+  var sPlotCtx=sPlotC.getContext('2d');
+  var sPlayBtn=document.getElementById('shapePlayBtn');
+  var sSlider=document.getElementById('shapeSlider');
+  var sTrialLbl=document.getElementById('shapeTrialLabel');
+  var sSuccCnt=document.getElementById('shapeSuccessCount');
+  var sRegLbl=document.getElementById('shapeRegimeLabel');
+  var sTabBar=document.getElementById('shapeTabs');
+
+  // CSV parse
+  function parseCSV(text) {
+    var lines=text.trim().split('\n'); if(lines.length<2)return [];
+    var hdr=lines[0].split(',').map(function(h){return h.trim();});
+    var rows=[];
+    for(var i=1;i<lines.length;i++){var v=lines[i].split(',');var r={};hdr.forEach(function(h,j){r[h]=(v[j]||'').trim();});rows.push(r);}
+    return rows;
+  }
+
+  // Load all CSV data
+  function loadData() {
+    var fetches=[];
+    Object.keys(TASKS).forEach(function(taskName) {
+      sData[taskName]={};
+      var task=TASKS[taskName];
+      Object.keys(task.files).forEach(function(regime) {
+        var url=CSV_DIR+'/'+task.files[regime];
+        fetches.push(fetch(url).then(function(r){return r.text();}).then(function(text) {
+          sData[taskName][regime]=parseCSV(text).map(function(raw) {
+            var x=parseFloat(raw[task.xCol]),y=parseFloat(raw[task.yCol]);
+            var s=parseFloat(raw[task.successCol]); if(isNaN(s))s=0; else s/=task.successScale;
+            return {x:x,y:y,success:s,highlight:task.isHL(raw)};
+          });
+        }).catch(function(){sData[taskName][regime]=[];}));
+      });
+    });
+    return Promise.all(fetches);
+  }
+
+  // Heatmap (Nadaraya-Watson)
+  var HRES=50;
+  function computeHeatmap(trials,xR,yR,n) {
+    var vis=trials.slice(0,n).filter(function(d){return !isNaN(d.x)&&!isNaN(d.y);});
+    var vals=new Float32Array(HRES*HRES),conf=new Float32Array(HRES*HRES);
+    if(!vis.length) return {vals:vals,conf:conf};
+    var xL=xR[1]-xR[0],yL=yR[1]-yR[0],inv2s2=1/(2*0.1*0.1);
+    var pts=vis.map(function(d){return {nx:(d.x-xR[0])/xL,ny:(d.y-yR[0])/yL,s:d.success};});
+    for(var gy=0;gy<HRES;gy++){var ny=(gy+.5)/HRES;for(var gx=0;gx<HRES;gx++){var nx=(gx+.5)/HRES;var ws=0,wv=0;for(var k=0;k<pts.length;k++){var dx=nx-pts[k].nx,dy=ny-pts[k].ny;var w=Math.exp(-(dx*dx+dy*dy)*inv2s2);ws+=w;wv+=w*pts[k].s;}var idx=gy*HRES+gx;vals[idx]=ws>1e-12?wv/ws:0;conf[idx]=ws;}}
+    return {vals:vals,conf:conf};
+  }
+
+  // Draw gain grid
+  var S=110, GP={top:20,right:12,bottom:12,left:12};
+  function sGridMetrics(){var gs=S-GP.left-GP.right;return {gs:gs,ox:GP.left,oy:GP.top};}
+  function sDotXY(dot){var m=sGridMetrics();var cnx=(1+dot.nx*4)/6,cny=(1+dot.ny*4)/6;return {cx:m.ox+cnx*m.gs,cy:m.oy+(1-cny)*m.gs};}
+
+  function drawSGainGrid() {
+    var dpr=Math.min(window.devicePixelRatio||1,2);
+    sGainC.width=S*dpr;sGainC.height=S*dpr;
+    sGainC.style.width=S+'px';sGainC.style.height=S+'px';
+    sGainCtx.setTransform(dpr,0,0,dpr,0,0);
+    var m=sGridMetrics();
+    sGainCtx.clearRect(0,0,S,S);
+    // Grid
+    sGainCtx.strokeStyle='rgba(0,0,0,0.08)';sGainCtx.lineWidth=0.5;
+    for(var i=0;i<=6;i++){var f=i/6;sGainCtx.beginPath();sGainCtx.moveTo(m.ox+f*m.gs,m.oy);sGainCtx.lineTo(m.ox+f*m.gs,m.oy+m.gs);sGainCtx.stroke();sGainCtx.beginPath();sGainCtx.moveTo(m.ox,m.oy+f*m.gs);sGainCtx.lineTo(m.ox+m.gs,m.oy+f*m.gs);sGainCtx.stroke();}
+    // Axes
+    sGainCtx.strokeStyle='#333';sGainCtx.fillStyle='#333';sGainCtx.lineWidth=1.2;
+    var as=4;
+    sGainCtx.beginPath();sGainCtx.moveTo(m.ox,m.oy+m.gs+1);sGainCtx.lineTo(m.ox+m.gs+6,m.oy+m.gs+1);sGainCtx.stroke();
+    sGainCtx.beginPath();sGainCtx.moveTo(m.ox+m.gs+6,m.oy+m.gs+1);sGainCtx.lineTo(m.ox+m.gs+6-as,m.oy+m.gs+1-as);sGainCtx.lineTo(m.ox+m.gs+6-as,m.oy+m.gs+1+as);sGainCtx.closePath();sGainCtx.fill();
+    sGainCtx.beginPath();sGainCtx.moveTo(m.ox-1,m.oy+m.gs);sGainCtx.lineTo(m.ox-1,4);sGainCtx.stroke();
+    sGainCtx.beginPath();sGainCtx.moveTo(m.ox-1,4);sGainCtx.lineTo(m.ox-1-as,4+as);sGainCtx.lineTo(m.ox-1+as,4+as);sGainCtx.closePath();sGainCtx.fill();
+    // Labels
+    sGainCtx.font='bold 10px -apple-system,sans-serif';sGainCtx.textAlign='left';sGainCtx.textBaseline='alphabetic';
+    sGainCtx.fillText('K',m.ox+m.gs+8,m.oy+m.gs+4);var kw=sGainCtx.measureText('K').width;sGainCtx.font='7px -apple-system,sans-serif';sGainCtx.fillText('p',m.ox+m.gs+8+kw,m.oy+m.gs+6);
+    sGainCtx.font='bold 10px -apple-system,sans-serif';sGainCtx.fillText('K',m.ox+2,12);kw=sGainCtx.measureText('K').width;sGainCtx.font='7px -apple-system,sans-serif';sGainCtx.fillText('d',m.ox+2+kw,14);
+    // Dots
+    DOTS.forEach(function(dot){
+      var p=sDotXY(dot),isA=dot.key===sRegime,r=8;
+      if(isA){var ga=.15+.15*Math.sin(sPulse*2),gr=r+4+2*Math.sin(sPulse*2);sGainCtx.beginPath();sGainCtx.arc(p.cx,p.cy,gr,0,Math.PI*2);sGainCtx.fillStyle='rgba(0,0,0,'+ga+')';sGainCtx.fill();}
+      sGainCtx.beginPath();sGainCtx.arc(p.cx,p.cy,r,0,Math.PI*2);sGainCtx.fillStyle=sDotColor(dot.nx,dot.ny);sGainCtx.fill();
+      if(isA){sGainCtx.lineWidth=2.5;sGainCtx.strokeStyle='rgba(0,0,0,0.4)';}else{sGainCtx.lineWidth=1.5;sGainCtx.strokeStyle='rgba(0,0,0,0.15)';if(sRegime){sGainCtx.beginPath();sGainCtx.arc(p.cx,p.cy,r,0,Math.PI*2);sGainCtx.fillStyle='rgba(255,255,255,0.5)';sGainCtx.fill();}}
+      sGainCtx.beginPath();sGainCtx.arc(p.cx,p.cy,r,0,Math.PI*2);sGainCtx.stroke();
+    });
+  }
+
+  // Draw plot
+  function drawSPlot() {
+    if(!sRegime)return;
+    var task=TASKS[sTask],data=sData[sTask];if(!data)return;
+    var trials=data[sRegime]||[];
+    var dpr=Math.min(window.devicePixelRatio||1,2);
+    var W=sPlotC.clientWidth,H=sPlotC.clientHeight;
+    if(W===0||H===0)return;
+    sPlotC.width=W*dpr;sPlotC.height=H*dpr;
+    sPlotCtx.setTransform(dpr,0,0,dpr,0,0);
+    sPlotCtx.clearRect(0,0,W,H);
+    sPlotCtx.fillStyle='#fff';sPlotCtx.fillRect(0,0,W,H);
+
+    var M={top:8,right:8,bottom:34,left:38};
+    var pX=M.left,pY=M.top,pW=W-M.left-M.right,pH=H-M.top-M.bottom;
+    var xR=task.xRange,yR=task.yRange,xS=xR[1]-xR[0],yS=yR[1]-yR[0];
+
+    // Heatmap
+    if(sTrial>0&&trials.length>0){
+      var hm=computeHeatmap(trials,xR,yR,sTrial);
+      var offC=document.createElement('canvas');offC.width=HRES;offC.height=HRES;
+      var oCtx=offC.getContext('2d');var img=oCtx.createImageData(HRES,HRES);
+      for(var gy=0;gy<HRES;gy++)for(var gx=0;gx<HRES;gx++){var si=gy*HRES+gx,cr_row=HRES-1-gy,pi=(cr_row*HRES+gx)*4;var a=Math.min(1,hm.conf[si]*1.8);var c=redsColor(hm.vals[si]);img.data[pi]=Math.round(a*c[0]+(1-a)*255);img.data[pi+1]=Math.round(a*c[1]+(1-a)*255);img.data[pi+2]=Math.round(a*c[2]+(1-a)*255);img.data[pi+3]=255;}
+      oCtx.putImageData(img,0,0);sPlotCtx.imageSmoothingEnabled=true;sPlotCtx.drawImage(offC,pX,pY,pW,pH);
+    }
+
+    // Border
+    sPlotCtx.strokeStyle='#ccc';sPlotCtx.lineWidth=1;sPlotCtx.strokeRect(pX,pY,pW,pH);
+
+    // Ticks
+    function xTicks(r){var s=r[1]-r[0];if(s<=1)return[0,.5,1];if(s<=2)return[0,1,2];return[0,2,4];}
+    function yTicks(r){var s=r[1]-r[0];if(s<=1)return[0,.5,1];if(s<=2)return[0,1,2];return[0,2,4];}
+    sPlotCtx.fillStyle='#888';sPlotCtx.font='8px -apple-system,sans-serif';
+    sPlotCtx.textAlign='center';sPlotCtx.textBaseline='top';
+    xTicks(xR).forEach(function(t){var x=pX+(t-xR[0])/xS*pW;sPlotCtx.fillText(t.toFixed(1),x,pY+pH+3);});
+    sPlotCtx.textAlign='right';sPlotCtx.textBaseline='middle';
+    yTicks(yR).forEach(function(t){var y=pY+pH-(t-yR[0])/yS*pH;sPlotCtx.fillText(t.toFixed(1),pX-4,y);});
+
+    // Axis labels
+    sPlotCtx.fillStyle='#555';sPlotCtx.font='bold 9px -apple-system,sans-serif';
+    sPlotCtx.textAlign='center';sPlotCtx.fillText(task.xLabel,pX+pW/2,pY+pH+18);
+    sPlotCtx.save();sPlotCtx.translate(10,pY+pH/2);sPlotCtx.rotate(-Math.PI/2);sPlotCtx.fillText(task.yLabel,0,0);sPlotCtx.restore();
+
+    // Scatter
+    var vis=trials.slice(0,sTrial);
+    for(var i=0;i<vis.length;i++){
+      var d=vis[i];if(isNaN(d.x)||isNaN(d.y))continue;
+      var sx=pX+(d.x-xR[0])/xS*pW,sy=pY+pH-(d.y-yR[0])/yS*pH;
+      var isLast=i===vis.length-1;
+      if(d.highlight){sPlotCtx.beginPath();sPlotCtx.arc(sx,sy,8,0,Math.PI*2);sPlotCtx.fillStyle='rgba(52,199,89,0.25)';sPlotCtx.fill();sPlotCtx.strokeStyle='#2db84d';sPlotCtx.lineWidth=2;sPlotCtx.stroke();}
+      sPlotCtx.beginPath();sPlotCtx.arc(sx,sy,isLast?4:3,0,Math.PI*2);sPlotCtx.fillStyle=isLast?'#fff':'rgba(255,255,255,0.8)';sPlotCtx.fill();sPlotCtx.strokeStyle=isLast?'#222':'#555';sPlotCtx.lineWidth=isLast?1.5:1;sPlotCtx.stroke();
+    }
+
+    // Update controls
+    sTrialLbl.textContent='Trial: '+sTrial+'/50';
+    sSlider.value=sTrial;
+    var hl=vis.filter(function(d){return d.highlight;}).length;
+    sSuccCnt.textContent=hl>0?'\u2714 '+hl:'';
+  }
+
+  // Colorbar
+  function drawSColorbar(){
+    var c=document.getElementById('shapeColorbar'),ctx=c.getContext('2d');
+    for(var x=0;x<c.width;x++){var rgb=redsColor(x/(c.width-1));ctx.fillStyle='rgb('+rgb[0]+','+rgb[1]+','+rgb[2]+')';ctx.fillRect(x,0,1,c.height);}
+  }
+
+  // Select regime
+  function selectSRegime(key){
+    if(key===sRegime)return;
+    sRegime=key;
+    var dot=DOTS.find(function(d){return d.key===key;});
+    sRegLbl.textContent=dot?dot.label:'';
+    sPlayBtn.disabled=false;sSlider.disabled=false;
+    clearTimeout(sTimer);sTrial=0;sPlaying=true;
+    sPlayBtn.innerHTML='&#9646;&#9646;';
+    drawSGainGrid();startSPulse();drawSPlot();sStep();
+  }
+
+  // Animation
+  function sStep(){
+    if(!sPlaying)return;
+    if(sTrial>=50){sPlaying=false;sPlayBtn.innerHTML='&#9654;';return;}
+    sTrial++;drawSPlot();
+    sTimer=setTimeout(sStep,60+260*(sTrial/50)*(sTrial/50));
+  }
+
+  // Pulse
+  function startSPulse(){
+    if(sPulseRAF)return;
+    function tick(){if(!sRegime){sPulseRAF=null;return;}sPulse+=.05;drawSGainGrid();sPulseRAF=requestAnimationFrame(tick);}
+    sPulseRAF=requestAnimationFrame(tick);
+  }
+
+  // Gain grid click
+  var _st0x=0,_st0y=0;
+  sGainC.addEventListener('touchstart',function(e){_st0x=e.touches[0].clientX;_st0y=e.touches[0].clientY;},{passive:true});
+  sGainC.addEventListener('touchend',function(e){
+    if(Math.abs(e.changedTouches[0].clientX-_st0x)>10||Math.abs(e.changedTouches[0].clientY-_st0y)>10)return;
+    var rect=sGainC.getBoundingClientRect(),mx=(e.changedTouches[0].clientX-rect.left)*(S/rect.width),my=(e.changedTouches[0].clientY-rect.top)*(S/rect.height);
+    var best=null,bd=Infinity;
+    DOTS.forEach(function(dot){var p=sDotXY(dot);var d=Math.sqrt((mx-p.cx)*(mx-p.cx)+(my-p.cy)*(my-p.cy));if(d<20&&d<bd){best=dot;bd=d;}});
+    if(best)selectSRegime(best.key);
+  },{passive:true});
+  sGainC.addEventListener('click',function(e){
+    var rect=sGainC.getBoundingClientRect(),mx=e.clientX-rect.left,my=e.clientY-rect.top;
+    var best=null,bd=Infinity;
+    DOTS.forEach(function(dot){var p=sDotXY(dot);var d=Math.sqrt((mx-p.cx)*(mx-p.cx)+(my-p.cy)*(my-p.cy));if(d<20&&d<bd){best=dot;bd=d;}});
+    if(best)selectSRegime(best.key);
+  });
+
+  // Controls
+  sPlayBtn.addEventListener('click',function(){
+    if(!sRegime)return;sPlaying=!sPlaying;
+    sPlayBtn.innerHTML=sPlaying?'&#9646;&#9646;':'&#9654;';
+    if(sPlaying){if(sTrial>=50)sTrial=0;sStep();}else clearTimeout(sTimer);
+  });
+  sSlider.addEventListener('input',function(){
+    sTrial=parseInt(this.value);sPlaying=false;clearTimeout(sTimer);sPlayBtn.innerHTML='&#9654;';drawSPlot();
+  });
+
+  // Tabs
+  Object.keys(TASKS).forEach(function(name){
+    var btn=document.createElement('button');
+    btn.className='tab-btn'+(name===sTask?' active':'');
+    btn.textContent=name;
+    btn.addEventListener('click',function(){
+      if(name===sTask)return;sTask=name;
+      sTabBar.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');});
+      btn.classList.add('active');
+      if(sRegime){clearTimeout(sTimer);sTrial=0;sPlaying=true;sPlayBtn.innerHTML='&#9646;&#9646;';drawSPlot();sStep();}
+    });
+    sTabBar.appendChild(btn);
+  });
+
+  // Init
+  loadData().then(function(){
+    drawSGainGrid();drawSColorbar();
+    // Auto-select first dot
+    selectSRegime('CO');
+  });
+})();
+</script>
+
+</body>
+</html>

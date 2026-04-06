@@ -211,8 +211,9 @@ if (!config.is_fixed_base) {
 }
 
 // ── Create policy runner ──────────────────────────────
-statusEl.textContent = 'Loading ONNX policy...';
+statusEl.textContent = 'Loading policy...';
 const runner = new PolicyRunner(viewer, config);
+window.runner = runner;
 
 try {
   await runner.init(policyPath);
