@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Redirect desktop users to the full interactive site -->
+  <script>
+  (function() {
+    var isDesktop = !('ontouchstart' in window) && navigator.maxTouchPoints === 0 && window.innerWidth > 768;
+    if (isDesktop) {
+      window.location.replace('index.html');
+    }
+  })();
+  </script>
+
+  <!-- Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-0FCZG3T4ZJ"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    if (location.hostname === 'younghyopark.me') {
+      gtag('config', 'G-0FCZG3T4ZJ');
+    }
+  </script>
+
+  <title>Tune to Learn: How Controller Gains Affect Robot Policy Learning</title>
+  <meta name="description" content="Controller gains matter more than you think. We show how gain selection impacts behavior cloning, RL, and sim-to-real transfer." />
+
+  <!-- SEO: canonical points to desktop version -->
+  <link rel="canonical" href="https://younghyopark.me/tune-to-learn/" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Tune to Learn: How Controller Gains Affect Robot Policy Learning" />
+  <meta property="og:description" content="Controller gains matter more than you think. We show how gain selection impacts behavior cloning, RL, and sim-to-real transfer." />
+  <meta property="og:image" content="https://younghyopark.me/tune-to-learn/static/images/og-preview.png" />
+  <meta property="og:url" content="https://younghyopark.me/tune-to-learn/" />
+  <meta property="og:type" content="website" />
+
+  <!-- Fonts (Inter only, minimal weights) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── Reset & Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { -webkit-font-smoothing: antialiased; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 1rem;
+      line-height: 1.6;
+      color: #1a1a1a;
+      background: #fff;
+    }
+    a { color: #1a1a1a; text-decoration: underline; text-decoration-color: #e0e0e0; text-underline-offset: 2px; }
+    a:hover { text-decoration-color: #1a1a1a; }
+    img, video, iframe { max-width: 100%; display: block; border: none; }
+
+    /* ── Desktop Banner ── */
+    .desktop-banner {
+      background: rgba(99, 102, 241, 0.06);
+      border-bottom: 1px solid rgba(99, 102, 241, 0.15);
+      padding: 0.85rem 1rem;
+      text-align: center;
+      font-size: 0.82rem;
+      color: #444;
+      line-height: 1.5;
+      position: relative;
+    }
+    .desktop-banner svg {
+      display: inline-block;
+      vertical-align: -3px;
+      margin-right: 0.4rem;
+      opacity: 0.6;
+    }
+    .desktop-banner a {
+      color: #4f46e5;
+      font-weight: 500;
+      text-decoration-color: rgba(79, 70, 229, 0.3);
+    }
+    .desktop-banner .dismiss-btn {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.75rem;
+      background: none;
+      border: none;
+      font-size: 1.1rem;
+      color: #999;
+      cursor: pointer;
+      padding: 0.2rem;
+      line-height: 1;
+    }
+    .desktop-banner.hidden { display: none; }
+
+    /* ── Hero ── */
+    .hero {
+      background: #f7f8fa;
+      color: #1a1a1a;
+      padding: 2rem 1.25rem 1.75rem;
+      text-align: center;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    .paper-title {
+      font-size: clamp(1.35rem, 5vw, 1.8rem);
+      font-weight: 700;
+      line-height: 1.25;
+      margin-bottom: 0.85rem;
+      letter-spacing: -0.02em;
+    }
+    .paper-title .subtitle {
+      font-weight: 400;
+      opacity: 0.85;
+      font-size: 0.85em;
+    }
+    .author-list {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.2rem 1rem;
+      margin-bottom: 0.6rem;
+      font-size: 0.95rem;
+    }
+    .author a { font-weight: 500; text-decoration-color: #e0e0e0; }
+    .author sup { font-size: 0.7em; margin-left: 1px; opacity: 0.7; }
+    .affiliations {
+      font-size: 0.85rem;
+      opacity: 0.75;
+      margin-bottom: 0.3rem;
+    }
+    .equal-contrib {
+      font-size: 0.82rem;
+      color: #777;
+      margin-bottom: 0.85rem;
+      font-weight: 500;
+    }
+    .link-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.45rem 0.9rem;
+      border-radius: 4px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: #1a1a1a;
+      background: transparent;
+      border: 1px solid #e0e0e0;
+      text-decoration: none;
+    }
+
+    /* ── Section ── */
+    .section {
+      padding: 2rem 1.25rem;
+    }
+    .section + .section {
+      border-top: 1px solid #f0f0f0;
+    }
+    .section.alt-bg { background: #fafafa; }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    h2 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      letter-spacing: -0.01em;
+    }
+    h3 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    /* ── Abstract ── */
+    .abstract-text {
+      font-size: 0.92rem;
+      color: #333;
+      text-align: left;
+    }
+    .abstract-findings {
+      margin: 0.75rem 0 0.75rem 1.25rem;
+      padding-left: 0.25rem;
+      font-size: 0.92rem;
+    }
+    .abstract-findings li {
+      margin-bottom: 0.35rem;
+      color: #333;
+    }
+
+    /* ── Video ── */
+    .video-wrap {
+      position: relative;
+      width: 100%;
+      padding-bottom: 56.25%;
+      margin-top: 0.5rem;
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1px solid #e0e0e0;
+    }
+    .video-wrap iframe {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+    }
+
+    /* ── Findings Cards ── */
+    .findings-cards {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+    }
+    .finding-card {
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      padding: 1rem 1.1rem;
+      background: #fff;
+    }
+    .finding-card .tag {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 0.15em 0.55em;
+      border-radius: 3px;
+      margin-bottom: 0.4rem;
+    }
+    .finding-card .tag.bc { background: #ede9fe; color: #5b21b6; }
+    .finding-card .tag.rl { background: #dbeafe; color: #1e40af; }
+    .finding-card .tag.s2r { background: #d1fae5; color: #065f46; }
+    .finding-card p {
+      font-size: 0.88rem;
+      color: #444;
+      line-height: 1.55;
+    }
+
+    /* ── BibTeX ── */
+    .bibtex-block {
+      position: relative;
+      background: #fafafa;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      padding: 1rem 1.1rem;
+      overflow-x: auto;
+    }
+    .bibtex-block pre {
+      margin: 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      line-height: 1.6;
+      color: #1a1a1a;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .copy-btn {
+      position: absolute;
+      top: 0.6rem;
+      right: 0.6rem;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      color: #777;
+      padding: 0.25rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+    }
+    .copy-btn.copied { background: #22c55e; border-color: #22c55e; color: #fff; }
+
+    /* ── CTA ── */
+    .cta-section {
+      text-align: center;
+      padding: 2rem 1.25rem;
+    }
+    .cta-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.7rem 1.5rem;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #fff;
+      background: #1a1a1a;
+      text-decoration: none;
+      border: none;
+    }
+    .cta-hint {
+      font-size: 0.8rem;
+      color: #999;
+      margin-top: 0.5rem;
+    }
+
+    /* ── Footer ── */
+    .footer {
+      padding: 1.25rem 1.25rem;
+      text-align: center;
+      font-size: 0.8rem;
+      color: #999;
+      border-top: 1px solid #e0e0e0;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Desktop Banner -->
+<div class="desktop-banner" id="desktop-banner">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+  Best on desktop — interactive 3D simulations &amp; live demos await.
+  <a href="index.html?full=1">Open full site</a>
+  <button class="dismiss-btn" onclick="this.parentElement.classList.add('hidden');sessionStorage.setItem('banner-dismissed','1');" aria-label="Dismiss">&times;</button>
+</div>
+<script>
+  if (sessionStorage.getItem('banner-dismissed')) {
+    document.getElementById('desktop-banner').classList.add('hidden');
+  }
+</script>
+
+<!-- Hero -->
+<header class="hero">
+  <div class="container">
+    <h1 class="paper-title">
+      Tune to Learn:<br/>
+      <span class="subtitle">How Controller Gains Affect Robot Policy Learning</span>
+    </h1>
+
+    <div class="author-list">
+      <div class="author">
+        <a href="https://tonibronars.github.io/" target="_blank">Antonia Bronars</a><sup>1*</sup>
+      </div>
+      <div class="author">
+        <a href="https://younghyopark.me/" target="_blank">Younghyo Park</a><sup>1*</sup>
+      </div>
+      <div class="author">
+        <a href="https://people.csail.mit.edu/pulkitag/" target="_blank">Pulkit Agrawal</a><sup>1</sup>
+      </div>
+    </div>
+
+    <div class="affiliations">
+      <sup style="vertical-align: top; line-height: 1;">1</sup>
+      <img src="static/images/mit_logo_std_rgb_mit-red.png" alt="MIT" style="height: 40px; display: inline; vertical-align: middle;">
+    </div>
+    <p class="equal-contrib">* <strong>Equal contribution</strong>, Order determined by Coin Flipping</p>
+
+    <div class="link-buttons">
+      <a href="static/assets/arxiv__tune_to_learn.pdf" class="btn" target="_blank">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Paper
+      </a>
+      <a href="https://youtu.be/4KR8p2wuoIg" class="btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Video
+      </a>
+    </div>
+  </div>
+</header>
+
+<!-- Abstract -->
+<section class="section" id="abstract">
+  <div class="container">
+    <h2>Abstract</h2>
+    <p class="abstract-text">
+      Position controllers have become the dominant interface for executing learned manipulation policies. Yet a critical design decision remains understudied: how should we choose controller gains for policy learning? We argue that gain selection should be guided by learnability: how amenable different gain settings are to the learning algorithm in use.
+    </p>
+    <ol class="abstract-findings">
+      <li><b>Behavior Cloning (BC)</b> learning benefits from compliant and overdamped gain regimes,</li>
+      <li><b>Reinforcement Learning (RL)</b> can succeed across all gain regimes given compatible hyperparameter tuning, and</li>
+      <li><b>Sim-to-Real</b> transfer is harmed by stiff and overdamped gain regimes.</li>
+    </ol>
+    <p class="abstract-text">
+      These findings reveal that optimal gain selection depends not on the desired task behavior, but on the learning paradigm employed.
+    </p>
+  </div>
+</section>
+
+<!-- Video Summary -->
+<section class="section alt-bg" id="video">
+  <div class="container">
+    <h2>Video Summary</h2>
+    <div class="video-wrap">
+      <iframe src="https://www.youtube.com/embed/4KR8p2wuoIg?si=2EivzI3xpkReHLbg" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+    </div>
+  </div>
+</section>
+
+<!-- Key Findings -->
+<section class="section" id="findings">
+  <div class="container">
+    <h2>Key Findings</h2>
+    <div class="findings-cards">
+      <div class="finding-card">
+        <span class="tag bc">Behavior Cloning</span>
+        <p>BC benefits from <b>compliant, overdamped</b> gain regimes. Swapping to the right gain setting can improve success rates by over 30% on the same task with the same data.</p>
+      </div>
+      <div class="finding-card">
+        <span class="tag rl">Reinforcement Learning</span>
+        <p>RL can succeed across <b>all gain regimes</b> given compatible hyperparameter tuning. The learning algorithm adapts to the dynamics imposed by different gains.</p>
+      </div>
+      <div class="finding-card">
+        <span class="tag s2r">Sim-to-Real Transfer</span>
+        <p>Sim-to-real transfer is <b>harmed by stiff, overdamped</b> configurations. Compliant gains reduce the sim-to-real gap and improve transfer success.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- BibTeX -->
+<section class="section alt-bg" id="citation">
+  <div class="container">
+    <h2>BibTeX</h2>
+    <div class="bibtex-block">
+      <button class="copy-btn" id="copy-btn">Copy</button>
+      <pre><code id="bibtex-code">@inproceedings{author2026method,
+  title     = {Your Paper Title Goes Here},
+  author    = {One, Author and Two, Author and Three, Author and Four, Author},
+  booktitle = {Conference on Robot Learning (CoRL)},
+  year      = {2026}
+}</code></pre>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<div class="cta-section">
+  <a href="index.html?full=1" class="cta-btn">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+    View Full Interactive Site
+  </a>
+  <p class="cta-hint">Includes 3D simulations, interactive charts, and live demos</p>
+</div>
+
+<!-- Footer -->
+<footer class="footer">
+  <p>&copy; 2026 ImprobableAI @MIT CSAIL. All rights reserved.</p>
+</footer>
+
+<!-- Minimal JS: BibTeX copy only -->
+<script>
+(function() {
+  var btn = document.getElementById('copy-btn');
+  var code = document.getElementById('bibtex-code');
+  if (!btn || !code) return;
+  btn.addEventListener('click', function() {
+    navigator.clipboard.writeText(code.textContent.trim()).then(function() {
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(function() {
+        btn.textContent = 'Copy';
+        btn.classList.remove('copied');
+      }, 2000);
+    });
+  });
+})();
+</script>
+
+</body>
+</html>

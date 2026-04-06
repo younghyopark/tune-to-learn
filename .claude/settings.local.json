@@ -12,7 +12,9 @@
       "Read(//Users/younghyo/src/tune-robots-to-learn.github.io/$dir/**)",
       "Bash(done)",
       "Bash(python script.py)",
-      "Bash(python script2.py)"
+      "Bash(python script2.py)",
+      "Bash(curl -s \"http://localhost:8000/static/assets/pd_response_widget.html\")",
+      "Bash(curl -s \"http://localhost:8000/static/css/style.css\")"
     ]
   }
 }

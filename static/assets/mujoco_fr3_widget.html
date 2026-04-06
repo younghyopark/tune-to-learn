@@ -328,6 +328,13 @@
   .tour-btn-next { background: #6c7bf0; color: #fff; }
   .tour-btn-next:hover { background: #8290ff; }
   .tour-btn-next:disabled { background: #b0b8f8; cursor: not-allowed; opacity: 0.6; }
+
+  /* Mobile overrides: less clutter, tighter grid panel */
+  @media (max-width: 640px) {
+    #gain-grid-panel { width: 130px; padding: 6px; }
+    #live-badge .live-hint { display: none; }
+    #help-btn { display: none; }
+  }
 </style>
 </head>
 <body>

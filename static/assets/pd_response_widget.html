@@ -124,6 +124,26 @@
   .pd-joint-select:focus {
     border-color: #4c72b0;
   }
+
+  /* Mobile: keep side-by-side, chart ~2/3, grid ~1/3, tight gap */
+  @media (max-width: 640px) {
+    .pd-main { min-height: 260px; height: 280px; }
+    .pd-chart-container { flex: 2; padding-right: 4px; }
+    .pd-grid-container {
+      flex: 1;
+      width: auto;
+      min-width: 0;
+      padding: 18px 4px 20px 0;
+    }
+    .pd-grid-wrap { width: 130px; height: 130px; }
+    .pd-grid-canvas { width: 130px; height: 130px; }
+    .pd-axis-label { font-size: 13px; }
+    .pd-axis-label-kp { bottom: -16px; }
+    .pd-axis-label-kd { top: -16px; }
+    .pd-bottom-bar { padding: 6px 10px 6px 10px; }
+    .pd-joint-label { font-size: 12px; }
+    .pd-joint-select { font-size: 12px; padding: 3px 6px; }
+  }
 </style>
 </head>
 <body>
@@ -152,7 +172,10 @@
   
   // ======== CONFIG ========
   const DATA_URL = 'sysid_data.json';
-  const CHART_PADDING = { top: 20, right: 20, bottom: 50, left: 70 };
+  const CHART_PADDING_DESKTOP = { top: 20, right: 20, bottom: 50, left: 70 };
+  const CHART_PADDING_MOBILE  = { top: 12, right: 10, bottom: 34, left: 42 };
+  const FONTS_DESKTOP = { tick: 20, axisTitle: 21, legend: 15 };
+  const FONTS_MOBILE  = { tick: 12, axisTitle: 13, legend: 10 };
   const LINE_COLORS = {
     target: '#8c8c8c',
     // Response color is interpolated from corner colors
@@ -397,7 +420,11 @@
     const ymax = cachedYmax;
     
     const tmax = (len - 1) / hz;
-    
+
+    const isMobile = w < 420;
+    const CHART_PADDING = isMobile ? CHART_PADDING_MOBILE : CHART_PADDING_DESKTOP;
+    const FONTS = isMobile ? FONTS_MOBILE : FONTS_DESKTOP;
+
     const plotX = CHART_PADDING.left;
     const plotY = CHART_PADDING.top;
     const plotW = w - CHART_PADDING.left - CHART_PADDING.right;
@@ -465,43 +492,45 @@
     
     // Labels
     chartCtx.fillStyle = '#333';
-    chartCtx.font = '20px -apple-system, BlinkMacSystemFont, sans-serif';
+    chartCtx.font = FONTS.tick + 'px -apple-system, BlinkMacSystemFont, sans-serif';
     chartCtx.textAlign = 'center';
-    
-    // X axis ticks
-    for (let i = 0; i <= nGridX; i++) {
+
+    // X axis ticks (skip every-other on mobile to avoid crowding)
+    const xTickStep = isMobile ? 2 : 1;
+    for (let i = 0; i <= nGridX; i += xTickStep) {
       const tv = (i / nGridX) * tmax;
       const x = mapX(tv);
-      chartCtx.fillText(tv.toFixed(1) + 's', x, plotY + plotH + 20);
+      chartCtx.fillText(tv.toFixed(1) + 's', x, plotY + plotH + FONTS.tick);
     }
-    
+
     // Y axis ticks
     chartCtx.textAlign = 'right';
-    for (let i = 0; i <= nGridY; i++) {
+    const yTickStep = isMobile ? 2 : 1;
+    for (let i = 0; i <= nGridY; i += yTickStep) {
       const v = ymin + (1 - i / nGridY) * (ymax - ymin);
       const y = plotY + (i / nGridY) * plotH;
-      chartCtx.fillText(v.toFixed(2), plotX - 8, y + 4);
+      chartCtx.fillText(v.toFixed(2), plotX - 6, y + FONTS.tick * 0.35);
     }
-    
+
     // Axis titles
-    chartCtx.font = '21px -apple-system, BlinkMacSystemFont, sans-serif';
+    chartCtx.font = FONTS.axisTitle + 'px -apple-system, BlinkMacSystemFont, sans-serif';
     chartCtx.textAlign = 'center';
-    chartCtx.fillText('Time (s)', plotX + plotW / 2, h - 5);
-    
+    chartCtx.fillText('Time (s)', plotX + plotW / 2, h - 4);
+
     chartCtx.save();
-    chartCtx.translate(15, plotY + plotH / 2);
+    chartCtx.translate(isMobile ? 10 : 15, plotY + plotH / 2);
     chartCtx.rotate(-Math.PI / 2);
     chartCtx.fillText('Joint Position (rad)', 0, 0);
     chartCtx.restore();
 
     // Legend (top-right corner)
-    const legFont = '15px -apple-system, BlinkMacSystemFont, sans-serif';
+    const legFont = FONTS.legend + 'px -apple-system, BlinkMacSystemFont, sans-serif';
     chartCtx.font = legFont;
-    const legLineW = 28;
-    const legGap = 8;
-    const legRowH = 22;
-    const legPadX = 12;
-    const legPadY = 10;
+    const legLineW = isMobile ? 18 : 28;
+    const legGap = isMobile ? 5 : 8;
+    const legRowH = isMobile ? 14 : 22;
+    const legPadX = isMobile ? 7 : 12;
+    const legPadY = isMobile ? 6 : 10;
     const desText = 'Desired';
     const achText = 'Achieved';
     const maxTextW = Math.max(chartCtx.measureText(desText).width, chartCtx.measureText(achText).width);

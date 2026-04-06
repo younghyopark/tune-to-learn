@@ -10,7 +10,27 @@
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
-    gtag('config', 'G-0FCZG3T4ZJ');
+    if (location.hostname === 'younghyopark.me') {
+      gtag('config', 'G-0FCZG3T4ZJ');
+    }
+  </script>
+
+  <!-- Mobile redirect (fires before CSS/fonts load) -->
+  <script>
+  (function() {
+    if (window.location.search.indexOf('full=1') !== -1) {
+      sessionStorage.setItem('prefer-full', '1');
+      return;
+    }
+    if (sessionStorage.getItem('prefer-full')) return;
+    var isMobile = (
+      ('ontouchstart' in window || navigator.maxTouchPoints > 0) &&
+      window.innerWidth <= 768
+    );
+    if (isMobile) {
+      window.location.replace('mobile.html');
+    }
+  })();
   </script>
 
   <!-- ===== EDIT: Page title & metadata ===== -->
@@ -24,6 +44,9 @@
   <meta property="og:image" content="https://younghyopark.me/tune-to-learn/static/images/og-preview.png" />
   <meta property="og:url" content="https://younghyopark.me/tune-to-learn/" />
   <meta property="og:type" content="website" />
+
+  <!-- Mobile alternate (SEO) -->
+  <link rel="alternate" media="only screen and (max-width: 768px)" href="mobile.html" />
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />

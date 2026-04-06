@@ -468,9 +468,10 @@ body {
   .figure-grid.cols-4 { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 480px) {
-  .figure-grid.cols-2,
   .figure-grid.cols-3,
   .figure-grid.cols-4 { grid-template-columns: 1fr; }
+  .figure-grid.cols-2 { gap: 0.5rem; }
+  .figure-grid.cols-2 figcaption { font-size: 0.75rem; }
 }
 
 /* Simulation scene tabs */
@@ -1901,9 +1902,76 @@ body {
   .hero { padding: 2rem 1rem 1.5rem; }
   .section { padding: 1.75rem 0; }
   .section h2 { font-size: 1.5rem; }
+  .section h3 { font-size: 1.1rem; }
   .link-buttons { gap: 0.4rem; }
   .btn { font-size: 0.8rem; padding: 0.45rem 0.9rem; }
   .author-list { font-size: 0.95rem; gap: 0.2rem 1rem; }
+
+  /* Justified text creates huge word-gaps on narrow screens */
+  .abstract-text,
+  .abstract-findings { text-align: left; }
+  .abstract-findings { margin-left: 1.1rem; padding-left: 0.25rem; }
+
+  /* Tighten section container gutters on phones */
+  .container { padding: 0 1rem; }
+
+  /* Display math (KaTeX) can overflow the viewport — allow horizontal scroll */
+  .katex-display {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0.25rem 0;
+    -webkit-overflow-scrolling: touch;
+  }
+  .katex-display > .katex { white-space: nowrap; }
+
+  /* YouTube / video summary iframe: use 16:9 instead of fixed height */
+  .video-collapse iframe {
+    height: auto !important;
+    aspect-ratio: 16 / 9;
+  }
+
+  /* Interactive widget iframes: trim heights on mobile.
+     Internal responsive CSS in each widget handles layout reflow. */
+  #mujoco-iframe { height: 440px !important; }
+  iframe[src*="pd_response_widget"],
+  iframe[data-src*="pd_response_widget"] { height: 340px !important; }
+
+  /* KaTeX's hidden MathML layer can leak a few px past the viewport on
+     narrow screens and cause horizontal page scroll — clip it at the root */
+  html, body { overflow-x: hidden; }
+
+  /* Replay video wrappers use inline width:80% — expand to full on mobile */
+  .replay-video-wrap .replay-video { width: 100% !important; }
+
+  /* MIT logo in affiliations can be a touch smaller */
+  .affiliations img { height: 34px !important; }
+
+  /* Library tabs: allow horizontal scroll, tighter padding */
+  .tab-nav {
+    justify-content: flex-start;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+  }
+  .tab-nav::-webkit-scrollbar { display: none; }
+  .tab-btn {
+    padding: 0.55rem 0.75rem;
+    font-size: 0.82rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .tab-badge { font-size: 0.55rem; padding: 0.1rem 0.35rem; }
+
+  /* Poll section: tighten for mobile */
+  .poll-box { padding: 0.5rem 0; }
+  .poll-onboarding { font-size: 0.85rem; margin-bottom: 0.35rem; }
+  .poll-subtitle { font-size: 0.8rem; margin-top: 0.75rem; }
+  h2.poll-question { font-size: 1.2rem; line-height: 1.3; margin-bottom: 0.9rem; }
+  .poll-options { gap: 0.5rem; }
+  .poll-card { padding: 0.6rem 0.85rem; }
+  .poll-card-title { font-size: 0.95rem; margin-bottom: 0.2rem; }
+  .poll-card-desc { font-size: 0.8rem; line-height: 1.4; }
 }
 
 /* ── Print ─────────────────────────────────────────────────── */
