@@ -187,7 +187,7 @@ const defaultCamTarget = isManipulation ? [0.3, 0, 0.2] : [0, 0, 0.5];
 
 const viewer = new MuJoCoViewer(document.getElementById('container'), {
   sceneXML: scenePath,
-  wasmURL: params.get('wasm') || 'dist/mujoco_wasm.js',
+  wasmURL: params.get('wasm') || '../../../dist/mujoco_wasm.js',
   background: bgColor,
   cameraPos: defaultCamPos,
   cameraTarget: defaultCamTarget,

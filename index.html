@@ -152,6 +152,15 @@ Position controllers have become the dominant interface for executing learned ma
 </section>
 
 <!-- ╔══════════════════════════════════════════════════════════════╗
+     ║  ANIMATED GAIN REGIME SCHEMATIC                              ║
+     ╚══════════════════════════════════════════════════════════════╝ -->
+<section class="section" id="gain-schematic" style="padding-top: 0;">
+  <div class="container container-narrow">
+    <iframe src="static/assets/gain_schematic_anim.html" width="100%" height="400" frameborder="0" style="border: none; display: block;"></iframe>
+  </div>
+</section>
+
+<!-- ╔══════════════════════════════════════════════════════════════╗
      ║  VIDEO — Embedded YouTube / MP4                              ║
      ╚══════════════════════════════════════════════════════════════╝ -->
 <section class="section" id="video">
@@ -472,6 +481,57 @@ Position controllers have become the dominant interface for executing learned ma
 </script>
 
 
+
+<!-- Floating comment button + panel (Giscus) -->
+<button class="comment-fab" aria-label="Open comments">
+  <i class="fa-regular fa-comment-dots"></i><span class="comment-fab-label">Q&A</span>
+</button>
+
+<div class="comment-panel">
+  <div class="comment-panel-header">
+    Questions &amp; Comments
+    <button class="comment-panel-close" aria-label="Close comments"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <div class="comment-panel-body" id="giscus-container"></div>
+</div>
+
+<script>
+(function() {
+  var fab = document.querySelector('.comment-fab');
+  var panel = document.querySelector('.comment-panel');
+  var closeBtn = document.querySelector('.comment-panel-close');
+  var container = document.getElementById('giscus-container');
+  var loaded = false;
+
+  function toggle() {
+    var open = panel.classList.toggle('open');
+    var toc = document.getElementById('dynamic-toc');
+    if (toc) toc.style.display = open ? 'none' : '';
+    if (open && !loaded) {
+      loaded = true;
+      var s = document.createElement('script');
+      s.src = 'https://giscus.app/client.js';
+      s.setAttribute('data-repo', 'younghyopark/tune-to-learn');
+      s.setAttribute('data-repo-id', 'R_kgDORU5LrQ');
+      s.setAttribute('data-category', 'Q&A');
+      s.setAttribute('data-category-id', 'DIC_kwDORU5Lrc4C6V9m');
+      s.setAttribute('data-mapping', 'pathname');
+      s.setAttribute('data-strict', '0');
+      s.setAttribute('data-reactions-enabled', '1');
+      s.setAttribute('data-emit-metadata', '0');
+      s.setAttribute('data-input-position', 'top');
+      s.setAttribute('data-theme', 'light');
+      s.setAttribute('data-lang', 'en');
+      s.crossOrigin = 'anonymous';
+      s.async = true;
+      container.appendChild(s);
+    }
+  }
+
+  fab.addEventListener('click', toggle);
+  closeBtn.addEventListener('click', toggle);
+})();
+</script>
 
 </body>
 </html>
