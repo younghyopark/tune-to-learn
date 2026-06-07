@@ -205,6 +205,57 @@
       border: 1px solid #e0e0e0;
       text-decoration: none;
     }
+    .venue-line {
+      margin-top: 0.75rem;
+      color: #666;
+      font-size: 0.92rem;
+      font-weight: 500;
+      line-height: 1.45;
+    }
+    .venue-line > span {
+      display: block;
+    }
+    .venue-detail {
+      position: relative;
+      display: inline-block;
+      max-width: 100%;
+      outline: none;
+      cursor: help;
+    }
+    .venue-detail strong {
+      color: inherit;
+      font-weight: 600;
+    }
+    .venue-tooltip {
+      position: absolute;
+      left: 50%;
+      bottom: calc(100% + 0.55rem);
+      z-index: 20;
+      display: grid;
+      gap: 0.3rem;
+      width: max-content;
+      max-width: calc(100vw - 2rem);
+      padding: 0.6rem 0.7rem;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      background: #fff;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+      color: #1a1a1a;
+      font-size: 0.78rem;
+      line-height: 1.4;
+      text-align: left;
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, 0.25rem);
+      transition: opacity 0.15s ease, transform 0.15s ease;
+    }
+    .venue-detail:hover .venue-tooltip,
+    .venue-detail:focus .venue-tooltip,
+    .venue-detail:focus-within .venue-tooltip {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translate(-50%, 0);
+    }
 
     /* ── Section ── */
     .section {
@@ -420,9 +471,6 @@
 <!-- Hero -->
 <header class="hero">
   <div class="container">
-    <div class="venue-badge" style="margin-bottom: 0.75rem;">
-      <span class="badge" style="display:inline-block; background:transparent; color:#1a1a1a; font-size:0.7rem; font-weight:500; padding:0.25em 0.85em; border-radius:999px; letter-spacing:0.04em; text-transform:uppercase; border:1px solid #d0d0d0;">RSS 2026</span>
-    </div>
     <h1 class="paper-title">
       Tune to Learn:<br/>
       <span class="subtitle">How Controller Gains Affect<br/>Robot Policy Learning</span>
@@ -455,6 +503,19 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
         Video
       </a>
+    </div>
+    <div class="venue-line">
+      <span>RSS 2026</span>
+      <span>
+        🏆 <strong>Best Paper Awards and Selected Oral Talks</strong> at
+        <span class="venue-detail" tabindex="0">ICRA 2026 Workshops
+          <span class="venue-tooltip" role="tooltip">
+            <span><strong>Best Paper Awards:</strong> Beyond Teleop Workshop; Manipulation Robustness Workshop</span>
+            <span><strong>Selected Oral Talks:</strong> CR2 Contact-Rich Robotics Workshop</span>
+          </span>
+        </span>
+        🏆
+      </span>
     </div>
   </div>
 </header>

@@ -177,28 +177,6 @@ pre code { background: none; padding: 0; border: none; }
   border-bottom: 1px solid var(--border);
 }
 
-.venue-badge {
-  margin-bottom: 0.75rem;
-}
-.badge {
-  display: inline-block;
-  background: transparent;
-  color: var(--text);
-  font-size: 0.75rem;
-  font-weight: 500;
-  padding: 0.25em 0.85em;
-  border-radius: 999px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  margin: 0 0.25rem;
-  border: 1px solid var(--border);
-}
-.badge.accent {
-  background: transparent;
-  color: var(--text);
-  border-color: var(--text);
-}
-
 .paper-title {
   font-size: clamp(1.5rem, 3.5vw, 2.3rem);
   font-weight: 700;
@@ -275,6 +253,57 @@ pre code { background: none; padding: 0; border: none; }
   border-color: var(--text);
   text-decoration: none;
   color: var(--text);
+}
+
+.venue-line {
+  margin-top: 0.85rem;
+  color: var(--text-muted);
+  font-size: 1.05rem;
+  font-weight: 500;
+  line-height: 1.45;
+}
+.venue-line > span {
+  display: block;
+}
+.venue-detail {
+  position: relative;
+  display: inline-block;
+  outline: none;
+  cursor: help;
+}
+.venue-detail strong {
+  color: inherit;
+  font-weight: 600;
+}
+.venue-tooltip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 0.55rem);
+  z-index: 20;
+  display: grid;
+  gap: 0.35rem;
+  width: max-content;
+  max-width: min(520px, calc(100vw - 2rem));
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  color: var(--text);
+  font-size: 0.86rem;
+  line-height: 1.4;
+  text-align: left;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 0.25rem);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.venue-detail:hover .venue-tooltip,
+.venue-detail:focus .venue-tooltip,
+.venue-detail:focus-within .venue-tooltip {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, 0);
 }
 
 /* ── Teaser ────────────────────────────────────────────────── */
